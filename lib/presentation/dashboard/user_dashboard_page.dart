@@ -1197,7 +1197,14 @@ class _DocumentsTab extends StatelessWidget {
   final UserService userService;
   final String filter;
   final ValueChanged<String> onChangeFilter;
-  const _DocumentsTab({required this.uid, required this.docs, required this.userService, required this.filter, required this.onChangeFilter});
+
+  const _DocumentsTab({
+    required this.uid,
+    required this.docs,
+    required this.userService,
+    required this.filter,
+    required this.onChangeFilter,
+  });
 
   static const _filters = ['Tous', 'CIN', 'Passeport', 'Permis', 'Diplôme', 'PreuveAdresse', 'Autre'];
 
@@ -1469,8 +1476,13 @@ class _ExperienceSkillsTab extends StatelessWidget {
 class _FormationsTab extends StatelessWidget {
   final String uid;
   final AppUser user;
-  final _userService = UserService(Supabase.instance.client);
-  const _FormationsTab({required this.uid, required this.user, required this.userService});
+  final UserService userService;
+
+  const _FormationsTab({
+    required this.uid,
+    required this.user,
+    required this.userService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1691,9 +1703,14 @@ class _DigitalCvPdf {
 
 class _PaymentsTab extends StatelessWidget {
   final String uid;
-  final _userService = UserService(Supabase.instance.client);
+  final UserService userService;
   final AppUser user;
-  const _PaymentsTab({required this.uid, required this.userService, required this.user});
+
+  const _PaymentsTab({
+    required this.uid,
+    required this.userService,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1806,8 +1823,13 @@ class _ReceiptPdf {
 class _SecurityTab extends StatelessWidget {
   final String uid;
   final AppUser user;
-  final _userService = UserService(Supabase.instance.client);
-  const _SecurityTab({required this.uid, required this.user, required this.userService});
+  final UserService userService;
+
+  const _SecurityTab({
+    required this.uid,
+    required this.user,
+    required this.userService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1896,7 +1918,6 @@ class _SecurityTab extends StatelessWidget {
     );
   }
 }
-
 class _SecurityToggleRow extends StatelessWidget {
   final IconData icon;
   final String title;
