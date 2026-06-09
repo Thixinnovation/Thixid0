@@ -3,6 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:thix_id/auth/auth_controller.dart';
+import 'package:thix_id/services/health_service.dart';
+import 'widgets/health_header.dart';
+import 'widgets/health_stats_grid.dart';
+import 'widgets/health_service_card.dart';
+import 'widgets/health_quick_action.dart';
+import 'widgets/health_insurance_card.dart';
+import 'widgets/health_article_card.dart';
 
 class ThixSanteHome extends StatefulWidget {
   const ThixSanteHome({super.key});
@@ -12,7 +19,8 @@ class ThixSanteHome extends StatefulWidget {
 }
 
 class _ThixSanteHomeState extends State<ThixSanteHome> {
-  Map<String, dynamic>? _stats;
+  late HealthService _healthService;
+  Map<String, dynamic> _stats = {};
   List<Map<String, dynamic>> _services = [];
   List<Map<String, dynamic>> _articles = [];
   bool _loading = true;
@@ -20,47 +28,37 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
   @override
   void initState() {
     super.initState();
+    _healthService = HealthService();
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
-
-      // Charger les statistiques
-      final stats = await supabase
-          .from('health_stats')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      // Charger les services
-      final services = await supabase
-          .from('health_services')
-          .select()
-          .eq('is_active', true)
-          .order('order_index');
-
-      // Charger les articles
-      final articles = await supabase
-          .from('health_articles')
-          .select()
-          .eq('is_published', true)
-          .order('created_at', ascending: false)
-          .limit(5);
+      final stats = await _healthService.getStats();
+      final services = await _getServices();
+      final articles = await _healthService.getArticles(limit: 5);
 
       setState(() {
-        _stats = stats as Map<String, dynamic>?;
-        _services = (services as List).cast<Map<String, dynamic>>();
-        _articles = (articles as List).cast<Map<String, dynamic>>();
+        _stats = stats;
+        _services = services;
+        _articles = articles.map((a) => a.toJson()).toList();
       });
     } catch (e) {
       debugPrint('Error loading health data: $e');
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _getServices() async {
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('health_services')
+        .select()
+        .eq('is_active', true)
+        .order('order_index');
+    return (response as List).cast<Map<String, dynamic>>();
   }
 
   @override
@@ -86,87 +84,94 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(userName),
+                  HealthHeader(
+                    userName: userName,
+                    onNotificationTap: () {},
+                    onSettingsTap: () {},
+                  ),
                   const SizedBox(height: 20),
-                  _buildStatsGrid(),
+                  HealthStatsGrid(
+                    consultationsCount: _stats['consultations_count'] ?? 0,
+                    examensCount: _stats['examens_count'] ?? 0,
+                    ordonnancesCount: _stats['ordonnances_count'] ?? 0,
+                    urgencesCount: _stats['urgences_count'] ?? 0,
+                    onConsultationsTap: () => context.push('/sante/consultations'),
+                    onExamensTap: () => context.push('/sante/examens'),
+                    onOrdonnancesTap: () => context.push('/sante/ordonnances'),
+                    onUrgencesTap: () => context.push('/sante/urgences'),
+                  ),
                   const SizedBox(height: 24),
                   _buildSectionTitle('SERVICES SANTÉ', 'Voir tout'),
                   const SizedBox(height: 12),
-                  _buildServicesGrid(),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      childAspectRatio: 0.9,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: _services.length,
+                    itemBuilder: (context, index) {
+                      final service = _services[index];
+                      return HealthServiceCard(
+                        icon: service['icon'] as String? ?? '🏥',
+                        title: service['name'],
+                        onTap: service['route'] != null ? () => context.push(service['route']) : null,
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
                   _buildSectionTitle('SERVICES RAPIDES', null),
                   const SizedBox(height: 12),
-                  _buildQuickActions(),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.5,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: 4,
+                    itemBuilder: (context, index) {
+                      final actions = [
+                        ('👨‍⚕️', 'Consulter un médecin', '/sante/consultation'),
+                        ('📁', 'Dossier médical', '/sante/dossier'),
+                        ('🔬', 'Résultats d\'examens', '/sante/resultats'),
+                        ('📄', 'Mes ordonnances', '/sante/ordonnances'),
+                      ];
+                      return HealthQuickAction(
+                        icon: actions[index].$1,
+                        title: actions[index].$2,
+                        onTap: () => context.push(actions[index].$3),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
-                  _buildInsuranceCard(),
+                  HealthInsuranceCard(
+                    planName: _stats['insurance_plan'] ?? 'Essentiel',
+                    expiryDate: _stats['insurance_expiry'] ?? '31/12/2024',
+                    hasInsurance: _stats['has_insurance'] ?? false,
+                    onTap: () => context.push('/sante/assurance'),
+                  ),
                   const SizedBox(height: 24),
                   _buildSectionTitle('POUR VOUS', 'Voir tous'),
                   const SizedBox(height: 12),
-                  _buildArticlesList(),
+                  ..._articles.map((article) => HealthArticleCard(
+                    id: article['id'],
+                    title: article['title'],
+                    imageUrl: article['image_url'] ?? '',
+                    readTime: article['read_time'] ?? 3,
+                    onTap: () => context.push('/sante/article/${article['id']}'),
+                  )),
                   const SizedBox(height: 24),
                   _buildEmergencyButton(),
                   const SizedBox(height: 80),
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildHeader(String userName) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF0B1B3D), Color(0xFF1A2D56)]),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Bonjour, $userName 👋', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('Votre santé entre de bonnes mains', style: TextStyle(color: Colors.white70)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
-            child: const Text('Dossier de santé', style: TextStyle(color: Colors.white, fontSize: 12)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    return Row(
-      children: [
-        _buildStatCard('Consultations', '${_stats?['consultations_count'] ?? 0}', 'Cette année', () => context.push('/sante/consultations')),
-        const SizedBox(width: 12),
-        _buildStatCard('Examens', '${_stats?['examens_count'] ?? 0}', 'En attente', () => context.push('/sante/examens')),
-        const SizedBox(width: 12),
-        _buildStatCard('Ordonnances', '${_stats?['ordonnances_count'] ?? 0}', 'Actives', () => context.push('/sante/ordonnances')),
-        const SizedBox(width: 12),
-        _buildStatCard('Urgences', '${_stats?['urgences_count'] ?? 0}', 'Appels', () => context.push('/sante/urgences')),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, String subtitle, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            children: [
-              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D))),
-              const SizedBox(height: 4),
-              Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -181,145 +186,6 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
             child: Text(seeAll, style: const TextStyle(fontSize: 12, color: Color(0xFFD4AF37))),
           ),
       ],
-    );
-  }
-
-  Widget _buildServicesGrid() {
-    if (_services.isEmpty) {
-      return const Center(child: Text('Aucun service disponible'));
-    }
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.9, crossAxisSpacing: 8, mainAxisSpacing: 8),
-      itemCount: _services.length,
-      itemBuilder: (context, index) {
-        final service = _services[index];
-        return _buildServiceCard(service['icon'] as String? ?? '🏥', service['name'], service['route'] as String?);
-      },
-    );
-  }
-
-  Widget _buildServiceCard(String icon, String name, String? route) {
-    return GestureDetector(
-      onTap: route != null ? () => context.push(route) : null,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    final actions = [
-      ('👨‍⚕️', 'Consulter un médecin', '/sante/consultation'),
-      ('📁', 'Dossier médical', '/sante/dossier'),
-      ('🔬', 'Résultats d\'examens', '/sante/resultats'),
-      ('📄', 'Mes ordonnances', '/sante/ordonnances'),
-    ];
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.5, crossAxisSpacing: 12, mainAxisSpacing: 12),
-      itemCount: actions.length,
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        return GestureDetector(
-          onTap: () => context.push(action.$3),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-            child: Row(
-              children: [
-                Text(action.$1, style: const TextStyle(fontSize: 28)),
-                const SizedBox(width: 12),
-                Expanded(child: Text(action.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInsuranceCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5B13A)]),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.shield, size: 40, color: Color(0xFF0B1B3D)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Assurance santé', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D))),
-                const Text('Bénéficiez d\'une couverture complète', style: TextStyle(fontSize: 12, color: Color(0xFF0B1B3D))),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => context.push('/sante/assurance'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B1B3D)),
-                  child: const Text('Découvrir'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArticlesList() {
-    if (_articles.isEmpty) {
-      return const Center(child: Text('Aucun article disponible'));
-    }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _articles.length,
-      itemBuilder: (context, index) {
-        final article = _articles[index];
-        return GestureDetector(
-          onTap: () => context.push('/sante/article/${article['id']}'),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-            child: Row(
-              children: [
-                Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.article, color: Colors.grey),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(article['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text('${article['read_time'] ?? 3} min de lecture', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
