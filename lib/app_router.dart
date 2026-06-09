@@ -182,52 +182,52 @@ class AppRouter {
         // ==================== PAGE D'ACCUEIL ====================
         GoRoute(
           path: AppRoutes.home,
-          pageBuilder: (context, state) => const NoTransitionPage(child: HomePagePremium()),
+          pageBuilder: (context, state) => NoTransitionPage(child: HomePagePremium()),
         ),
 
         // ==================== AUTHENTIFICATION ====================
         GoRoute(
           path: AppRoutes.login,
-          pageBuilder: (context, state) => const NoTransitionPage(child: LoginPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: LoginPage()),
         ),
         GoRoute(
           path: AppRoutes.personalReg,
-          pageBuilder: (context, state) => const NoTransitionPage(child: PersonalRegistrationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: PersonalRegistrationPage()),
         ),
         GoRoute(
           path: AppRoutes.enterpriseReg,
-          pageBuilder: (context, state) => const NoTransitionPage(child: EnterpriseRegistrationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: EnterpriseRegistrationPage()),
         ),
 
         // ==================== TABLEAUX DE BORD ====================
         GoRoute(
           path: AppRoutes.userDashboard,
-          pageBuilder: (context, state) => const NoTransitionPage(child: UserDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: UserDashboardPage()),
         ),
         GoRoute(
           path: AppRoutes.enterpriseDashboard,
-          pageBuilder: (context, state) => const NoTransitionPage(child: EnterpriseDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: EnterpriseDashboardPage()),
         ),
 
         // ==================== SERVICES GÉNÉRAUX ====================
         GoRoute(
           path: AppRoutes.chat,
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixChatPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixChatPage()),
         ),
         GoRoute(
           path: AppRoutes.vault,
-          pageBuilder: (context, state) => const NoTransitionPage(child: DocumentVaultPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: DocumentVaultPage()),
         ),
         GoRoute(
           path: AppRoutes.settings,
-          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: SettingsPage()),
         ),
 
         // ==================== RÉSEAU PRO ====================
         GoRoute(
           path: AppRoutes.networkPro,
           name: 'network-pro',
-          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkProHome()),
+          pageBuilder: (context, state) => NoTransitionPage(child: NetworkProHome()),
         ),
         GoRoute(
           path: AppRoutes.networkProfile,
@@ -248,7 +248,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkSearch,
           name: 'network-search',
-          pageBuilder: (context, state) => const NoTransitionPage(child: SearchNetworkPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: SearchNetworkPage()),
         ),
         GoRoute(
           path: AppRoutes.networkCommunity,
@@ -261,22 +261,22 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkSettings,
           name: 'network-settings',
-          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsNetworkPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: SettingsNetworkPage()),
         ),
         GoRoute(
           path: AppRoutes.networkBlocked,
           name: 'network-blocked',
-          pageBuilder: (context, state) => const NoTransitionPage(child: BlockedUsersPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: BlockedUsersPage()),
         ),
         GoRoute(
           path: AppRoutes.networkGroups,
           name: 'network-groups',
-          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkGroupsList()),
+          pageBuilder: (context, state) => NoTransitionPage(child: NetworkGroupsList()),
         ),
         GoRoute(
           path: AppRoutes.networkMessages,
           name: 'network-messages',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ConversationsList()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ConversationsList()),
         ),
         GoRoute(
           path: AppRoutes.networkChat,
@@ -290,39 +290,39 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkNotifications,
           name: 'network-notifications',
-          pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: NotificationsPage()),
         ),
 
         // ==================== THIX SANTÉ ====================
         GoRoute(
           path: AppRoutes.thixSante,
           name: 'thixSante',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixSanteHome()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixSanteHome()),
         ),
         GoRoute(
           path: AppRoutes.santeConsultations,
           name: 'santeConsultations',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ConsultationsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ConsultationsPage()),
         ),
         GoRoute(
           path: AppRoutes.santeExamens,
           name: 'santeExamens',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ExamensPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ExamensPage()),
         ),
         GoRoute(
           path: AppRoutes.santeOrdonnances,
           name: 'santeOrdonnances',
-          pageBuilder: (context, state) => const NoTransitionPage(child: OrdonnancesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: OrdonnancesPage()),
         ),
         GoRoute(
           path: AppRoutes.santeDossier,
           name: 'santeDossier',
-          pageBuilder: (context, state) => const NoTransitionPage(child: DossierMedicalPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: DossierMedicalPage()),
         ),
         GoRoute(
           path: AppRoutes.santeConsultationMedecin,
           name: 'santeConsultationMedecin',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ConsultationMedecinPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ConsultationMedecinPage()),
         ),
         GoRoute(
           path: AppRoutes.santeTeleconsultation,
@@ -341,37 +341,37 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.santeResultats,
           name: 'santeResultats',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ResultatExamenPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ResultatExamenPage()),
         ),
         GoRoute(
           path: AppRoutes.santeVaccination,
           name: 'santeVaccination',
-          pageBuilder: (context, state) => const NoTransitionPage(child: CarnetVaccinationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: CarnetVaccinationPage()),
         ),
         GoRoute(
           path: AppRoutes.santeGrossesse,
           name: 'santeGrossesse',
-          pageBuilder: (context, state) => const NoTransitionPage(child: SuiviGrossessePage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: SuiviGrossessePage()),
         ),
         GoRoute(
           path: AppRoutes.santeAssurance,
           name: 'santeAssurance',
-          pageBuilder: (context, state) => const NoTransitionPage(child: AssuranceSantePage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: AssuranceSantePage()),
         ),
         GoRoute(
           path: AppRoutes.santeHopitaux,
           name: 'santeHopitaux',
-          pageBuilder: (context, state) => const NoTransitionPage(child: HopitauxProchesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: HopitauxProchesPage()),
         ),
         GoRoute(
           path: AppRoutes.santePharmacies,
           name: 'santePharmacies',
-          pageBuilder: (context, state) => const NoTransitionPage(child: PharmaciesProchesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: PharmaciesProchesPage()),
         ),
         GoRoute(
           path: AppRoutes.santeUrgences,
           name: 'santeUrgences',
-          pageBuilder: (context, state) => const NoTransitionPage(child: UrgencesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: UrgencesPage()),
         ),
         GoRoute(
           path: AppRoutes.santeArticle,
@@ -384,13 +384,13 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.santeRechercheMedicament,
           name: 'santeRechercheMedicament',
-          pageBuilder: (context, state) => const NoTransitionPage(child: RechercheMedicamentPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: RechercheMedicamentPage()),
         ),
 
         // ==================== JOB ROUTES ====================
         GoRoute(
           path: AppRoutes.jobs,
-          pageBuilder: (context, state) => const NoTransitionPage(child: JobsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: JobsPage()),
         ),
         GoRoute(
           path: '/jobs/:jobId',
@@ -409,17 +409,17 @@ class AppRouter {
         ),
         GoRoute(
           path: '/job-dashboard',
-          pageBuilder: (context, state) => const NoTransitionPage(child: JobDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: JobDashboardPage()),
         ),
         GoRoute(
           path: '/recruiter',
-          pageBuilder: (context, state) => const NoTransitionPage(child: RecruiterPortalPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: RecruiterPortalPage()),
         ),
 
         // ==================== OPPORTUNITIES ROUTES ====================
         GoRoute(
           path: AppRoutes.opportunities,
-          pageBuilder: (context, state) => const NoTransitionPage(child: OpportunitiesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: OpportunitiesPage()),
         ),
         GoRoute(
           path: '/opportunities/:opportunityId',
@@ -440,7 +440,7 @@ class AppRouter {
         // ==================== EVENTS ROUTES ====================
         GoRoute(
           path: AppRoutes.events,
-          pageBuilder: (context, state) => const NoTransitionPage(child: EventsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: EventsPage()),
         ),
         GoRoute(
           path: '/events/:eventId',
@@ -467,13 +467,13 @@ class AppRouter {
         ),
         GoRoute(
           path: '/events/me',
-          pageBuilder: (context, state) => const NoTransitionPage(child: UserEventDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: UserEventDashboardPage()),
         ),
 
         // ==================== TRAINING ROUTES ====================
         GoRoute(
           path: AppRoutes.trainingHome,
-          pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: TrainingHomePage()),
         ),
         GoRoute(
           path: '/training/:trainingId',
@@ -484,7 +484,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/learning-dashboard',
-          pageBuilder: (context, state) => const NoTransitionPage(child: LearningDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: LearningDashboardPage()),
         ),
         GoRoute(
           path: '/lesson/:enrollmentId',
@@ -497,43 +497,43 @@ class AppRouter {
         // ==================== EDUCATION ROUTE ====================
         GoRoute(
           path: AppRoutes.education,
-          pageBuilder: (context, state) => const NoTransitionPage(child: EducationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: EducationPage()),
         ),
 
         // ==================== THIX MARKET ROUTES ====================
         GoRoute(
           path: AppRoutes.market,
           name: 'market',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMarketPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixMarketPage()),
         ),
         GoRoute(
           path: AppRoutes.marketCart,
           name: 'marketCart',
-          pageBuilder: (context, state) => const NoTransitionPage(child: CartPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: CartPage()),
         ),
         GoRoute(
           path: AppRoutes.marketCheckout,
           name: 'marketCheckout',
-          pageBuilder: (context, state) => const NoTransitionPage(child: CheckoutPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: CheckoutPage()),
         ),
         GoRoute(
           path: AppRoutes.marketOrders,
           name: 'marketOrders',
-          pageBuilder: (context, state) => const NoTransitionPage(child: OrderHistoryPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: OrderHistoryPage()),
         ),
 
         // ==================== THIX SERVICES ROUTES ====================
         GoRoute(
           path: '/reservation',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixReservationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixReservationPage()),
         ),
         GoRoute(
           path: '/thix-money',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMoneyPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixMoneyPage()),
         ),
         GoRoute(
           path: '/thix-media',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMediaPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: ThixMediaPage()),
         ),
 
         // ==================== ADMIN ROUTES ====================
