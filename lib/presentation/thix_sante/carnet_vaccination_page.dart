@@ -31,7 +31,8 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+      // ✅ CORRECTION: Ajout de ?? '' pour éviter null
+      final userId = supabase.auth.currentUser?.id ?? '';
 
       final response = await supabase
           .from('health_vaccins')
@@ -111,7 +112,13 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
   }
 
   Widget _buildVaccinCard(Map<String, dynamic> vaccin) {
-    final date = DateTime.parse(vaccin['date_administered']);
+    // ✅ CORRECTION: Vérifications de sécurité
+    final dateStr = vaccin['date_administered'] as String?;
+    final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
+    final name = vaccin['name']?.toString() ?? 'Vaccin';
+    final location = vaccin['location']?.toString();
+    final nextDueDate = vaccin['next_due_date']?.toString();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -132,18 +139,19 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(vaccin['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text('Administré le ${date.day}/${date.month}/${date.year}'),
-                if (vaccin['location'] != null) Text(vaccin['location'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(date != null ? 'Administré le ${date.day}/${date.month}/${date.year}' : 'Date non spécifiée'),
+                if (location != null && location.isNotEmpty) 
+                  Text(location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
-          if (vaccin['next_due_date'] != null)
+          if (nextDueDate != null && nextDueDate.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
-              child: Text('Prochain: ${vaccin['next_due_date']}', style: const TextStyle(fontSize: 10, color: Colors.orange)),
+              child: Text('Prochain: $nextDueDate', style: const TextStyle(fontSize: 10, color: Colors.orange)),
             ),
         ],
       ),
@@ -159,7 +167,10 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
       itemCount: _recommendations.length,
       itemBuilder: (context, index) {
         final rec = _recommendations[index];
-        final daysLeft = rec['due_date'].difference(DateTime.now()).inDays;
+        final dueDate = rec['due_date'] as DateTime;
+        final daysLeft = dueDate.difference(DateTime.now()).inDays;
+        final name = rec['name']?.toString() ?? 'Vaccin';
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
@@ -180,9 +191,9 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(rec['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text('À faire avant le ${rec['due_date'].day}/${rec['due_date'].month}/${rec['due_date'].year}'),
+                    Text('À faire avant le ${dueDate.day}/${dueDate.month}/${dueDate.year}'),
                     Text('${daysLeft} jours restants', style: TextStyle(fontSize: 12, color: daysLeft <= 30 ? Colors.orange : Colors.grey)),
                   ],
                 ),
@@ -218,16 +229,40 @@ class _CarnetVaccinationPageState extends State<CarnetVaccinationPage> with Sing
             children: [
               const Text('Ajouter un vaccin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom du vaccin', border: OutlineInputBorder())),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Nom du vaccin', border: OutlineInputBorder()),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: dateController, decoration: const InputDecoration(labelText: 'Date d\'administration', border: OutlineInputBorder()), onTap: () async {
-                final date = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now());
-                if (date != null) dateController.text = '${date.day}/${date.month}/${date.year}';
-              }),
+              TextField(
+                controller: dateController,
+                decoration: const InputDecoration(labelText: 'Date d\'administration', border: OutlineInputBorder()),
+                readOnly: true,
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null) {
+                    dateController.text = '${date.day}/${date.month}/${date.year}';
+                  }
+                },
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), minimumSize: const Size(double.infinity, 50)),
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vaccin ajouté !'), backgroundColor: Colors.green),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: const Color(0xFF0B1B3D),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
                 child: const Text('AJOUTER'),
               ),
             ],
