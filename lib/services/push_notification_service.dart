@@ -122,7 +122,7 @@ class PushNotificationService {
     const iosInit = DarwinInitializationSettings();
     const init = InitializationSettings(android: androidInit, iOS: iosInit);
     
-    // ✅ Correction: un seul argument (init)
+    // ✅ Correction: initialize ne prend qu'un seul argument
     await _localNotifications.initialize(init);
 
     const channel = AndroidNotificationChannel(
