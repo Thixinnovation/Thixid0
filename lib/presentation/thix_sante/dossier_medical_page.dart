@@ -32,7 +32,7 @@ class _DossierMedicalPageState extends State<DossierMedicalPage> with SingleTick
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id ?? '';
 
       final profile = await supabase
           .from('profiles')
