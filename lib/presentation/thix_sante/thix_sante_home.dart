@@ -85,7 +85,7 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   HealthHeader(
-                    userName: userName,
+                    
                     onNotificationTap: () {},
                     onSettingsTap: () {},
                   ),
