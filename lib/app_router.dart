@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
+import 'package:thix_id/models/app_user.dart';
 
 // Pages
 import 'presentation/home/home_page.dart';
@@ -58,7 +59,6 @@ import 'presentation/thix_sante/thix_sante_page.dart';
 import 'presentation/thix_reservation/thix_reservation_page.dart';
 import 'presentation/thix_money/thix_money_page.dart';
 import 'presentation/thix_media/thix_media_page.dart';
-import 'package:thix_id/models/app_user.dart';  // ← AJOUTER CETTE LIGNE
 
 // Modèles
 import 'models/event_item.dart';
@@ -313,13 +313,11 @@ class AppRouter {
           },
         ),
         GoRoute(
-  path: '/events/:eventId/register',
-  name: 'eventRegister',
-  pageBuilder: (context, state) {
-    final eventId = state.pathParameters['eventId'] ?? '';
-    return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
-  },
-),
+          path: '/events/:eventId/register',
+          name: 'eventRegister',
+          pageBuilder: (context, state) {
+            final eventId = state.pathParameters['eventId'] ?? '';
+            return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
           },
         ),
         GoRoute(
@@ -327,9 +325,7 @@ class AppRouter {
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
             final registrationId = state.pathParameters['registrationId'] ?? '';
-            return NoTransitionPage(
-              child: EventTicketPage(eventId: eventId, registrationId: registrationId),
-            );
+            return NoTransitionPage(child: EventTicketPage(eventId: eventId, registrationId: registrationId));
           },
         ),
         GoRoute(
