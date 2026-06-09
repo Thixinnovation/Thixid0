@@ -283,9 +283,19 @@ class _NetworkProHomeState extends State<NetworkProHome> {
             children: [
               ProfileHeaderCard(
                 onEditPressed: _showEditProfileDialog,
+                onPhotoPressed: () => _showCreatePostDialog(),
+                onVideoPressed: () => _showCreatePostDialog(),
+                onDocumentPressed: () => _showCreatePostDialog(),
+                onEventPressed: () => context.push('/events/create'),
+                onJobPressed: () => context.push('/jobs/create'),
               ),
               const SizedBox(height: 16),
-              const StatsRow(),
+              StatsRow(
+                onConnexionsTap: () => context.push('/network/connections'),
+                onPublicationsTap: () => context.push('/network/my-posts'),
+                onCommunitiesTap: () => context.push('/network/groups'),
+                onMessagesTap: () => context.push('/network/messages'),
+              ),
               const SizedBox(height: 20),
               const StoriesList(),
               const SizedBox(height: 20),
@@ -322,6 +332,9 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                     onTap: () {
                       context.push('/network/post/${post.id}');
                     },
+                    onShare: () {
+                      // Partager la publication
+                    },
                   ),
                 )),
               const SizedBox(height: 16),
@@ -340,13 +353,42 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 ),
               ],
               const SizedBox(height: 20),
-              const CommunitiesList(),
+              CommunitiesList(
+                onCommunityTap: (communityId) {
+                  context.push('/network/community/$communityId');
+                },
+                onJoinTap: (communityId) async {
+                  await _networkService.joinCommunity(communityId);
+                  await _loadData();
+                },
+              ),
               const SizedBox(height: 20),
-              const OpportunitiesList(),
+              OpportunitiesList(
+                onOpportunityTap: (opportunityId) {
+                  context.push('/opportunities/$opportunityId');
+                },
+                onApplyTap: (opportunityId) {
+                  context.push('/opportunities/$opportunityId/apply');
+                },
+              ),
               const SizedBox(height: 20),
-              const EventsList(),
+              EventsList(
+                onEventTap: (eventId) {
+                  context.push('/events/$eventId');
+                },
+                onInterestedTap: (eventId) async {
+                  // S'inscrire à l'événement
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Inscription à l\'événement'), backgroundColor: Colors.green),
+                  );
+                },
+              ),
               const SizedBox(height: 20),
-              const RecommendationsIA(),
+              RecommendationsIA(
+                onPeopleTap: () => context.push('/network/search'),
+                onOpportunitiesTap: () => context.push('/opportunities'),
+                onCommunitiesTap: () => context.push('/network/groups'),
+              ),
               const SizedBox(height: 80),
             ],
           ),
