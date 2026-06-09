@@ -16,7 +16,21 @@ import 'presentation/enterprise/enterprise_dashboard_page.dart';
 import 'presentation/chat/thix_chat_page.dart';
 import 'presentation/vault/document_vault_page.dart';
 import 'presentation/settings/settings_page.dart';
-import 'presentation/network/network_page.dart';
+
+// ==================== RÉSEAU PRO ====================
+import 'presentation/network/network_pro_home.dart';
+import 'presentation/network/member_profile.dart';
+import 'presentation/network/post_detail_page.dart';
+import 'presentation/network/search_network_page.dart';
+import 'presentation/network/community_detail_page.dart';
+import 'presentation/network/settings_network_page.dart';
+import 'presentation/network/blocked_users_page.dart';
+import 'presentation/network/network_groups_list.dart';
+import 'presentation/network/messages/conversations_list.dart';
+import 'presentation/network/messages/chat_screen.dart';
+import 'presentation/network/notifications/notifications_page.dart';
+
+// ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
 import 'presentation/jobs/job_apply_page.dart';
 import 'presentation/jobs/job_details_page.dart';
@@ -68,7 +82,21 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String vault = '/vault';
   static const String settings = '/settings';
-  static const String network = '/network';
+  
+  // Réseau Pro
+  static const String networkPro = '/network-pro';
+  static const String networkProfile = '/network/profile/:userId';
+  static const String networkPost = '/network/post/:postId';
+  static const String networkSearch = '/network/search';
+  static const String networkCommunity = '/network/community/:communityId';
+  static const String networkSettings = '/network/settings';
+  static const String networkBlocked = '/network/blocked';
+  static const String networkGroups = '/network/groups';
+  static const String networkMessages = '/network/messages';
+  static const String networkChat = '/network/chat/:userId';
+  static const String networkNotifications = '/network/notifications';
+  
+  // Autres services
   static const String jobs = '/jobs';
   static const String opportunities = '/opportunities';
   static const String events = '/events';
@@ -103,10 +131,13 @@ class AppRouter {
         return null;
       },
       routes: [
+        // ==================== PAGE D'ACCUEIL ====================
         GoRoute(
           path: AppRoutes.home,
           pageBuilder: (context, state) => const NoTransitionPage(child: HomePagePremium()),
         ),
+
+        // ==================== AUTHENTIFICATION ====================
         GoRoute(
           path: AppRoutes.login,
           pageBuilder: (context, state) => const NoTransitionPage(child: LoginPage()),
@@ -119,6 +150,8 @@ class AppRouter {
           path: AppRoutes.enterpriseReg,
           pageBuilder: (context, state) => const NoTransitionPage(child: EnterpriseRegistrationPage()),
         ),
+
+        // ==================== TABLEAUX DE BORD ====================
         GoRoute(
           path: AppRoutes.userDashboard,
           pageBuilder: (context, state) => const NoTransitionPage(child: UserDashboardPage()),
@@ -127,6 +160,8 @@ class AppRouter {
           path: AppRoutes.enterpriseDashboard,
           pageBuilder: (context, state) => const NoTransitionPage(child: EnterpriseDashboardPage()),
         ),
+
+        // ==================== SERVICES GÉNÉRAUX ====================
         GoRoute(
           path: AppRoutes.chat,
           pageBuilder: (context, state) => const NoTransitionPage(child: ThixChatPage()),
@@ -139,24 +174,82 @@ class AppRouter {
           path: AppRoutes.settings,
           pageBuilder: (context, state) => const NoTransitionPage(child: SettingsPage()),
         ),
+
+        // ==================== RÉSEAU PRO ====================
         GoRoute(
-          path: AppRoutes.network,
-          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkPage()),
+          path: AppRoutes.networkPro,
+          name: 'network-pro',
+          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkProHome()),
         ),
+        GoRoute(
+          path: AppRoutes.networkProfile,
+          name: 'network-profile',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            return NoTransitionPage(child: MemberProfile(userId: userId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkPost,
+          name: 'network-post',
+          pageBuilder: (context, state) {
+            final postId = state.pathParameters['postId']!;
+            return NoTransitionPage(child: PostDetailPage(postId: postId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkSearch,
+          name: 'network-search',
+          pageBuilder: (context, state) => const NoTransitionPage(child: SearchNetworkPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkCommunity,
+          name: 'network-community',
+          pageBuilder: (context, state) {
+            final communityId = state.pathParameters['communityId']!;
+            return NoTransitionPage(child: CommunityDetailPage(communityId: communityId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkSettings,
+          name: 'network-settings',
+          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsNetworkPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkBlocked,
+          name: 'network-blocked',
+          pageBuilder: (context, state) => const NoTransitionPage(child: BlockedUsersPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkGroups,
+          name: 'network-groups',
+          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkGroupsList()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkMessages,
+          name: 'network-messages',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConversationsList()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkChat,
+          name: 'network-chat',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            final userName = state.extra as String? ?? '';
+            return NoTransitionPage(child: ChatScreen(userId: userId, userName: userName));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkNotifications,
+          name: 'network-notifications',
+          pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsPage()),
+        ),
+
+        // ==================== JOB ROUTES ====================
         GoRoute(
           path: AppRoutes.jobs,
           pageBuilder: (context, state) => const NoTransitionPage(child: JobsPage()),
         ),
-        GoRoute(
-          path: AppRoutes.opportunities,
-          pageBuilder: (context, state) => const NoTransitionPage(child: OpportunitiesPage()),
-        ),
-        GoRoute(
-          path: AppRoutes.events,
-          pageBuilder: (context, state) => const NoTransitionPage(child: EventsPage()),
-        ),
-
-        // ==================== JOB ROUTES ====================
         GoRoute(
           path: '/jobs/:jobId',
           pageBuilder: (context, state) {
@@ -183,6 +276,10 @@ class AppRouter {
 
         // ==================== OPPORTUNITIES ROUTES ====================
         GoRoute(
+          path: AppRoutes.opportunities,
+          pageBuilder: (context, state) => const NoTransitionPage(child: OpportunitiesPage()),
+        ),
+        GoRoute(
           path: '/opportunities/:opportunityId',
           pageBuilder: (context, state) {
             final opportunityId = state.pathParameters['opportunityId'] ?? '';
@@ -200,10 +297,13 @@ class AppRouter {
 
         // ==================== EVENTS ROUTES ====================
         GoRoute(
+          path: AppRoutes.events,
+          pageBuilder: (context, state) => const NoTransitionPage(child: EventsPage()),
+        ),
+        GoRoute(
           path: '/events/:eventId',
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
-            final registered = (state.uri.queryParameters['registered'] ?? '').trim() == '1';
             return NoTransitionPage(child: EventDetailsPage(eventId: eventId));
           },
         ),
@@ -345,69 +445,52 @@ class AppRouter {
     switch (slug) {
       case 'overview':
         return AdminModule.overview;
-      
       case 'account-access-requests':
       case 'access-requests':
       case 'accessrequests':
         return AdminModule.accessRequests;
-
       case 'user-management':
       case 'users':
         return AdminModule.users;
-
       case 'verification-center':
       case 'verification':
         return AdminModule.verification;
-
       case 'events':
         return AdminModule.events;
       case 'trainings':
         return AdminModule.trainings;
-
       case 'thix-uid':
       case 'uid':
         return AdminModule.uid;
-
       case 'jobs-opportunities':
       case 'jobs':
         return AdminModule.jobs;
-
       case 'info-news':
       case 'news':
         return AdminModule.news;
-
       case 'thix-chat-admin':
       case 'chat':
         return AdminModule.chat;
-
       case 'sos-emergency':
       case 'sos':
         return AdminModule.sos;
-
       case 'institutions':
         return AdminModule.institutions;
-
       case 'analytics':
         return AdminModule.analytics;
-
       case 'cybersecurity':
         return AdminModule.cybersecurity;
-
       case 'api-integrations':
       case 'api':
         return AdminModule.api;
-
       case 'audit-activity':
       case 'audit':
         return AdminModule.audit;
-
       case 'thix-media':
       case 'media':
         return AdminModule.media;
-
       case 'settings':
         return AdminModule.settings;
-
       default:
         print('⚠️ Module inconnu: $slug → fallback sur overview');
         return AdminModule.overview;
