@@ -30,31 +30,32 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
-    try {
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+  setState(() => _loading = true);
+  try {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id ?? '';
 
-      final pregnancy = await supabase.from('health_pregnancies').select().eq('user_id', userId).maybeSingle();
+    final pregnancy = await supabase.from('health_pregnancies').select().eq('user_id', userId).maybeSingle();
 
-      setState(() {
-        _pregnancy = pregnancy as Map<String, dynamic>?;
-        _appointments = [];
-        _symptoms = [];
-        
-        // ✅ CORRECTION: Vérification de null avant d'utiliser DateTime.parse
-        if (_pregnancy != null && _pregnancy!['start_date'] != null) {
-          _currentWeek = DateTime.now().difference(DateTime.parse(_pregnancy!['start_date'])).inDays ~/ 7;
-        } else {
-          _currentWeek = 12;
-        }
-      });
-    } catch (e) {
-      debugPrint('Error loading pregnancy data: $e');
-    } finally {
-      setState(() => _loading = false);
-    }
+    setState(() {
+      _pregnancy = pregnancy as Map<String, dynamic>?;
+      _appointments = [];
+      _symptoms = [];
+      
+      // ✅ CORRECTION: Vérification de null avant d'utiliser DateTime.parse
+      if (_pregnancy != null && _pregnancy!['start_date'] != null) {
+        final startDateStr = _pregnancy!['start_date'] as String;
+        _currentWeek = DateTime.now().difference(DateTime.parse(startDateStr)).inDays ~/ 7;
+      } else {
+        _currentWeek = 12;
+      }
+    });
+  } catch (e) {
+    debugPrint('Error loading pregnancy data: $e');
+  } finally {
+    setState(() => _loading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
