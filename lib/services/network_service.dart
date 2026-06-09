@@ -466,14 +466,14 @@ class NetworkService {
   Future<int> getUnreadNotificationsCount() async {
     try {
       final currentUserId = this.currentUserId;
-      // ✅ CORRECTION: utilisation correcte de select avec count
+      // ✅ CORRECTION: version simple et fiable
       final response = await _supabase
           .from('network_notifications')
-          .select('*', count: CountOption.exact)
+          .select('id')
           .eq('user_id', currentUserId)
           .eq('is_read', false);
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       print('Error getUnreadNotificationsCount: $e');
       return 0;
