@@ -30,7 +30,7 @@ class _ConsultationsPageState extends State<ConsultationsPage> with SingleTicker
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id ?? '';
 
       final response = await supabase
           .from('health_consultations')
