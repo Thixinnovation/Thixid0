@@ -23,16 +23,19 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id ?? '';
 
+      // ✅ CORRECTION: Simplifier la requête
       var query = supabase.from('health_examens').select().eq('user_id', userId);
 
-      if (widget.examenId != null) {
-        query = query.eq('id', widget.examenId);
+      if (widget.examenId != null && widget.examenId!.isNotEmpty) {
+        query = query.eq('id', widget.examenId!);
       }
+      
       query = query.order('exam_date', ascending: false).limit(1);
-
+      
       final response = await query.maybeSingle();
+
       setState(() {
         _examen = response as Map<String, dynamic>?;
       });
@@ -82,7 +85,14 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildInfoCard() {
-    final date = DateTime.parse(_examen!['exam_date']);
+    // ✅ CORRECTION: Extraire les valeurs avec sécurité
+    final title = _examen?['title']?.toString() ?? 'Examen médical';
+    final laboratory = _examen?['laboratory']?.toString();
+    final doctorName = _examen?['doctor_name']?.toString();
+    
+    final dateStr = _examen?['exam_date'] as String?;
+    final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -105,8 +115,9 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_examen!['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text(_examen!['laboratory'] ?? 'Laboratoire', style: const TextStyle(color: Colors.grey)),
+                    Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    if (laboratory != null && laboratory.isNotEmpty)
+                      Text(laboratory, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -117,16 +128,16 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
             children: [
               const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
               const SizedBox(width: 8),
-              Text('Date : ${date.day}/${date.month}/${date.year}'),
+              Text(date != null ? 'Date : ${date.day}/${date.month}/${date.year}' : 'Date non spécifiée'),
             ],
           ),
-          if (_examen!['doctor_name'] != null) ...[
+          if (doctorName != null && doctorName.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(Icons.person, size: 14, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text('Médecin : ${_examen!['doctor_name']}'),
+                Text('Médecin : $doctorName'),
               ],
             ),
           ],
@@ -136,7 +147,8 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildResultsTable() {
-    final results = _examen!['results'] as List? ?? [
+    // ✅ CORRECTION: Extraire les résultats avec sécurité
+    final results = _examen?['results'] as List? ?? [
       {'parametre': 'Globules blancs', 'valeur': '7.2', 'unite': 'G/L', 'norme': '4.0-10.0', 'statut': 'normal'},
       {'parametre': 'Globules rouges', 'valeur': '4.8', 'unite': 'T/L', 'norme': '4.5-5.9', 'statut': 'normal'},
       {'parametre': 'Hémoglobine', 'valeur': '14.2', 'unite': 'g/dL', 'norme': '13.5-17.5', 'statut': 'normal'},
@@ -160,7 +172,7 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: results.length,
-            itemBuilder: (context, index) => _buildResultRow(results[index]),
+            itemBuilder: (context, index) => _buildResultRow(results[index] as Map<String, dynamic>),
           ),
         ],
       ),
@@ -168,25 +180,31 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildResultRow(Map<String, dynamic> result) {
-    final isAbnormal = result['statut'] != 'normal';
+    final parametre = result['parametre']?.toString() ?? '';
+    final valeur = result['valeur']?.toString() ?? '';
+    final unite = result['unite']?.toString() ?? '';
+    final norme = result['norme']?.toString() ?? '';
+    final statut = result['statut']?.toString() ?? 'normal';
+    final isAbnormal = statut != 'normal';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Expanded(
             flex: 3,
-            child: Text(result['parametre'], style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(parametre, style: const TextStyle(fontWeight: FontWeight.w500)),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              '${result['valeur']} ${result['unite']}',
+              '$valeur $unite',
               style: TextStyle(color: isAbnormal ? Colors.red : Colors.green.shade700, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
             flex: 2,
-            child: Text(result['norme'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            child: Text(norme, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           ),
         ],
       ),
@@ -194,7 +212,9 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildDoctorComment() {
-    if (_examen!['doctor_comment'] == null) return const SizedBox.shrink();
+    final comment = _examen?['doctor_comment']?.toString();
+    if (comment == null || comment.isEmpty) return const SizedBox.shrink();
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -206,7 +226,7 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
         children: [
           const Text('Commentaire du médecin', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(_examen!['doctor_comment']),
+          Text(comment),
         ],
       ),
     );
