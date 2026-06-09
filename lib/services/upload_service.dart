@@ -57,6 +57,17 @@ class UploadService {
     return publicUrl;
   }
 
+  // ✅ AJOUTER CETTE MÉTHODE POUR LES STORIES
+  Future<String> uploadStoryImage(File image) async {
+    final fileName = 'story_${DateTime.now().millisecondsSinceEpoch}_${basename(image.path)}';
+    final filePath = 'stories/$fileName';
+    
+    await _supabase.storage.from('public').upload(filePath, image);
+    
+    final publicUrl = _supabase.storage.from('public').getPublicUrl(filePath);
+    return publicUrl;
+  }
+
   Future<String> uploadDocument(File file, String userId, String type) async {
     final fileName = '${type}_${DateTime.now().millisecondsSinceEpoch}_${basename(file.path)}';
     final filePath = 'documents/$userId/$fileName';
@@ -74,7 +85,7 @@ class UploadService {
       final path = uri.pathSegments.skip(2).join('/');
       await _supabase.storage.from('public').remove([path]);
     } catch (e) {
-      print('Error deleting file: $e');
+      debugPrint('Error deleting file: $e');
     }
   }
 }
