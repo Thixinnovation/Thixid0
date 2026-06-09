@@ -110,4 +110,14 @@ class CommunityMember {
       joinedAt: DateTime.parse(json['joined_at']),
     );
   }
+  
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'user_id': userId,
+    'user_name': userName,
+    'user_avatar': userAvatar,
+    'user_title': userTitle,
+    'role': role,
+    'joined_at': joinedAt.toIso8601String(),
+  };
 }
