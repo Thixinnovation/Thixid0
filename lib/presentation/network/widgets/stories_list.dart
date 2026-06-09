@@ -1,17 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thix_id/services/network_service.dart';
+import 'package:thix_id/models/network_story.dart';
 
-class StoriesList extends StatelessWidget {
+class StoriesList extends StatefulWidget {
   const StoriesList({super.key});
 
-  final List<Map<String, dynamic>> _stories = const [
-    {'name': 'Votre Story', 'isCurrentUser': true, 'avatar': null},
-    {'name': 'Jean Kouassi', 'title': 'CEO @ PayPal Solutions', 'time': '2h', 'avatar': null},
-    {'name': 'Marie Konan', 'title': 'CTO @ TechCorp', 'time': '5h', 'avatar': null},
-    {'name': 'Abdoul Diallo', 'title': 'Lead Dev @ FlutterAfrica', 'time': '1j', 'avatar': null},
-  ];
+  @override
+  State<StoriesList> createState() => _StoriesListState();
+}
+
+class _StoriesListState extends State<StoriesList> {
+  late NetworkService _networkService;
+  List<NetworkStory> _stories = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _networkService = NetworkService(Supabase.instance.client);
+    _loadStories();
+  }
+
+  Future<void> _loadStories() async {
+    setState(() => _loading = true);
+    try {
+      final stories = await _networkService.getActiveStories();
+      setState(() => _stories = stories);
+    } catch (e) {
+      debugPrint('Error loading stories: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_stories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -27,7 +62,6 @@ class StoriesList extends StatelessWidget {
             itemCount: _stories.length,
             itemBuilder: (context, index) {
               final story = _stories[index];
-              final isCurrentUser = story['isCurrentUser'] as bool;
               
               return Container(
                 width: 80,
@@ -41,25 +75,27 @@ class StoriesList extends StatelessWidget {
                           height: 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: isCurrentUser
+                            gradient: story.isCurrentUser
                                 ? null
                                 : const LinearGradient(
                                     colors: [Color(0xFFD4AF37), Colors.orange],
                                   ),
-                            border: isCurrentUser
+                            border: story.isCurrentUser
                                 ? Border.all(color: Colors.grey.shade300, width: 2)
                                 : null,
                           ),
                           child: CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.grey.shade200,
-                            child: Icon(
-                              isCurrentUser ? Icons.add : Icons.person,
-                              color: Colors.grey.shade500,
-                            ),
+                            backgroundImage: story.userAvatar != null
+                                ? NetworkImage(story.userAvatar!)
+                                : null,
+                            child: story.userAvatar == null
+                                ? const Icon(Icons.person, color: Colors.grey)
+                                : null,
                           ),
                         ),
-                        if (isCurrentUser)
+                        if (story.isCurrentUser)
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -68,23 +104,31 @@ class StoriesList extends StatelessWidget {
                                 color: Color(0xFFD4AF37),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        if (story.isViewed && !story.isCurrentUser)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      story['name'],
+                      story.userName,
                       style: const TextStyle(fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (!isCurrentUser)
-                      Text(
-                        story['time'],
-                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                      ),
                   ],
                 ),
               );
