@@ -20,8 +20,25 @@ import 'package:thix_id/presentation/enterprise/enterprise_dashboard_shell_page.
 import 'presentation/chat/thix_chat_page.dart';
 import 'presentation/vault/document_vault_page.dart';
 import 'presentation/settings/settings_page.dart';
-// ✅ CORRECTION: Remplacer network_page.dart par network_pro_home.dart
+
+// ==================== RÉSEAU PRO ====================
 import 'presentation/network/network_pro_home.dart';
+import 'presentation/network/member_profile.dart';
+import 'presentation/network/post_detail_page.dart';
+import 'presentation/network/search_network_page.dart';
+import 'presentation/network/community_detail_page.dart';
+import 'presentation/network/settings_network_page.dart';
+import 'presentation/network/blocked_users_page.dart';
+import 'presentation/network/network_groups_list.dart';
+import 'presentation/network/messages/conversations_list.dart';
+import 'presentation/network/messages/chat_screen.dart';
+import 'presentation/network/notifications/notifications_page.dart';
+import 'presentation/network/connections_list_page.dart';
+import 'presentation/network/my_posts_page.dart';
+import 'presentation/events/create_event_page.dart';
+import 'presentation/jobs/create_job_page.dart';
+
+// ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
 import 'package:thix_id/presentation/jobs/job_apply_page.dart';
 import 'package:thix_id/presentation/jobs/job_details_page.dart';
@@ -43,6 +60,9 @@ import 'package:thix_id/presentation/training/lesson_player_page.dart';
 import 'package:thix_id/presentation/admin/admin_page.dart';
 import 'package:thix_id/presentation/admin/admin_routes.dart';
 import 'package:thix_id/presentation/thix_market/thix_market_page.dart';
+import 'package:thix_id/presentation/thix_market/cart_page.dart';
+import 'package:thix_id/presentation/thix_market/checkout_page.dart';
+import 'package:thix_id/presentation/thix_market/order_history_page.dart';
 import 'package:thix_id/presentation/thix_sante/thix_sante_page.dart';
 import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_page.dart';
@@ -75,7 +95,25 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String vault = '/vault';
   static const String settings = '/settings';
-  static const String network = '/network-pro';  // ✅ CORRECTION: Changer la route
+  
+  // Réseau Pro
+  static const String networkPro = '/network-pro';
+  static const String networkProfile = '/network/profile/:userId';
+  static const String networkPost = '/network/post/:postId';
+  static const String networkSearch = '/network/search';
+  static const String networkCommunity = '/network/community/:communityId';
+  static const String networkSettings = '/network/settings';
+  static const String networkBlocked = '/network/blocked';
+  static const String networkGroups = '/network/groups';
+  static const String networkMessages = '/network/messages';
+  static const String networkChat = '/network/chat/:userId';
+  static const String networkNotifications = '/network/notifications';
+  static const String networkConnections = '/network/connections';
+  static const String networkMyPosts = '/network/my-posts';
+  static const String createEvent = '/events/create';
+  static const String createJob = '/jobs/create';
+  
+  // Autres services
   static const String jobs = '/jobs';
   static const String jobDashboard = '/jobs/dashboard';
   static const String recruiter = '/recruiter';
@@ -83,11 +121,14 @@ class AppRoutes {
   static const String events = '/events';
   static const String education = '/education';
   static const String trainingHome = '/training';
-  static const String trainingDetailsBasePath = '/training-details';
+  static const String trainingDetails = '/training/:trainingId';
   static const String learningDashboard = '/learn';
   static const String lessonPlayer = '/learn/player';
   static const String admin = '/admin';
   static const String thixMarket = '/market';
+  static const String thixMarketCart = '/market/cart';
+  static const String thixMarketCheckout = '/market/checkout';
+  static const String thixMarketOrders = '/market/orders';
   static const String thixSante = '/sante';
   static const String reservation = '/reservation';
   static const String thixMoney = '/thix-money';
@@ -120,7 +161,7 @@ class AppRouter {
             location == AppRoutes.events ||
             location == AppRoutes.education ||
             location == AppRoutes.trainingHome ||
-            location.startsWith('${AppRoutes.trainingDetailsBasePath}/');
+            location.startsWith('/training/');
 
         final isProtected = !isPublic && !isAuthPage;
         if (!isLoggedIn && isProtected) return AppRoutes.login;
@@ -154,11 +195,14 @@ class AppRouter {
         return null;
       },
       routes: [
+        // ==================== PAGE D'ACCUEIL ====================
         GoRoute(
           path: AppRoutes.home,
           name: 'home',
           pageBuilder: (context, state) => const NoTransitionPage(child: HomePagePremium()),
         ),
+
+        // ==================== AUTHENTIFICATION ====================
         GoRoute(
           path: AppRoutes.login,
           name: 'login',
@@ -281,47 +325,153 @@ class AppRouter {
           name: 'settings',
           pageBuilder: (context, state) => const NoTransitionPage(child: SettingsPage()),
         ),
-        // ✅ CORRECTION: Remplacer NetworkPage par NetworkProHome
+
+        // ==================== RÉSEAU PRO ====================
         GoRoute(
-          path: AppRoutes.network,
-          name: 'network',
+          path: AppRoutes.networkPro,
+          name: 'network-pro',
           pageBuilder: (context, state) => const NoTransitionPage(child: NetworkProHome()),
         ),
-        // THIX MARKET
+        GoRoute(
+          path: AppRoutes.networkProfile,
+          name: 'network-profile',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            return NoTransitionPage(child: MemberProfile(userId: userId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkPost,
+          name: 'network-post',
+          pageBuilder: (context, state) {
+            final postId = state.pathParameters['postId']!;
+            return NoTransitionPage(child: PostDetailPage(postId: postId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkSearch,
+          name: 'network-search',
+          pageBuilder: (context, state) => const NoTransitionPage(child: SearchNetworkPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkCommunity,
+          name: 'network-community',
+          pageBuilder: (context, state) {
+            final communityId = state.pathParameters['communityId']!;
+            return NoTransitionPage(child: CommunityDetailPage(communityId: communityId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkSettings,
+          name: 'network-settings',
+          pageBuilder: (context, state) => const NoTransitionPage(child: SettingsNetworkPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkBlocked,
+          name: 'network-blocked',
+          pageBuilder: (context, state) => const NoTransitionPage(child: BlockedUsersPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkGroups,
+          name: 'network-groups',
+          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkGroupsList()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkMessages,
+          name: 'network-messages',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConversationsList()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkChat,
+          name: 'network-chat',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            final userName = state.extra as String? ?? '';
+            return NoTransitionPage(child: ChatScreen(userId: userId, userName: userName));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkNotifications,
+          name: 'network-notifications',
+          pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkConnections,
+          name: 'network-connections',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConnectionsListPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkMyPosts,
+          name: 'network-my-posts',
+          pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
+        ),
+
+        // ==================== THIX MARKET ROUTES ====================
         GoRoute(
           path: AppRoutes.thixMarket,
           name: 'thixMarket',
           pageBuilder: (context, state) => const NoTransitionPage(child: ThixMarketPage()),
         ),
-        // THIX SANTÉ
+        GoRoute(
+          path: AppRoutes.thixMarketCart,
+          name: 'marketCart',
+          pageBuilder: (context, state) => const NoTransitionPage(child: CartPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.thixMarketCheckout,
+          name: 'marketCheckout',
+          pageBuilder: (context, state) => const NoTransitionPage(child: CheckoutPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.thixMarketOrders,
+          name: 'marketOrders',
+          pageBuilder: (context, state) => const NoTransitionPage(child: OrderHistoryPage()),
+        ),
+
+        // ==================== THIX SERVICES ROUTES ====================
         GoRoute(
           path: AppRoutes.thixSante,
           name: 'thixSante',
           pageBuilder: (context, state) => const NoTransitionPage(child: ThixSantePage()),
         ),
-        // THIX MONEY
-        GoRoute(
-          path: AppRoutes.thixMoney,
-          name: 'thixMoney',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMoneyPage()),
-        ),
-        // THIX MEDIA
-        GoRoute(
-          path: AppRoutes.thixMedia,
-          name: 'thixMedia',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMediaPage()),
-        ),
-        // RÉSERVATION
         GoRoute(
           path: AppRoutes.reservation,
           name: 'reservation',
           pageBuilder: (context, state) => const NoTransitionPage(child: ThixReservationPage()),
         ),
-        // JOBS
+        GoRoute(
+          path: AppRoutes.thixMoney,
+          name: 'thixMoney',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMoneyPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.thixMedia,
+          name: 'thixMedia',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ThixMediaPage()),
+        ),
+
+        // ==================== JOB ROUTES ====================
         GoRoute(
           path: AppRoutes.jobs,
           name: 'jobs',
           pageBuilder: (context, state) => const NoTransitionPage(child: JobsPage()),
+        ),
+        GoRoute(
+          path: '/jobs/:jobId',
+          name: 'jobDetails',
+          pageBuilder: (context, state) {
+            final jobId = state.pathParameters['jobId'] ?? '';
+            final applied = (state.uri.queryParameters['applied'] ?? '').trim() == '1';
+            return NoTransitionPage(child: JobDetailsPage(jobId: jobId, applied: applied));
+          },
+        ),
+        GoRoute(
+          path: '/jobs/:jobId/apply',
+          name: 'jobApply',
+          pageBuilder: (context, state) {
+            final jobId = state.pathParameters['jobId'] ?? '';
+            return NoTransitionPage(child: JobApplyPage(jobId: jobId));
+          },
         ),
         GoRoute(
           path: AppRoutes.jobDashboard,
@@ -333,7 +483,13 @@ class AppRouter {
           name: 'recruiter',
           pageBuilder: (context, state) => const NoTransitionPage(child: RecruiterPortalPage()),
         ),
-        // OPPORTUNITÉS
+        GoRoute(
+          path: AppRoutes.createJob,
+          name: 'createJob',
+          pageBuilder: (context, state) => const NoTransitionPage(child: CreateJobPage()),
+        ),
+
+        // ==================== OPPORTUNITIES ROUTES ====================
         GoRoute(
           path: AppRoutes.opportunities,
           name: 'opportunities',
@@ -356,25 +512,8 @@ class AppRouter {
             return NoTransitionPage(child: OpportunityApplyPage(opportunityId: opportunityId));
           },
         ),
-        // JOBS DETAILS
-        GoRoute(
-          path: '/jobs/:jobId',
-          name: 'jobDetails',
-          pageBuilder: (context, state) {
-            final jobId = state.pathParameters['jobId'] ?? '';
-            final applied = (state.uri.queryParameters['applied'] ?? '').trim() == '1';
-            return NoTransitionPage(child: JobDetailsPage(jobId: jobId, applied: applied));
-          },
-        ),
-        GoRoute(
-          path: '/jobs/:jobId/apply',
-          name: 'jobApply',
-          pageBuilder: (context, state) {
-            final jobId = state.pathParameters['jobId'] ?? '';
-            return NoTransitionPage(child: JobApplyPage(jobId: jobId));
-          },
-        ),
-        // ÉVÉNEMENTS
+
+        // ==================== EVENTS ROUTES ====================
         GoRoute(
           path: AppRoutes.events,
           name: 'events',
@@ -385,7 +524,6 @@ class AppRouter {
           name: 'eventDetails',
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
-            final registered = (state.uri.queryParameters['registered'] ?? '').trim() == '1';
             return NoTransitionPage(child: EventDetailsPage(eventId: eventId));
           },
         ),
@@ -394,7 +532,7 @@ class AppRouter {
           name: 'eventRegister',
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(child: EventDetailsPage(eventId: eventId));
+            return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
           },
         ),
         GoRoute(
@@ -411,29 +549,24 @@ class AppRouter {
           name: 'userEventsDashboard',
           pageBuilder: (context, state) => const NoTransitionPage(child: UserEventDashboardPage()),
         ),
-        // ÉDUCATION
         GoRoute(
-          path: AppRoutes.education,
-          name: 'education',
-          pageBuilder: (context, state) => const NoTransitionPage(child: EducationPage()),
+          path: AppRoutes.createEvent,
+          name: 'createEvent',
+          pageBuilder: (context, state) => const NoTransitionPage(child: CreateEventPage()),
         ),
-        // FORMATIONS
+
+        // ==================== TRAINING ROUTES ====================
         GoRoute(
-          path: '/training',
+          path: AppRoutes.trainingHome,
           name: 'trainingHome',
           pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
         ),
         GoRoute(
-          path: AppRoutes.trainingHome,
-          name: 'trainingHomeAlt',
-          pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
-        ),
-        GoRoute(
-          path: '${AppRoutes.trainingDetailsBasePath}/:trainingId',
+          path: '/training/:trainingId',
           name: 'trainingDetails',
           pageBuilder: (context, state) {
-            final id = state.pathParameters['trainingId'] ?? '';
-            return NoTransitionPage(child: TrainingDetailsPage(trainingId: id));
+            final trainingId = state.pathParameters['trainingId'] ?? '';
+            return NoTransitionPage(child: TrainingDetailsPage(trainingId: trainingId));
           },
         ),
         GoRoute(
@@ -442,14 +575,22 @@ class AppRouter {
           pageBuilder: (context, state) => const NoTransitionPage(child: LearningDashboardPage()),
         ),
         GoRoute(
-          path: '${AppRoutes.lessonPlayer}/:enrollmentId',
+          path: '/lesson/:enrollmentId',
           name: 'lessonPlayer',
           pageBuilder: (context, state) {
-            final id = state.pathParameters['enrollmentId'] ?? '';
-            return NoTransitionPage(child: LessonPlayerPage(enrollmentId: id));
+            final enrollmentId = state.pathParameters['enrollmentId'] ?? '';
+            return NoTransitionPage(child: LessonPlayerPage(enrollmentId: enrollmentId));
           },
         ),
-        // ADMIN GÉNÉRAL
+
+        // ==================== EDUCATION ROUTE ====================
+        GoRoute(
+          path: AppRoutes.education,
+          name: 'education',
+          pageBuilder: (context, state) => const NoTransitionPage(child: EducationPage()),
+        ),
+
+        // ==================== ADMIN ROUTES ====================
         GoRoute(
           path: '${AppRoutes.admin}/:module',
           name: 'admin',
@@ -463,7 +604,6 @@ class AppRouter {
           name: 'adminRoot',
           redirect: (_, __) => '${AppRoutes.admin}/${AdminModule.overview.slug}',
         ),
-        // ADMIN MÉDIA
         GoRoute(
           path: AppRoutes.adminMedia,
           name: 'adminMedia',
