@@ -160,4 +160,17 @@ class _RechercheMedicamentPageState extends State<RechercheMedicamentPage> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.location_on),
+                  label: const Text('Voir en pharmacie'),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
