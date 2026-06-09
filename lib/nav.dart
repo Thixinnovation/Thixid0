@@ -20,7 +20,8 @@ import 'package:thix_id/presentation/enterprise/enterprise_dashboard_shell_page.
 import 'presentation/chat/thix_chat_page.dart';
 import 'presentation/vault/document_vault_page.dart';
 import 'presentation/settings/settings_page.dart';
-import 'presentation/network/network_page.dart';
+// ✅ CORRECTION: Remplacer network_page.dart par network_pro_home.dart
+import 'presentation/network/network_pro_home.dart';
 import 'presentation/jobs/jobs_page.dart';
 import 'package:thix_id/presentation/jobs/job_apply_page.dart';
 import 'package:thix_id/presentation/jobs/job_details_page.dart';
@@ -47,7 +48,6 @@ import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart
 import 'package:thix_id/presentation/thix_money/thix_money_page.dart';
 import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
 import 'package:thix_id/presentation/admin/pages/admin_media_page.dart';
-import 'presentation/network/network_pro_home.dart';
 
 /// Page sans transition (indispensable pour GoRouter)
 class NoTransitionPage<T> extends Page<T> {
@@ -75,7 +75,7 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String vault = '/vault';
   static const String settings = '/settings';
-  static const String network = '/network';
+  static const String network = '/network-pro';  // ✅ CORRECTION: Changer la route
   static const String jobs = '/jobs';
   static const String jobDashboard = '/jobs/dashboard';
   static const String recruiter = '/recruiter';
@@ -281,10 +281,11 @@ class AppRouter {
           name: 'settings',
           pageBuilder: (context, state) => const NoTransitionPage(child: SettingsPage()),
         ),
+        // ✅ CORRECTION: Remplacer NetworkPage par NetworkProHome
         GoRoute(
           path: AppRoutes.network,
           name: 'network',
-          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkPage()),
+          pageBuilder: (context, state) => const NoTransitionPage(child: NetworkProHome()),
         ),
         // THIX MARKET
         GoRoute(
@@ -417,37 +418,37 @@ class AppRouter {
           pageBuilder: (context, state) => const NoTransitionPage(child: EducationPage()),
         ),
         // FORMATIONS
-GoRoute(
-  path: '/training',
-  name: 'trainingHome',
-  pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
-),
-GoRoute(
-  path: AppRoutes.trainingHome,
-  name: 'trainingHomeAlt',
-  pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
-),
-GoRoute(
-  path: '${AppRoutes.trainingDetailsBasePath}/:trainingId',
-  name: 'trainingDetails',
-  pageBuilder: (context, state) {
-    final id = state.pathParameters['trainingId'] ?? '';
-    return NoTransitionPage(child: TrainingDetailsPage(trainingId: id));
-  },
-),
-GoRoute(
-  path: AppRoutes.learningDashboard,
-  name: 'learningDashboard',
-  pageBuilder: (context, state) => const NoTransitionPage(child: LearningDashboardPage()),
-),
-GoRoute(
-  path: '${AppRoutes.lessonPlayer}/:enrollmentId',
-  name: 'lessonPlayer',
-  pageBuilder: (context, state) {
-    final id = state.pathParameters['enrollmentId'] ?? '';
-    return NoTransitionPage(child: LessonPlayerPage(enrollmentId: id));
-  },
-),
+        GoRoute(
+          path: '/training',
+          name: 'trainingHome',
+          pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.trainingHome,
+          name: 'trainingHomeAlt',
+          pageBuilder: (context, state) => const NoTransitionPage(child: TrainingHomePage()),
+        ),
+        GoRoute(
+          path: '${AppRoutes.trainingDetailsBasePath}/:trainingId',
+          name: 'trainingDetails',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['trainingId'] ?? '';
+            return NoTransitionPage(child: TrainingDetailsPage(trainingId: id));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.learningDashboard,
+          name: 'learningDashboard',
+          pageBuilder: (context, state) => const NoTransitionPage(child: LearningDashboardPage()),
+        ),
+        GoRoute(
+          path: '${AppRoutes.lessonPlayer}/:enrollmentId',
+          name: 'lessonPlayer',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['enrollmentId'] ?? '';
+            return NoTransitionPage(child: LessonPlayerPage(enrollmentId: id));
+          },
+        ),
         // ADMIN GÉNÉRAL
         GoRoute(
           path: '${AppRoutes.admin}/:module',
