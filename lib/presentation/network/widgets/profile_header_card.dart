@@ -3,7 +3,22 @@ import 'package:provider/provider.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
-  const ProfileHeaderCard({super.key});
+  final VoidCallback? onEditPressed;
+  final VoidCallback? onPhotoPressed;
+  final VoidCallback? onVideoPressed;
+  final VoidCallback? onDocumentPressed;
+  final VoidCallback? onEventPressed;
+  final VoidCallback? onJobPressed;
+
+  const ProfileHeaderCard({
+    super.key,
+    this.onEditPressed,
+    this.onPhotoPressed,
+    this.onVideoPressed,
+    this.onDocumentPressed,
+    this.onEventPressed,
+    this.onJobPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +40,39 @@ class ProfileHeaderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: Colors.white24,
-                backgroundImage: user?.photoUrl != null
-                    ? NetworkImage(user!.photoUrl!)
-                    : null,
-                child: user?.photoUrl == null
-                    ? const Icon(Icons.person, size: 32, color: Colors.white)
-                    : null,
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: user?.photoUrl != null
+                        ? NetworkImage(user!.photoUrl!)
+                        : null,
+                    child: user?.photoUrl == null
+                        ? const Icon(Icons.person, size: 32, color: Colors.white)
+                        : null,
+                  ),
+                  if (onEditPressed != null)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: onEditPressed,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFD4AF37),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            size: 14,
+                            color: Color(0xFF0B1B3D),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -69,15 +108,35 @@ class ProfileHeaderCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildShareButton(Icons.photo_camera, 'Photo'),
+              _buildShareButton(
+                Icons.photo_camera,
+                'Photo',
+                onPressed: onPhotoPressed,
+              ),
               const SizedBox(width: 8),
-              _buildShareButton(Icons.videocam, 'Vidéo'),
+              _buildShareButton(
+                Icons.videocam,
+                'Vidéo',
+                onPressed: onVideoPressed,
+              ),
               const SizedBox(width: 8),
-              _buildShareButton(Icons.insert_drive_file, 'Document'),
+              _buildShareButton(
+                Icons.insert_drive_file,
+                'Document',
+                onPressed: onDocumentPressed,
+              ),
               const SizedBox(width: 8),
-              _buildShareButton(Icons.event, 'Événement'),
+              _buildShareButton(
+                Icons.event,
+                'Événement',
+                onPressed: onEventPressed,
+              ),
               const SizedBox(width: 8),
-              _buildShareButton(Icons.work, 'Offre'),
+              _buildShareButton(
+                Icons.work,
+                'Offre',
+                onPressed: onJobPressed,
+              ),
             ],
           ),
         ],
@@ -85,10 +144,10 @@ class ProfileHeaderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildShareButton(IconData icon, String label) {
+  Widget _buildShareButton(IconData icon, String label, {VoidCallback? onPressed}) {
     return Expanded(
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: onPressed,
         icon: Icon(icon, size: 16, color: const Color(0xFFD4AF37)),
         label: Text(
           label,
