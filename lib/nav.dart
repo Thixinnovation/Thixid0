@@ -36,6 +36,24 @@ import 'presentation/network/notifications/notifications_page.dart';
 import 'presentation/network/connections_list_page.dart';
 import 'presentation/network/my_posts_page.dart';
 
+// ==================== THIX SANTÉ ====================
+import 'presentation/thix_sante/thix_sante_home.dart';
+import 'presentation/thix_sante/consultations_page.dart';
+import 'presentation/thix_sante/examens_page.dart';
+import 'presentation/thix_sante/ordonnances_page.dart';
+import 'presentation/thix_sante/dossier_medical_page.dart';
+import 'presentation/thix_sante/consultation_medecin_page.dart';
+import 'presentation/thix_sante/teleconsultation_page.dart';
+import 'presentation/thix_sante/resultat_examen_page.dart';
+import 'presentation/thix_sante/carnet_vaccination_page.dart';
+import 'presentation/thix_sante/suivi_grossesse_page.dart';
+import 'presentation/thix_sante/assurance_sante_page.dart';
+import 'presentation/thix_sante/hopitaux_proches_page.dart';
+import 'presentation/thix_sante/pharmacies_proches_page.dart';
+import 'presentation/thix_sante/urgences_page.dart';
+import 'presentation/thix_sante/article_sante_page.dart';
+import 'presentation/thix_sante/recherche_medicament_page.dart';
+
 // ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
 import 'package:thix_id/presentation/jobs/job_apply_page.dart';
@@ -61,7 +79,6 @@ import 'package:thix_id/presentation/thix_market/thix_market_page.dart';
 import 'package:thix_id/presentation/thix_market/cart_page.dart';
 import 'package:thix_id/presentation/thix_market/checkout_page.dart';
 import 'package:thix_id/presentation/thix_market/order_history_page.dart';
-import 'package:thix_id/presentation/thix_sante/thix_sante_page.dart';
 import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_page.dart';
 import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
@@ -109,6 +126,24 @@ class AppRoutes {
   static const String networkConnections = '/network/connections';
   static const String networkMyPosts = '/network/my-posts';
   
+  // THIX SANTÉ
+  static const String thixSante = '/sante';
+  static const String santeConsultations = '/sante/consultations';
+  static const String santeExamens = '/sante/examens';
+  static const String santeOrdonnances = '/sante/ordonnances';
+  static const String santeDossier = '/sante/dossier';
+  static const String santeConsultationMedecin = '/sante/consultation';
+  static const String santeTeleconsultation = '/sante/teleconsultation/:doctorId/:doctorName/:channelName';
+  static const String santeResultats = '/sante/resultats';
+  static const String santeVaccination = '/sante/vaccination';
+  static const String santeGrossesse = '/sante/grossesse';
+  static const String santeAssurance = '/sante/assurance';
+  static const String santeHopitaux = '/sante/hopitaux';
+  static const String santePharmacies = '/sante/pharmacies';
+  static const String santeUrgences = '/sante/urgences';
+  static const String santeArticle = '/sante/article/:articleId';
+  static const String santeRechercheMedicament = '/sante/recherche-medicament';
+  
   // Autres services
   static const String jobs = '/jobs';
   static const String jobDashboard = '/jobs/dashboard';
@@ -125,7 +160,6 @@ class AppRoutes {
   static const String thixMarketCart = '/market/cart';
   static const String thixMarketCheckout = '/market/checkout';
   static const String thixMarketOrders = '/market/orders';
-  static const String thixSante = '/sante';
   static const String reservation = '/reservation';
   static const String thixMoney = '/thix-money';
   static const String thixMedia = '/thix-media';
@@ -157,7 +191,8 @@ class AppRouter {
             location == AppRoutes.events ||
             location == AppRoutes.education ||
             location == AppRoutes.trainingHome ||
-            location.startsWith('/training/');
+            location.startsWith('/training/') ||
+            location.startsWith('/sante/');
 
         final isProtected = !isPublic && !isAuthPage;
         if (!isLoggedIn && isProtected) return AppRoutes.login;
@@ -402,6 +437,102 @@ class AppRouter {
           pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
         ),
 
+        // ==================== THIX SANTÉ ====================
+        GoRoute(
+          path: AppRoutes.thixSante,
+          name: 'thixSante',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ThixSanteHome()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeConsultations,
+          name: 'santeConsultations',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConsultationsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeExamens,
+          name: 'santeExamens',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ExamensPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeOrdonnances,
+          name: 'santeOrdonnances',
+          pageBuilder: (context, state) => const NoTransitionPage(child: OrdonnancesPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeDossier,
+          name: 'santeDossier',
+          pageBuilder: (context, state) => const NoTransitionPage(child: DossierMedicalPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeConsultationMedecin,
+          name: 'santeConsultationMedecin',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConsultationMedecinPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeTeleconsultation,
+          name: 'santeTeleconsultation',
+          pageBuilder: (context, state) {
+            final doctorId = state.pathParameters['doctorId'] ?? '';
+            final doctorName = state.pathParameters['doctorName'] ?? '';
+            final channelName = state.pathParameters['channelName'] ?? '';
+            return NoTransitionPage(
+              child: TeleconsultationPage(
+                doctorId: doctorId,
+                doctorName: doctorName,
+                channelName: channelName,
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.santeResultats,
+          name: 'santeResultats',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ResultatExamenPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeVaccination,
+          name: 'santeVaccination',
+          pageBuilder: (context, state) => const NoTransitionPage(child: CarnetVaccinationPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeGrossesse,
+          name: 'santeGrossesse',
+          pageBuilder: (context, state) => const NoTransitionPage(child: SuiviGrossessePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeAssurance,
+          name: 'santeAssurance',
+          pageBuilder: (context, state) => const NoTransitionPage(child: AssuranceSantePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeHopitaux,
+          name: 'santeHopitaux',
+          pageBuilder: (context, state) => const NoTransitionPage(child: HopitauxProchesPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santePharmacies,
+          name: 'santePharmacies',
+          pageBuilder: (context, state) => const NoTransitionPage(child: PharmaciesProchesPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeUrgences,
+          name: 'santeUrgences',
+          pageBuilder: (context, state) => const NoTransitionPage(child: UrgencesPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.santeArticle,
+          name: 'santeArticle',
+          pageBuilder: (context, state) {
+            final articleId = state.pathParameters['articleId'] ?? '';
+            return NoTransitionPage(child: ArticleSantePage(articleId: articleId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.santeRechercheMedicament,
+          name: 'santeRechercheMedicament',
+          pageBuilder: (context, state) => const NoTransitionPage(child: RechercheMedicamentPage()),
+        ),
+
         // ==================== THIX MARKET ROUTES ====================
         GoRoute(
           path: AppRoutes.thixMarket,
@@ -425,11 +556,6 @@ class AppRouter {
         ),
 
         // ==================== THIX SERVICES ROUTES ====================
-        GoRoute(
-          path: AppRoutes.thixSante,
-          name: 'thixSante',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ThixSantePage()),
-        ),
         GoRoute(
           path: AppRoutes.reservation,
           name: 'reservation',
@@ -523,7 +649,6 @@ class AppRouter {
           name: 'eventRegister',
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
-            // Récupération de l'événement par ID
             return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
           },
         ),
