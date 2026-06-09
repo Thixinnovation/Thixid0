@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class HealthExamen {
   final String id;
   final String userId;
@@ -87,5 +89,19 @@ class HealthExamenResult {
   };
 
   bool get isAbnormal => statut != 'normal';
-  Color get statusColor => statut == 'normal' ? Colors.green : (statut == 'critique' ? Colors.red : Colors.orange);
+  
+  Color get statusColor {
+    switch (statut) {
+      case 'normal':
+        return Colors.green;
+      case 'haut':
+        return Colors.orange;
+      case 'bas':
+        return Colors.orange;
+      case 'critique':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
 }
