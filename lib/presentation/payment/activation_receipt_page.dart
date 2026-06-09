@@ -55,22 +55,22 @@ class _ActivationReceiptPageState extends State<ActivationReceiptPage> {
   }
 
   Future<void> _ensureRealThixId() async {
-    if (_ensuringThixId) return;
-    final auth = context.read<AuthController>();
-    final me = auth.currentUser;
-    if (me == null) return;
-    if (!_isPendingThixId(me.thixId)) return;
-    setState(() => _ensuringThixId = true);
-    try {
-      final users = UserService(Supabase.instance.client);
-      final real = await users.ensureThixId(uid: me.id);
-      await auth.updateCurrentUser(me.copyWith(thixId: real));
-    } catch (e) {
-      debugPrint('ActivationReceipt: ensureRealThixId failed err=$e');
-    } finally {
-      if (mounted) setState(() => _ensuringThixId = false);
-    }
+  if (_ensuringThixId) return;
+  final auth = context.read<AuthController>();
+  final me = auth.currentUser;
+  if (me == null) return;
+  if (!_isPendingThixId(me.thixId)) return;
+  setState(() => _ensuringThixId = true);
+  try {
+    final users = UserService(Supabase.instance.client);
+    final real = await users.ensureThixId(uid: me.id);
+    await auth.updateCurrentUser(me.copyWith(thixId: real));  // ← CORRIGÉ (thixId au lieu de thixld)
+  } catch (e) {
+    debugPrint('ActivationReceipt: ensureRealThixId failed err=$e');
+  } finally {
+    if (mounted) setState(() => _ensuringThixId = false);
   }
+}
 
   String _fmtTs(DateTime? dt) {
     final safe = dt ?? DateTime.now();
