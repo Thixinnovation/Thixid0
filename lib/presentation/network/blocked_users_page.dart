@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlockedUsersPage extends StatefulWidget {
@@ -104,11 +104,11 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Widget _buildBlockedUserTile(Map<String, dynamic> user) {
-    // ✅ CORRECTION: Extraire les valeurs avec des valeurs par défaut
-    final avatarUrl = user['avatar_url'] as String?;
-    final displayName = user['display_name'] as String? ?? 'Utilisateur';
-    final title = user['title'] as String?;
-    final userId = user['id'] as String? ?? '';
+    // ✅ CORRECTION: Convertir avec toString() pour éviter String?
+    final avatarUrl = user['avatar_url']?.toString();
+    final displayName = user['display_name']?.toString() ?? 'Utilisateur';
+    final title = user['title']?.toString();
+    final userId = user['id']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -130,7 +130,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (title != null) 
+                if (title != null && title.isNotEmpty) 
                   Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               ],
             ),
