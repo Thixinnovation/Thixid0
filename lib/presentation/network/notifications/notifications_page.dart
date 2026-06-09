@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
+import 'package:thix_id/models/network_notification.dart';  // ← AJOUTER CET IMPORT
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -11,7 +13,7 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   late NetworkService _networkService;
-  List<Map<String, dynamic>> _notifications = [];
+  List<NetworkNotification> _notifications = [];  // ✅ CORRIGÉ: utiliser le modèle
   bool _loading = true;
 
   @override
@@ -28,7 +30,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       setState(() => _notifications = notifs);
       await _networkService.markAllNotificationsAsRead();
     } catch (e) {
-      print('Error loading notifications: $e');
+      debugPrint('Error loading notifications: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -74,37 +76,32 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  Widget _buildNotificationTile(Map<String, dynamic> notif) {
+  Widget _buildNotificationTile(NetworkNotification notif) {  // ✅ CORRIGÉ: utiliser le modèle
     IconData icon;
     Color iconColor;
     
-    switch (notif['type']) {
-      case 'like':
-        icon = Icons.favorite;
-        iconColor = Colors.red;
-        break;
-      case 'comment':
-        icon = Icons.comment;
-        iconColor = Colors.blue;
-        break;
-      case 'connection_request':
-        icon = Icons.person_add;
-        iconColor = Colors.green;
-        break;
-      case 'connection_accepted':
-        icon = Icons.people;
-        iconColor = const Color(0xFFD4AF37);
-        break;
-      default:
-        icon = Icons.notifications;
-        iconColor = Colors.grey;
+    if (notif.type == 'like') {
+      icon = Icons.favorite;
+      iconColor = Colors.red;
+    } else if (notif.type == 'comment') {
+      icon = Icons.comment;
+      iconColor = Colors.blue;
+    } else if (notif.type == 'connection_request') {
+      icon = Icons.person_add;
+      iconColor = Colors.green;
+    } else if (notif.type == 'connection_accepted') {
+      icon = Icons.people;
+      iconColor = const Color(0xFFD4AF37);
+    } else {
+      icon = Icons.notifications;
+      iconColor = Colors.grey;
     }
 
     return GestureDetector(
       onTap: () => _handleNotificationTap(notif),
       child: Container(
         padding: const EdgeInsets.all(16),
-        color: notif['is_read'] == false ? Colors.white : null,
+        color: notif.isRead == false ? Colors.white : null,
         child: Row(
           children: [
             Container(
@@ -122,26 +119,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    notif['title'],
+                    notif.title,
                     style: TextStyle(
-                      fontWeight: notif['is_read'] == false ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: notif.isRead == false ? FontWeight.bold : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    notif['message'],
+                    notif.body,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatTime(notif['created_at']),
+                    _formatTime(notif.createdAt),
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                   ),
                 ],
               ),
             ),
-            if (notif['is_read'] == false)
+            if (notif.isRead == false)
               Container(
                 width: 8,
                 height: 8,
@@ -156,12 +153,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  void _handleNotificationTap(Map<String, dynamic> notif) {
+  void _handleNotificationTap(NetworkNotification notif) {  // ✅ CORRIGÉ: utiliser le modèle
     // Navigation selon le type
-    if (notif['type'] == 'connection_request') {
-      context.push('/network/profile/${notif['actor_id']}');
-    } else if (notif['post_id'] != null) {
-      context.push('/network/post/${notif['post_id']}');
+    if (notif.type == 'connection_request' && notif.actorId != null) {
+      context.push('/network/profile/${notif.actorId}');  // ✅ CORRIGÉ: context.go ou context.push
+    } else if (notif.postId != null) {
+      context.push('/network/post/${notif.postId}');  // ✅ CORRIGÉ: context.go ou context.push
     }
   }
 
