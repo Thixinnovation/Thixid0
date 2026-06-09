@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/nav.dart';
 import 'package:thix_id/services/document_service.dart';
 import 'package:thix_id/services/thix_id_service.dart';
+import 'package:thix_id/services/user_service.dart';
 import 'package:thix_id/supabase/supabase_config.dart';
 
 import '../../theme.dart';
@@ -213,9 +215,6 @@ class _ThixNfcScanBottomSheetState extends State<_ThixNfcScanBottomSheet> {
         pollingOptions: const {NfcPollingOption.iso14443, NfcPollingOption.iso15693, NfcPollingOption.iso18092},
         onDiscovered: (tag) async {
           try {
-            // nfc_manager v4 exposes tags through a generic Map structure.
-            // We keep this robust by displaying the raw payload and letting the
-            // backend/UI parse a THIX ID if present.
             final text = tag.data.toString();
             if (!mounted) return;
             setState(() {
@@ -350,7 +349,7 @@ class _ThixVerifyBottomSheet extends StatefulWidget {
 }
 
 class _ThixVerifyBottomSheetState extends State<_ThixVerifyBottomSheet> {
-  final _users = UserService();
+  late final UserService _users;
   late final TextEditingController _uidController;
   late final TextEditingController _docController;
   bool _loading = false;
@@ -362,6 +361,7 @@ class _ThixVerifyBottomSheetState extends State<_ThixVerifyBottomSheet> {
   @override
   void initState() {
     super.initState();
+    _users = UserService(Supabase.instance.client);
     _uidController = TextEditingController(text: widget.initialUidOrThixId ?? '');
     _docController = TextEditingController(text: widget.initialDocId ?? '');
   }
@@ -374,70 +374,69 @@ class _ThixVerifyBottomSheetState extends State<_ThixVerifyBottomSheet> {
   }
 
   Future<void> _verify() async {
-  final uidRaw = _uidController.text.trim();
-  final doc = _docController.text.trim();
+    final uidRaw = _uidController.text.trim();
+    final doc = _docController.text.trim();
 
-  if (uidRaw.isEmpty) {
-    _showSnack('Veuillez saisir un THIX ID ou un UID.');
-    return;
-  }
-  final uidNormalized = ThixIdService.normalize(uidRaw);
-  final isThix = uidNormalized.startsWith('THIX-');
-  final isUid = _uidLikeRegex.hasMatch(uidRaw);
-  if (!isThix && !isUid) {
-    _showSnack('Identifiant invalide. Exemple: ${ThixIdService.exampleV2} ou ${ThixIdService.exampleV1} ou UID.');
-    return;
-  }
-  if (isThix && !ThixIdService.isValid(uidNormalized)) {
-    _showSnack('THIX ID invalide. Vérifiez le format et le checksum.');
-    return;
-  }
-  if (doc.isNotEmpty && !_docIdRegex.hasMatch(doc)) {
-    _showSnack('Doc ID invalide. Exemple: CIN-2023-001.');
-    return;
-  }
+    if (uidRaw.isEmpty) {
+      _showSnack('Veuillez saisir un THIX ID ou un UID.');
+      return;
+    }
+    final uidNormalized = ThixIdService.normalize(uidRaw);
+    final isThix = uidNormalized.startsWith('THIX-');
+    final isUid = _uidLikeRegex.hasMatch(uidRaw);
+    if (!isThix && !isUid) {
+      _showSnack('Identifiant invalide. Exemple: ${ThixIdService.exampleV2} ou ${ThixIdService.exampleV1} ou UID.');
+      return;
+    }
+    if (isThix && !ThixIdService.isValid(uidNormalized)) {
+      _showSnack('THIX ID invalide. Vérifiez le format et le checksum.');
+      return;
+    }
+    if (doc.isNotEmpty && !_docIdRegex.hasMatch(doc)) {
+      _showSnack('Doc ID invalide. Exemple: CIN-2023-001.');
+      return;
+    }
 
-  setState(() => _loading = true);
-  try {
-    // ✅ Correction ligne 405 : fetchUserByThixId (pas fetchUserByThixld)
-    final other = isThix 
-        ? await _users.fetchUserByThixId(uidNormalized.toUpperCase()) 
-        : await _users.fetchUserByUid(uidRaw);
-    if (other == null) throw Exception(isThix ? 'THIX ID introuvable.' : 'UID introuvable.');
+    setState(() => _loading = true);
+    try {
+      final other = isThix 
+          ? await _users.getUserByThixId(uidNormalized.toUpperCase()) 
+          : await _users.getUserById(uidRaw);
+      if (other == null) throw Exception(isThix ? 'THIX ID introuvable.' : 'UID introuvable.');
 
-    if (doc.isNotEmpty) {
-      final docId = doc.toUpperCase();
-      final row = await SupabaseConfig.client
-          .from(DocumentService.table)
-          .select('id')
-          .eq('user_id', other.id)
-          .eq('doc_id', docId)
-          .limit(1)
-          .maybeSingle();
-      if (row == null) {
-        _showSnack('Document introuvable pour ce Doc ID.');
-        return;
+      if (doc.isNotEmpty) {
+        final docId = doc.toUpperCase();
+        final row = await SupabaseConfig.client
+            .from(DocumentService.table)
+            .select('id')
+            .eq('user_id', other.id)
+            .eq('doc_id', docId)
+            .limit(1)
+            .maybeSingle();
+        if (row == null) {
+          _showSnack('Document introuvable pour ce Doc ID.');
+          return;
+        }
       }
-    }
 
-    if (!mounted) return;
-    context.pop();
-    final thixForRoute = other.thixId.trim().toUpperCase();
-    _showSnack('Profil vérifié: ${other.displayName} ($thixForRoute).', positive: true);
-    if (thixForRoute.isNotEmpty) context.push('${AppRoutes.publicProfile}?thixId=$thixForRoute');
-  } catch (e) {
-    debugPrint('VerifySheet: failed to verify uid=$uidRaw doc=$doc err=$e');
-    if (!mounted) return;
-    final msg = e.toString();
-    if (msg.toLowerCase().contains('introuvable')) {
-      _showSnack(msg);
-    } else {
-      _showSnack('Vérification impossible.');
+      if (!mounted) return;
+      context.pop();
+      final thixForRoute = other.thixId.trim().toUpperCase();
+      _showSnack('Profil vérifié: ${other.displayName} ($thixForRoute).', positive: true);
+      if (thixForRoute.isNotEmpty) context.push('${AppRoutes.publicProfile}?thixId=$thixForRoute');
+    } catch (e) {
+      debugPrint('VerifySheet: failed to verify uid=$uidRaw doc=$doc err=$e');
+      if (!mounted) return;
+      final msg = e.toString();
+      if (msg.toLowerCase().contains('introuvable')) {
+        _showSnack(msg);
+      } else {
+        _showSnack('Vérification impossible.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-  } finally {
-    if (mounted) setState(() => _loading = false);
   }
-}
 
   void _showSnack(String message, {bool positive = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
