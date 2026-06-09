@@ -4,7 +4,12 @@ import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_story.dart';
 
 class StoriesList extends StatefulWidget {
-  const StoriesList({super.key});
+  final Function(String)? onStoryTap;  // ← AJOUTER
+
+  const StoriesList({
+    super.key,
+    this.onStoryTap,  // ← AJOUTER
+  });
 
   @override
   State<StoriesList> createState() => _StoriesListState();
@@ -63,73 +68,76 @@ class _StoriesListState extends State<StoriesList> {
             itemBuilder: (context, index) {
               final story = _stories[index];
               
-              return Container(
-                width: 80,
-                margin: const EdgeInsets.only(right: 12),
-                child: Column(
-                  children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: story.isCurrentUser
-                                ? null
-                                : const LinearGradient(
-                                    colors: [Color(0xFFD4AF37), Colors.orange],
-                                  ),
-                            border: story.isCurrentUser
-                                ? Border.all(color: Colors.grey.shade300, width: 2)
-                                : null,
-                          ),
-                          child: CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: story.userAvatar != null
-                                ? NetworkImage(story.userAvatar!)
-                                : null,
-                            child: story.userAvatar == null
-                                ? const Icon(Icons.person, color: Colors.grey)
-                                : null,
-                          ),
-                        ),
-                        if (story.isCurrentUser)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD4AF37),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+              return GestureDetector(  // ← AJOUTER
+                onTap: () => widget.onStoryTap?.call(story.id),
+                child: Container(
+                  width: 80,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: story.isCurrentUser
+                                  ? null
+                                  : const LinearGradient(
+                                      colors: [Color(0xFFD4AF37), Colors.orange],
+                                    ),
+                              border: story.isCurrentUser
+                                  ? Border.all(color: Colors.grey.shade300, width: 2)
+                                  : null,
+                            ),
+                            child: CircleAvatar(
+                              radius: 30,
+                              backgroundColor: Colors.grey.shade200,
+                              backgroundImage: story.userAvatar != null
+                                  ? NetworkImage(story.userAvatar!)
+                                  : null,
+                              child: story.userAvatar == null
+                                  ? const Icon(Icons.person, color: Colors.grey)
+                                  : null,
                             ),
                           ),
-                        if (story.isViewed && !story.isCurrentUser)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: const BoxDecoration(
-                                color: Colors.grey,
-                                shape: BoxShape.circle,
+                          if (story.isCurrentUser)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFD4AF37),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.add, size: 16, color: Colors.white),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      story.userName,
-                      style: const TextStyle(fontSize: 11),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                          if (story.isViewed && !story.isCurrentUser)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: Colors.grey,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        story.userName,
+                        style: const TextStyle(fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
