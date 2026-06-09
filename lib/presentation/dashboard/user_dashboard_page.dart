@@ -847,8 +847,15 @@ class _ProfileTab extends StatelessWidget {
   final ThixProfile profile;
   final int score;
   final ProfileService profileService;
-  final _userService = UserService(Supabase.instance.client);
-  const _ProfileTab({required this.authUser, required this.profile, required this.score, required this.profileService, required this.firestoreUserService});
+  final UserService userService;
+
+  const _ProfileTab({
+    required this.authUser,
+    required this.profile,
+    required this.score,
+    required this.profileService,
+    required this.userService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2156,7 +2163,7 @@ class _SkillsEditorBodyState extends State<_SkillsEditorBody> {
 }
 
 class _UserDashboardPageState extends State<UserDashboardPage> {
-  final _userService = UserService();
+  final _userService = UserService(Supabase.instance.client);
   final _docs = DocumentService();
   final _profileService = ProfileService();
 
