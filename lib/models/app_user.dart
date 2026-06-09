@@ -13,6 +13,7 @@ class AppUser {
   final AccountType accountType;
   final String? photoUrl;
   final String? bio;
+  final String? title;  // ← AJOUTÉ (pour le titre professionnel)
   final String? countryOrOrigin;
   final String? contactPhone;
   final String? maritalStatus;
@@ -50,6 +51,7 @@ class AppUser {
     required this.accountType,
     this.photoUrl,
     this.bio,
+    this.title,  // ← AJOUTÉ
     this.countryOrOrigin,
     this.contactPhone,
     this.maritalStatus,
@@ -84,6 +86,7 @@ class AppUser {
     String? thixId,
     String? displayName,
     String? bio,
+    String? title,  // ← AJOUTÉ
     String? countryOrOrigin,
     String? occupation,
     String? profession,
@@ -122,6 +125,7 @@ class AppUser {
       accountType: accountType,
       photoUrl: photoUrl ?? this.photoUrl,
       bio: bio ?? this.bio,
+      title: title ?? this.title,  // ← AJOUTÉ
       countryOrOrigin: countryOrOrigin ?? this.countryOrOrigin,
       contactPhone: contactPhone ?? this.contactPhone,
       maritalStatus: maritalStatus ?? this.maritalStatus,
