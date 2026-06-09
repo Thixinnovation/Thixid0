@@ -20,27 +20,46 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Future<void> _loadBlockedUsers() async {
-    setState(() => _loading = true);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+
     try {
       final supabase = Supabase.instance.client;
       final currentUserId = supabase.auth.currentUser?.id;
+
+      if (currentUserId == null) {
+        if (mounted) {
+          setState(() => _loading = false);
+        }
+        return;
+      }
 
       final response = await supabase
           .from('blocked_users')
           .select('''
             blocked:profiles!blocked_user_id (
-              id, display_name, avatar_url, title
+              id,
+              display_name,
+              avatar_url,
+              title
             )
           ''')
           .eq('user_id', currentUserId);
 
+      if (!mounted) return;
+
       setState(() {
-        _blockedUsers = (response as List).map((e) => e['blocked'] as Map<String, dynamic>).toList();
+        _blockedUsers = (response as List)
+            .map((e) => e['blocked'] as Map<String, dynamic>)
+            .toList();
       });
     } catch (e) {
       debugPrint('Error loading blocked users: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -49,22 +68,34 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       final supabase = Supabase.instance.client;
       final currentUserId = supabase.auth.currentUser?.id;
 
+      if (currentUserId == null) return;
+
       await supabase
           .from('blocked_users')
           .delete()
           .eq('user_id', currentUserId)
           .eq('blocked_user_id', userId);
 
+      if (!mounted) return;
+
       setState(() {
         _blockedUsers.removeWhere((u) => u['id'] == userId);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Utilisateur débloqué'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Utilisateur débloqué'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Erreur : $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -76,20 +107,35 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Utilisateurs bloqués', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Utilisateurs bloqués',
+          style: TextStyle(
+            color: Color(0xFF0B1B3D),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0B1B3D)),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Color(0xFF0B1B3D),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : _blockedUsers.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.block, size: 64, color: Colors.grey),
+                      Icon(
+                        Icons.block,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
                       SizedBox(height: 16),
                       Text('Aucun utilisateur bloqué'),
                     ],
@@ -98,17 +144,21 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _blockedUsers.length,
-                  itemBuilder: (context, index) => _buildBlockedUserTile(_blockedUsers[index]),
+                  itemBuilder: (context, index) {
+                    return _buildBlockedUserTile(
+                      _blockedUsers[index],
+                    );
+                  },
                 ),
     );
   }
 
   Widget _buildBlockedUserTile(Map<String, dynamic> user) {
-    // ✅ Extraction sécurisée avec 'as'
-    final avatarUrl = user['avatar_url'] as String?;
-    final displayName = (user['display_name'] as String?) ?? 'Utilisateur';
-    final title = user['title'] as String?;
-    final userId = user['id'] as String;
+    final String? avatarUrl = user['avatar_url'] as String?;
+    final String displayName =
+        (user['display_name'] as String?) ?? 'Utilisateur';
+    final String? title = user['title'] as String?;
+    final String userId = user['id'] as String;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -121,26 +171,47 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-            child: avatarUrl == null ? const Icon(Icons.person) : null,
+            backgroundImage:
+                avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null
+                ? const Icon(Icons.person)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (title != null && title.isNotEmpty) 
-                  Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (title != null && title.isNotEmpty)
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
               ],
             ),
           ),
           OutlinedButton(
             onPressed: () => _unblockUser(userId),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.green),
+              side: const BorderSide(
+                color: Colors.green,
+              ),
             ),
-            child: const Text('Débloquer', style: TextStyle(color: Colors.green)),
+            child: const Text(
+              'Débloquer',
+              style: TextStyle(
+                color: Colors.green,
+              ),
+            ),
           ),
         ],
       ),
