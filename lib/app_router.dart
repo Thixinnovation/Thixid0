@@ -58,6 +58,7 @@ import 'presentation/thix_sante/thix_sante_page.dart';
 import 'presentation/thix_reservation/thix_reservation_page.dart';
 import 'presentation/thix_money/thix_money_page.dart';
 import 'presentation/thix_media/thix_media_page.dart';
+import 'package:thix_id/models/app_user.dart';  // ← AJOUTER CETTE LIGNE
 
 // Modèles
 import 'models/event_item.dart';
