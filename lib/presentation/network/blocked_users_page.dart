@@ -104,11 +104,11 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Widget _buildBlockedUserTile(Map<String, dynamic> user) {
-    // ✅ CORRECTION: Convertir avec toString() pour éviter String?
-    final avatarUrl = user['avatar_url']?.toString();
-    final displayName = user['display_name']?.toString() ?? 'Utilisateur';
-    final title = user['title']?.toString();
-    final userId = user['id']?.toString() ?? '';
+    // ✅ Extraction sécurisée avec 'as'
+    final avatarUrl = user['avatar_url'] as String?;
+    final displayName = (user['display_name'] as String?) ?? 'Utilisateur';
+    final title = user['title'] as String?;
+    final userId = user['id'] as String;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
