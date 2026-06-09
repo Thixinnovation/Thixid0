@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/models/network_community.dart';
 import 'package:thix_id/services/network_service.dart';
 
@@ -25,7 +26,8 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _networkService = NetworkService();
+    // ✅ CORRECTION: passer le client Supabase
+    _networkService = NetworkService(Supabase.instance.client);
   }
 
   @override
@@ -55,7 +57,7 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
         _communities = communities;
       });
     } catch (e) {
-      print('Search error: $e');
+      debugPrint('Search error: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -121,7 +123,11 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: _search,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: const Color(0xFF0B1B3D), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD4AF37),
+              foregroundColor: const Color(0xFF0B1B3D),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            ),
             child: const Text('Rechercher'),
           ),
         ],
@@ -139,21 +145,39 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
   }
 
   Widget _buildUserTile(Map<String, dynamic> user) {
+    final avatarUrl = user['avatar_url']?.toString();
+    final displayName = user['display_name']?.toString() ?? 'Utilisateur';
+    final title = user['title']?.toString();
+    final userId = user['id']?.toString() ?? '';
+
     return GestureDetector(
-      onTap: () => context.push('/network/profile/${user['id']}'),  // ✅ Correction
+      onTap: () => context.go('/network/profile/$userId'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
-            CircleAvatar(radius: 24, backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null, child: user['avatar_url'] == null ? const Icon(Icons.person) : null),
+            CircleAvatar(
+              radius: 24,
+              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+              child: avatarUrl == null ? const Icon(Icons.person) : null,
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-              if (user['title'] != null) Text(user['title'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ])),
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))), child: const Text('Se connecter', style: TextStyle(fontSize: 11))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (title != null) Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+            OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))),
+              child: const Text('Se connecter', style: TextStyle(fontSize: 11)),
+            ),
           ],
         ),
       ),
@@ -170,9 +194,14 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
   }
 
   Widget _buildPostTile(Map<String, dynamic> post) {
-    final user = post['profiles'];
+    final user = post['profiles'] as Map<String, dynamic>?;
+    final userName = user?['display_name']?.toString() ?? 'Utilisateur';
+    final userAvatar = user?['avatar_url']?.toString();
+    final postId = post['id']?.toString() ?? '';
+    final content = post['content']?.toString() ?? '';
+
     return GestureDetector(
-      onTap: () => context.push('/network/post/${post['id']}'),  // ✅ Correction
+      onTap: () => context.go('/network/post/$postId'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -180,13 +209,18 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              CircleAvatar(radius: 16, backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null),
-              const SizedBox(width: 8),
-              Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            ]),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage: userAvatar != null ? NetworkImage(userAvatar) : null,
+                ),
+                const SizedBox(width: 8),
+                Text(userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text(post['content'], maxLines: 3, overflow: TextOverflow.ellipsis),
+            Text(content, maxLines: 3, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -204,20 +238,37 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
 
   Widget _buildCommunityTile(NetworkCommunity community) {
     return GestureDetector(
-      onTap: () => context.push('/network/community/${community.id}'),  // ✅ Correction
+      onTap: () => context.go('/network/community/${community.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
-            Container(width: 50, height: 50, decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.groups, color: Color(0xFFD4AF37))),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4AF37).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.groups, color: Color(0xFFD4AF37)),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(community.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('${community.membersCount} membres', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            ])),
-            OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))), child: const Text('Rejoindre', style: TextStyle(fontSize: 11))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(community.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${community.membersCount} membres', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+            OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))),
+              child: const Text('Rejoindre', style: TextStyle(fontSize: 11)),
+            ),
           ],
         ),
       ),
