@@ -223,14 +223,14 @@ class NotificationService {
 
   Future<int> getUnreadCount(String uid) async {
     try {
-      // ✅ CORRECTION: utiliser '*' au lieu de 'id'
+      // ✅ CORRECTION: version simple et fiable
       final response = await _client
           .from(_table)
-          .select('*', count: CountOption.exact)
+          .select('id')
           .eq('user_id', uid)
           .eq('read', false);
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       debugPrint('Notification getUnreadCount error: $e');
       return 0;
