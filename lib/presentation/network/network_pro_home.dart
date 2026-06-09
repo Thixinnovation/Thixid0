@@ -17,6 +17,7 @@ import 'widgets/events_list.dart';
 import 'widgets/recommendations_ia.dart';
 import 'widgets/create_post_dialog.dart';
 import 'widgets/edit_profile_dialog.dart';
+import 'widgets/create_story_dialog.dart';  // ← À créer
 
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
@@ -85,6 +86,17 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     showDialog(
       context: context,
       builder: (_) => const CreatePostDialog(),
+    ).then((refresh) {
+      if (refresh == true) {
+        _loadData();
+      }
+    });
+  }
+
+  void _showCreateStoryDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => const CreateStoryDialog(),
     ).then((refresh) {
       if (refresh == true) {
         _loadData();
@@ -288,6 +300,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 onDocumentPressed: () => _showCreatePostDialog(),
                 onEventPressed: () => context.push('/events/create'),
                 onJobPressed: () => context.push('/jobs/create'),
+                onStoryPressed: _showCreateStoryDialog,  // ← Ajout création story
               ),
               const SizedBox(height: 16),
               StatsRow(
@@ -297,7 +310,11 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 onMessagesTap: () => context.push('/network/messages'),
               ),
               const SizedBox(height: 20),
-              const StoriesList(),
+              StoriesList(  // ← Stories réelles depuis Supabase
+                onStoryTap: (storyId) {
+                  context.push('/network/story/$storyId');
+                },
+              ),
               const SizedBox(height: 20),
               if (_loading)
                 const Center(child: CircularProgressIndicator())
@@ -377,7 +394,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                   context.push('/events/$eventId');
                 },
                 onInterestedTap: (eventId) async {
-                  // S'inscrire à l'événement
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Inscription à l\'événement'), backgroundColor: Colors.green),
                   );
