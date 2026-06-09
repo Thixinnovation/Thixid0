@@ -152,24 +152,35 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
     ];
   }
 
+  // ✅ CORRECTION: Ajout de postsCount
   List<NetworkCommunity> _getMockCommunities() {
     return [
       NetworkCommunity(
         id: 'comm1',
         name: 'Fintech Afrique',
         membersCount: 12500,
+        postsCount: 342,
         createdAt: DateTime.now(),
       ),
       NetworkCommunity(
         id: 'comm2',
         name: 'Développeurs Flutter',
         membersCount: 18000,
+        postsCount: 1256,
         createdAt: DateTime.now(),
       ),
       NetworkCommunity(
         id: 'comm3',
         name: 'Entrepreneurs Afrique',
         membersCount: 24500,
+        postsCount: 2345,
+        createdAt: DateTime.now(),
+      ),
+      NetworkCommunity(
+        id: 'comm4',
+        name: 'IA & Innovation',
+        membersCount: 9200,
+        postsCount: 789,
         createdAt: DateTime.now(),
       ),
     ];
