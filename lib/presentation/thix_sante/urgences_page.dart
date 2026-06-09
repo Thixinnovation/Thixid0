@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 class UrgencesPage extends StatelessWidget {
   const UrgencesPage({super.key});
 
-  // ✅ CORRECTION: Enlever 'const' car les valeurs ne sont pas constantes
+  // ✅ CORRECTION: Enlever 'final' et les rendre non-constants ou utiliser static
   final List<Map<String, dynamic>> _emergencyNumbers = [
     {'name': 'SAMU', 'number': '15', 'icon': Icons.local_hospital, 'color': Colors.red},
     {'name': 'Police', 'number': '17', 'icon': Icons.local_police, 'color': Colors.blue},
@@ -73,9 +73,11 @@ class UrgencesPage extends StatelessWidget {
   Widget _buildEmergencyNumberCard(Map<String, dynamic> number) {
     final icon = number['icon'] as IconData? ?? Icons.phone;
     final color = number['color'] as Color? ?? Colors.grey;
-    
+    final name = number['name']?.toString() ?? 'Urgence';
+    final numberValue = number['number']?.toString() ?? '';
+
     return GestureDetector(
-      onTap: () => _makeCall(number['number']),
+      onTap: () => _makeCall(numberValue),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -88,9 +90,9 @@ class UrgencesPage extends StatelessWidget {
           children: [
             Icon(icon, size: 40, color: color),
             const SizedBox(height: 8),
-            Text(number['name'], style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+            Text(name, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
             const SizedBox(height: 4),
-            Text(number['number'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+            Text(numberValue, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
       ),
@@ -98,6 +100,12 @@ class UrgencesPage extends StatelessWidget {
   }
 
   Widget _buildEmergencyServiceCard(Map<String, dynamic> service) {
+    final name = service['name']?.toString() ?? 'Service';
+    final address = service['address']?.toString() ?? '';
+    final phone = service['phone']?.toString() ?? '';
+    final distance = service['distance']?.toString() ?? '';
+    final waitingTime = service['waiting_time']?.toString() ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -121,15 +129,15 @@ class UrgencesPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(service['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(service['address'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(address, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(20)),
-                child: Text('${service['waiting_time']} attente', style: const TextStyle(fontSize: 10, color: Colors.orange)),
+                child: Text('$waitingTime attente', style: const TextStyle(fontSize: 10, color: Colors.orange)),
               ),
             ],
           ),
@@ -138,11 +146,11 @@ class UrgencesPage extends StatelessWidget {
             children: [
               const Icon(Icons.phone, size: 14, color: Colors.grey),
               const SizedBox(width: 4),
-              Text(service['phone']),
-              const Spacer(),
+              Expanded(child: Text(phone)),
+              const SizedBox(width: 16),
               const Icon(Icons.location_on, size: 14, color: Colors.grey),
               const SizedBox(width: 4),
-              Text(service['distance']),
+              Text(distance),
             ],
           ),
           const SizedBox(height: 12),
@@ -150,7 +158,7 @@ class UrgencesPage extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _makeCall(service['phone']),
+                  onPressed: () => _makeCall(phone),
                   icon: const Icon(Icons.phone),
                   label: const Text('Appeler'),
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
