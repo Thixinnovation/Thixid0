@@ -198,7 +198,7 @@ class UserService {
         .map((list) => list.cast<Map<String, dynamic>>());
   }
 
-  // ==================== MÉTHODES EXISTANTES ====================
+  // ==================== MÉTHODES POUR THIX ID ====================
 
   Future<String> ensureThixId({required String uid}) async {
     final row = await _supabase.from('profiles').select('thix_id').eq('id', uid).maybeSingle();
@@ -213,5 +213,46 @@ class UserService {
     final normalized = desired.trim().toLowerCase();
     await _supabase.from('profiles').update({'thix_chat': normalized}).eq('id', uid);
     return normalized;
+  }
+
+  // ==================== MÉTHODES POUR HOME PAGE ====================
+
+  Future<AppUser?> getUserByThixId(String thixId) async {
+    final row = await _supabase
+        .from('profiles')
+        .select()
+        .eq('thix_id', thixId)
+        .maybeSingle();
+    if (row == null) return null;
+    return _mapToAppUser(row as Map<String, dynamic>);
+  }
+
+  Future<AppUser?> getUserById(String userId) async {
+    final row = await _supabase
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+    if (row == null) return null;
+    return _mapToAppUser(row as Map<String, dynamic>);
+  }
+
+  AppUser _mapToAppUser(Map<String, dynamic> row) {
+    return AppUser(
+      id: row['id'],
+      thixId: row['thix_id'] ?? 'THIX-PENDING',
+      thixChat: row['thix_chat'] ?? '',
+      displayName: row['display_name'] ?? 'Utilisateur',
+      email: row['email'] ?? '',
+      phone: row['phone'],
+      photoUrl: row['photo_url'],
+      bio: row['bio'],
+      occupation: row['occupation'],
+      countryOrOrigin: row['country_or_origin'],
+      accountType: row['account_type'] == 'enterprise' ? AccountType.enterprise : AccountType.personal,
+      registrationStatus: row['registration_status'],
+      createdAt: row['created_at'] != null ? DateTime.tryParse(row['created_at']) ?? DateTime.now() : DateTime.now(),
+      updatedAt: row['updated_at'] != null ? DateTime.tryParse(row['updated_at']) ?? DateTime.now() : DateTime.now(),
+    );
   }
 }
