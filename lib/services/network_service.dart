@@ -596,6 +596,66 @@ Future<void> deleteStory(String storyId) async {
     
     await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
   }
+Future<void> addComment(String postId, String content) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('network_comments').insert({
+    'post_id': postId,
+    'user_id': currentUserId,
+    'content': content,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+  
+  await _createNotification(
+    userId: await _getPostOwnerId(postId),
+    type: 'comment',
+    postId: postId,
+  );
+}
+
+Future<List<Map<String, dynamic>>> getComments(String postId) async {
+  final response = await _supabase
+      .from('network_comments')
+      .select('''
+        *,
+        profiles!user_id (
+          id, display_name, avatar_url
+        )
+      ''')
+      .eq('post_id', postId)
+      .order('created_at', ascending: true);
+  
+  return (response as List).map((e) => {
+    'id': e['id'],
+    'user_id': e['user_id'],
+    'user_name': e['profiles']['display_name'],
+    'user_avatar': e['profiles']['avatar_url'],
+    'content': e['content'],
+    'created_at': e['created_at'],
+  }).toList();
+}
+Future<void> likePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('network_likes').insert({
+    'post_id': postId,
+    'user_id': currentUserId,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+  
+  await _createNotification(
+    userId: await _getPostOwnerId(postId),
+    type: 'like',
+    postId: postId,
+  );
+}
+
+Future<void> unlikePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  await _supabase
+      .from('network_likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', currentUserId);
+}
 
   // ==================== RECHERCHE ====================
 
