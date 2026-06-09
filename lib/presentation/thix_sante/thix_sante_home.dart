@@ -71,25 +71,24 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('THIX SANTÉ', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        titleSpacing: 0,
+        toolbarHeight: 48,
+        title: const Text('THIX SANTÉ', style: TextStyle(fontSize: 16, color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.settings_outlined, color: Color(0xFF0B1B3D)), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF0B1B3D)), onPressed: () {}, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          IconButton(icon: const Icon(Icons.settings_outlined, size: 18, color: Color(0xFF0B1B3D)), onPressed: () {}, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          const SizedBox(width: 8),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  HealthHeader(
-                    
-                    onNotificationTap: () {},
-                    onSettingsTap: () {},
-                  ),
-                  const SizedBox(height: 20),
+                  const HealthHeader(),
+                  const SizedBox(height: 12),
                   HealthStatsGrid(
                     consultationsCount: _stats['consultations_count'] ?? 0,
                     examensCount: _stats['examens_count'] ?? 0,
@@ -100,17 +99,17 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                     onOrdonnancesTap: () => context.push('/sante/ordonnances'),
                     onUrgencesTap: () => context.push('/sante/urgences'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _buildSectionTitle('SERVICES SANTÉ', 'Voir tout'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.9,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
+                      crossAxisCount: 4,
+                      childAspectRatio: 1.1,
+                      crossAxisSpacing: 4,
+                      mainAxisSpacing: 4,
                     ),
                     itemCount: _services.length,
                     itemBuilder: (context, index) {
@@ -122,25 +121,25 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _buildSectionTitle('SERVICES RAPIDES', null),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 1.5,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
+                      crossAxisCount: 4,
+                      childAspectRatio: 2.2,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 6,
                     ),
                     itemCount: 4,
                     itemBuilder: (context, index) {
                       final actions = [
-                        ('👨‍⚕️', 'Consulter un médecin', '/sante/consultation'),
-                        ('📁', 'Dossier médical', '/sante/dossier'),
-                        ('🔬', 'Résultats d\'examens', '/sante/resultats'),
-                        ('📄', 'Mes ordonnances', '/sante/ordonnances'),
+                        ('👨‍⚕️', 'Consulter', '/sante/consultation'),
+                        ('📁', 'Dossier', '/sante/dossier'),
+                        ('🔬', 'Examens', '/sante/resultats'),
+                        ('📄', 'Ordonnances', '/sante/ordonnances'),
                       ];
                       return HealthQuickAction(
                         icon: actions[index].$1,
@@ -149,26 +148,28 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
-                  HealthInsuranceCard(
-                    planName: _stats['insurance_plan'] ?? 'Essentiel',
-                    expiryDate: _stats['insurance_expiry'] ?? '31/12/2024',
-                    hasInsurance: _stats['has_insurance'] ?? false,
-                    onTap: () => context.push('/sante/assurance'),
+                  const SizedBox(height: 16),
+                  const HealthInsuranceCard(
+                    planName: 'Essentiel',
+                    expiryDate: '31/12/2024',
+                    hasInsurance: false,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _buildSectionTitle('POUR VOUS', 'Voir tous'),
-                  const SizedBox(height: 12),
-                  ..._articles.map((article) => HealthArticleCard(
-                    id: article['id'],
-                    title: article['title'],
-                    imageUrl: article['image_url'] ?? '',
-                    readTime: article['read_time'] ?? 3,
-                    onTap: () => context.push('/sante/article/${article['id']}'),
+                  const SizedBox(height: 6),
+                  ..._articles.take(3).map((article) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: HealthArticleCard(
+                      id: article['id'],
+                      title: article['title'],
+                      imageUrl: article['image_url'] ?? '',
+                      readTime: article['read_time'] ?? 3,
+                      onTap: () => context.push('/sante/article/${article['id']}'),
+                    ),
                   )),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _buildEmergencyButton(),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 60),
                 ],
               ),
             ),
@@ -179,11 +180,11 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: -0.3)),
         if (seeAll != null)
           GestureDetector(
             onTap: () {},
-            child: Text(seeAll, style: const TextStyle(fontSize: 12, color: Color(0xFFD4AF37))),
+            child: Text(seeAll, style: const TextStyle(fontSize: 10, color: Color(0xFFD4AF37), fontWeight: FontWeight.w500)),
           ),
       ],
     );
@@ -193,26 +194,32 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     return GestureDetector(
       onTap: () => context.push('/sante/urgences'),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.shade200),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200, width: 0.5),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const Row(
               children: [
-                Text('BESOIN D\'AIDE IMMÉDIATE ?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
-                Text('Contactez les urgences en un clic', style: TextStyle(fontSize: 11, color: Colors.red)),
+                Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+                SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('URGENCES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red)),
+                    Text('Appel immédiat', style: TextStyle(fontSize: 9, color: Colors.red)),
+                  ],
+                ),
               ],
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(30)),
-              child: const Text('Appeler 15', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
+              child: const Text('15', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ],
         ),
