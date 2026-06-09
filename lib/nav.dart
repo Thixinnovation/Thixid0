@@ -33,10 +33,6 @@ import 'presentation/network/network_groups_list.dart';
 import 'presentation/network/messages/conversations_list.dart';
 import 'presentation/network/messages/chat_screen.dart';
 import 'presentation/network/notifications/notifications_page.dart';
-import 'presentation/network/connections_list_page.dart';
-import 'presentation/network/my_posts_page.dart';
-import 'presentation/events/create_event_page.dart';
-import 'presentation/jobs/create_job_page.dart';
 
 // ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
@@ -68,7 +64,8 @@ import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart
 import 'package:thix_id/presentation/thix_money/thix_money_page.dart';
 import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
 import 'package:thix_id/presentation/admin/pages/admin_media_page.dart';
-
+import 'presentation/network/connections_list_page.dart';
+import 'presentation/network/my_posts_page.dart';
 /// Page sans transition (indispensable pour GoRouter)
 class NoTransitionPage<T> extends Page<T> {
   final Widget child;
@@ -108,10 +105,6 @@ class AppRoutes {
   static const String networkMessages = '/network/messages';
   static const String networkChat = '/network/chat/:userId';
   static const String networkNotifications = '/network/notifications';
-  static const String networkConnections = '/network/connections';
-  static const String networkMyPosts = '/network/my-posts';
-  static const String createEvent = '/events/create';
-  static const String createJob = '/jobs/create';
   
   // Autres services
   static const String jobs = '/jobs';
@@ -134,7 +127,8 @@ class AppRoutes {
   static const String thixMoney = '/thix-money';
   static const String thixMedia = '/thix-media';
   static const String adminMedia = '/admin/media';
-
+static const String networkConnections = '/network/connections';
+static const String networkMyPosts = '/network/my-posts';
   static String enterprisePortalBase(String slug) => '$enterprisePortalBasePath/$slug';
   static String enterprisePortalDashboard(String slug, String section) => '/company/$slug/dashboard/$section';
 }
@@ -395,16 +389,6 @@ class AppRouter {
           name: 'network-notifications',
           pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsPage()),
         ),
-        GoRoute(
-          path: AppRoutes.networkConnections,
-          name: 'network-connections',
-          pageBuilder: (context, state) => const NoTransitionPage(child: ConnectionsListPage()),
-        ),
-        GoRoute(
-          path: AppRoutes.networkMyPosts,
-          name: 'network-my-posts',
-          pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
-        ),
 
         // ==================== THIX MARKET ROUTES ====================
         GoRoute(
@@ -483,11 +467,6 @@ class AppRouter {
           name: 'recruiter',
           pageBuilder: (context, state) => const NoTransitionPage(child: RecruiterPortalPage()),
         ),
-        GoRoute(
-          path: AppRoutes.createJob,
-          name: 'createJob',
-          pageBuilder: (context, state) => const NoTransitionPage(child: CreateJobPage()),
-        ),
 
         // ==================== OPPORTUNITIES ROUTES ====================
         GoRoute(
@@ -549,11 +528,6 @@ class AppRouter {
           name: 'userEventsDashboard',
           pageBuilder: (context, state) => const NoTransitionPage(child: UserEventDashboardPage()),
         ),
-        GoRoute(
-          path: AppRoutes.createEvent,
-          name: 'createEvent',
-          pageBuilder: (context, state) => const NoTransitionPage(child: CreateEventPage()),
-        ),
 
         // ==================== TRAINING ROUTES ====================
         GoRoute(
@@ -582,7 +556,17 @@ class AppRouter {
             return NoTransitionPage(child: LessonPlayerPage(enrollmentId: enrollmentId));
           },
         ),
-
+// Ajouter dans les routes
+GoRoute(
+  path: AppRoutes.networkConnections,
+  name: 'network-connections',
+  pageBuilder: (context, state) => const NoTransitionPage(child: ConnectionsListPage()),
+),
+GoRoute(
+  path: AppRoutes.networkMyPosts,
+  name: 'network-my-posts',
+  pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
+),
         // ==================== EDUCATION ROUTE ====================
         GoRoute(
           path: AppRoutes.education,
