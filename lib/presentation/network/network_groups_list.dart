@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';  // ← AJOUTER
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/models/network_community.dart';
 
@@ -106,8 +106,12 @@ class _NetworkGroupsListState extends State<NetworkGroupsList> with SingleTicker
   }
 
   Widget _buildGroupCard(NetworkCommunity group, {required bool isMyGroups}) {
+    // ✅ CORRECTION: Extraire bannerUrl avec vérification
+    final bannerUrl = group.bannerUrl;
+    final hasBanner = bannerUrl != null && bannerUrl.isNotEmpty;
+
     return GestureDetector(
-      onTap: () => context.go('/network/community/${group.id}'),  // ✅ correction
+      onTap: () => context.go('/network/community/${group.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -123,11 +127,11 @@ class _NetworkGroupsListState extends State<NetworkGroupsList> with SingleTicker
               decoration: BoxDecoration(
                 color: const Color(0xFFD4AF37).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                image: group.bannerUrl != null
-                    ? DecorationImage(image: NetworkImage(group.bannerUrl!), fit: BoxFit.cover)
+                image: hasBanner
+                    ? DecorationImage(image: NetworkImage(bannerUrl!), fit: BoxFit.cover)
                     : null,
               ),
-              child: group.bannerUrl == null
+              child: !hasBanner
                   ? const Icon(Icons.groups, size: 30, color: Color(0xFFD4AF37))
                   : null,
             ),
