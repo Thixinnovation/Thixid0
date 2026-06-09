@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
@@ -54,7 +55,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         _suggestions = suggestions;
       });
     } catch (e) {
-      print('Error loading network data: $e');
+      debugPrint('Error loading network data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
@@ -104,7 +105,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         currentTitle: user.profession,
         currentBio: user.bio,
         currentAvatarUrl: user.photoUrl,
-        currentSkills: user.skills ?? [],
+        currentSkills: user.skills.map((s) => s['name']?.toString() ?? '').toList(),
       ),
     );
     
@@ -318,9 +319,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                       await _loadData();
                     },
                     onComment: () => _showCommentDialog(post),
-                    onShare: () {
-                      // Partager la publication
-                    },
                     onTap: () {
                       context.push('/network/post/${post.id}');
                     },
