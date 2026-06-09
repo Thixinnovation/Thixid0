@@ -9,6 +9,7 @@ class ProfileHeaderCard extends StatelessWidget {
   final VoidCallback? onDocumentPressed;
   final VoidCallback? onEventPressed;
   final VoidCallback? onJobPressed;
+  final VoidCallback? onStoryPressed;  // ← AJOUTÉ
 
   const ProfileHeaderCard({
     super.key,
@@ -18,6 +19,7 @@ class ProfileHeaderCard extends StatelessWidget {
     this.onDocumentPressed,
     this.onEventPressed,
     this.onJobPressed,
+    this.onStoryPressed,  // ← AJOUTÉ
   });
 
   @override
@@ -136,6 +138,12 @@ class ProfileHeaderCard extends StatelessWidget {
                 Icons.work,
                 'Offre',
                 onPressed: onJobPressed,
+              ),
+              const SizedBox(width: 8),
+              _buildShareButton(
+                Icons.auto_awesome,
+                'Story',
+                onPressed: onStoryPressed,
               ),
             ],
           ),
