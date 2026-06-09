@@ -123,7 +123,16 @@ class PushNotificationService {
     const init = InitializationSettings(android: androidInit, iOS: iosInit);
     
     // ✅ Correction: initialize ne prend qu'un seul argument
-    await _localNotifications.initialize(init);
+    await _localNotifications.initialize(
+  settings: init,
+  onDidReceiveNotificationResponse: (
+    NotificationResponse response,
+  ) {
+    debugPrint(
+      'Notification tapped: ${response.payload}',
+    );
+  },
+);
 
     const channel = AndroidNotificationChannel(
       'thix_general',
