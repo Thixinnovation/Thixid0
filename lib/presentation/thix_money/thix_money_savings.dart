@@ -84,3 +84,83 @@ class _ThixMoneySavingsState extends State<ThixMoneySavings> {
             const Text('Épargner maintenant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             AmountPicker(
+              amount: _selectedAmount,
+              onChanged: (value) => setState(() => _selectedAmount = value),
+            ),
+            const SizedBox(height: 8),
+            CustomTextField(
+              controller: _amountController,
+              hintText: '0',
+              prefixText: 'FCFA ',
+              keyboardType: TextInputType.number,
+              onChanged: (value) {
+                final amount = double.tryParse(value) ?? 0;
+                setState(() => _selectedAmount = amount);
+              },
+            ),
+            const SizedBox(height: 16),
+            
+            // Épargne automatique
+            SwitchListTile(
+              title: const Text('Épargne automatique'),
+              subtitle: const Text('Prélever automatiquement chaque mois'),
+              value: true,
+              onChanged: (value) {},
+              activeColor: const Color(0xFFD4AF37),
+            ),
+            const SizedBox(height: 24),
+            
+            // Bouton
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: const Color(0xFF0B1B3D),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text('Épargner', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalCard(String title, String target, double progress) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(target, style: const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFFD4AF37))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey.shade200,
+              color: const Color(0xFFD4AF37),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
