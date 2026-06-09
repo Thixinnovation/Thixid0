@@ -313,28 +313,13 @@ class AppRouter {
           },
         ),
         GoRoute(
-          path: '/events/:eventId/register',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(
-              child: EventRegisterPage(
-                event: EventItem(
-                  id: eventId,
-                  title: 'Chargement...',
-                  description: '',
-                  category: 'Autre',
-                  location: '',
-                  startsAt: DateTime.now(),
-                  endsAt: DateTime.now().add(const Duration(hours: 1)),
-                  price: 0,
-                  isRecommended: false,
-                  isPublished: true,
-                  maxParticipants: 0,
-                  registeredParticipants: 0,
-                  createdAt: DateTime.now(),
-                ),
-              ),
-            );
+  path: '/events/:eventId/register',
+  name: 'eventRegister',
+  pageBuilder: (context, state) {
+    final eventId = state.pathParameters['eventId'] ?? '';
+    return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
+  },
+),
           },
         ),
         GoRoute(
