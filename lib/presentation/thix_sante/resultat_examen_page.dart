@@ -25,15 +25,18 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id ?? '';
 
-      // ✅ CORRECTION: Simplifier la requête
-      var query = supabase.from('health_examens').select().eq('user_id', userId);
+      // ✅ CORRECTION: Déclarer query avec le bon type et réorganiser
+      PostgrestFilterBuilder<PostgrestList> query = supabase
+          .from('health_examens')
+          .select()
+          .eq('user_id', userId)
+          .order('exam_date', ascending: false)
+          .limit(1) as PostgrestFilterBuilder<PostgrestList>;
 
       if (widget.examenId != null && widget.examenId!.isNotEmpty) {
         query = query.eq('id', widget.examenId!);
       }
-      
-      query = query.order('exam_date', ascending: false).limit(1);
-      
+
       final response = await query.maybeSingle();
 
       setState(() {
@@ -85,7 +88,6 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildInfoCard() {
-    // ✅ CORRECTION: Extraire les valeurs avec sécurité
     final title = _examen?['title']?.toString() ?? 'Examen médical';
     final laboratory = _examen?['laboratory']?.toString();
     final doctorName = _examen?['doctor_name']?.toString();
@@ -147,7 +149,6 @@ class _ResultatExamenPageState extends State<ResultatExamenPage> {
   }
 
   Widget _buildResultsTable() {
-    // ✅ CORRECTION: Extraire les résultats avec sécurité
     final results = _examen?['results'] as List? ?? [
       {'parametre': 'Globules blancs', 'valeur': '7.2', 'unite': 'G/L', 'norme': '4.0-10.0', 'statut': 'normal'},
       {'parametre': 'Globules rouges', 'valeur': '4.8', 'unite': 'T/L', 'norme': '4.5-5.9', 'statut': 'normal'},
