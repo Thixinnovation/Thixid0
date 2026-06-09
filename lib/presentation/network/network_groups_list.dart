@@ -65,6 +65,10 @@ class _NetworkGroupsListState extends State<NetworkGroupsList> with SingleTicker
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text('Groupes', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0B1B3D)),
+          onPressed: () => context.pop(),
+        ),
         bottom: TabBar(
           controller: _tabController,
           labelColor: const Color(0xFFD4AF37),
@@ -106,8 +110,8 @@ class _NetworkGroupsListState extends State<NetworkGroupsList> with SingleTicker
   }
 
   Widget _buildGroupCard(NetworkCommunity group, {required bool isMyGroups}) {
-    // ✅ CORRECTION: Extraire bannerUrl avec vérification
-    final bannerUrl = group.bannerUrl;
+    // ✅ Extraction sécurisée avec 'as'
+    final bannerUrl = group.bannerUrl as String?;
     final hasBanner = bannerUrl != null && bannerUrl.isNotEmpty;
 
     return GestureDetector(
@@ -128,7 +132,7 @@ class _NetworkGroupsListState extends State<NetworkGroupsList> with SingleTicker
                 color: const Color(0xFFD4AF37).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 image: hasBanner
-                    ? DecorationImage(image: NetworkImage(bannerUrl!), fit: BoxFit.cover)
+                    ? DecorationImage(image: NetworkImage(bannerUrl), fit: BoxFit.cover)
                     : null,
               ),
               child: !hasBanner
