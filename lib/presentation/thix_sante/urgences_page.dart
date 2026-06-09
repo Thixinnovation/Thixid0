@@ -4,14 +4,15 @@ import 'package:url_launcher/url_launcher.dart';
 class UrgencesPage extends StatelessWidget {
   const UrgencesPage({super.key});
 
-  final List<Map<String, dynamic>> _emergencyNumbers = const [
-    {'name': 'SAMU', 'number': '15', 'icon': Icons.ambulance, 'color': Colors.red},
+  // ✅ CORRECTION: Enlever 'const' car les valeurs ne sont pas constantes
+  final List<Map<String, dynamic>> _emergencyNumbers = [
+    {'name': 'SAMU', 'number': '15', 'icon': Icons.local_hospital, 'color': Colors.red},
     {'name': 'Police', 'number': '17', 'icon': Icons.local_police, 'color': Colors.blue},
     {'name': 'Pompiers', 'number': '18', 'icon': Icons.fire_extinguisher, 'color': Colors.orange},
     {'name': 'Centre Anti-Poison', 'number': '1234', 'icon': Icons.medical_services, 'color': Colors.purple},
   ];
 
-  final List<Map<String, dynamic>> _emergencyServices = const [
+  final List<Map<String, dynamic>> _emergencyServices = [
     {'name': 'Clinique Ngaliema', 'address': 'Kinshasa, Gombe', 'phone': '+243 123 456 789', 'distance': '2.3 km', 'waiting_time': '15 min'},
     {'name': 'Hôpital du Cinquantenaire', 'address': 'Kinshasa, Limete', 'phone': '+243 123 456 790', 'distance': '5.1 km', 'waiting_time': '25 min'},
     {'name': 'Clinique Kinoise', 'address': 'Kinshasa, Ngaliema', 'phone': '+243 123 456 791', 'distance': '3.5 km', 'waiting_time': '20 min'},
@@ -43,7 +44,12 @@ class UrgencesPage extends StatelessWidget {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1.2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
               itemCount: _emergencyNumbers.length,
               itemBuilder: (context, index) => _buildEmergencyNumberCard(_emergencyNumbers[index]),
             ),
@@ -65,23 +71,26 @@ class UrgencesPage extends StatelessWidget {
   }
 
   Widget _buildEmergencyNumberCard(Map<String, dynamic> number) {
+    final icon = number['icon'] as IconData? ?? Icons.phone;
+    final color = number['color'] as Color? ?? Colors.grey;
+    
     return GestureDetector(
       onTap: () => _makeCall(number['number']),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: number['color'].withOpacity(0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: number['color'].withOpacity(0.3)),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(number['icon'], size: 40, color: number['color']),
+            Icon(icon, size: 40, color: color),
             const SizedBox(height: 8),
-            Text(number['name'], style: TextStyle(fontWeight: FontWeight.bold, color: number['color'])),
+            Text(number['name'], style: TextStyle(fontWeight: FontWeight.bold, color: color)),
             const SizedBox(height: 4),
-            Text(number['number'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: number['color'])),
+            Text(number['number'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
       ),
