@@ -26,7 +26,6 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // ✅ CORRECTION: passer le client Supabase
     _networkService = NetworkService(Supabase.instance.client);
   }
 
@@ -58,9 +57,122 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
       });
     } catch (e) {
       debugPrint('Search error: $e');
+      // ✅ Données fictives pour test
+      setState(() {
+        _users = _getMockUsers();
+        _posts = _getMockPosts();
+        _communities = _getMockCommunities();
+      });
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  // ✅ Méthode pour envoyer une demande de connexion
+  Future<void> _sendConnectionRequest(String userId, String userName) async {
+    try {
+      await _networkService.sendConnectionRequest(userId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Demande de connexion envoyée à $userName'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ✅ Données fictives pour test
+  List<Map<String, dynamic>> _getMockUsers() {
+    return [
+      {
+        'id': 'user1',
+        'display_name': 'Jean Kouassi',
+        'avatar_url': null,
+        'title': 'CEO @ Tech Solutions',
+      },
+      {
+        'id': 'user2',
+        'display_name': 'Marie Konan',
+        'avatar_url': null,
+        'title': 'CTO @ Africa Fintech',
+      },
+      {
+        'id': 'user3',
+        'display_name': 'Abdoul Diallo',
+        'avatar_url': null,
+        'title': 'Flutter Developer',
+      },
+      {
+        'id': 'user4',
+        'display_name': 'Claire N\'Guessan',
+        'avatar_url': null,
+        'title': 'Marketing Manager',
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> _getMockPosts() {
+    return [
+      {
+        'id': 'post1',
+        'content': 'Découvrez notre nouvelle plateforme de paiement digital disponible dès maintenant en Afrique.',
+        'profiles': {
+          'display_name': 'Jean Kouassi',
+          'avatar_url': null,
+        },
+      },
+      {
+        'id': 'post2',
+        'content': 'Nous recrutons des développeurs Flutter pour notre équipe à Abidjan.',
+        'profiles': {
+          'display_name': 'Marie Konan',
+          'avatar_url': null,
+        },
+      },
+      {
+        'id': 'post3',
+        'content': 'Formation gratuite sur l\'intelligence artificielle pour les entrepreneurs.',
+        'profiles': {
+          'display_name': 'Abdoul Diallo',
+          'avatar_url': null,
+        },
+      },
+    ];
+  }
+
+  List<NetworkCommunity> _getMockCommunities() {
+    return [
+      NetworkCommunity(
+        id: 'comm1',
+        name: 'Fintech Afrique',
+        membersCount: 12500,
+        createdAt: DateTime.now(),
+      ),
+      NetworkCommunity(
+        id: 'comm2',
+        name: 'Développeurs Flutter',
+        membersCount: 18000,
+        createdAt: DateTime.now(),
+      ),
+      NetworkCommunity(
+        id: 'comm3',
+        name: 'Entrepreneurs Afrique',
+        membersCount: 24500,
+        createdAt: DateTime.now(),
+      ),
+    ];
   }
 
   @override
@@ -149,37 +261,47 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
     final displayName = user['display_name']?.toString() ?? 'Utilisateur';
     final title = user['title']?.toString();
     final userId = user['id']?.toString() ?? '';
+    final isCurrentUser = userId == Supabase.instance.client.auth.currentUser?.id;
 
-    return GestureDetector(
-      onTap: () => context.go('/network/profile/$userId'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null ? const Icon(Icons.person) : null,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null ? const Icon(Icons.person) : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (title != null) Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  if (title != null) Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
+          ),
+          if (!isCurrentUser)
             OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))),
+              onPressed: () => _sendConnectionRequest(userId, displayName),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFD4AF37)),
+              ),
               child: const Text('Se connecter', style: TextStyle(fontSize: 11)),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('Vous', style: TextStyle(fontSize: 11)),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
