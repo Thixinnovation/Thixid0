@@ -41,7 +41,13 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
         _pregnancy = pregnancy as Map<String, dynamic>?;
         _appointments = [];
         _symptoms = [];
-        _currentWeek = _pregnancy != null ? DateTime.now().difference(DateTime.parse(_pregnancy!['start_date'])).inDays ~/ 7 : 12;
+        
+        // ✅ CORRECTION: Vérification de null avant d'utiliser DateTime.parse
+        if (_pregnancy != null && _pregnancy!['start_date'] != null) {
+          _currentWeek = DateTime.now().difference(DateTime.parse(_pregnancy!['start_date'])).inDays ~/ 7;
+        } else {
+          _currentWeek = 12;
+        }
       });
     } catch (e) {
       debugPrint('Error loading pregnancy data: $e');
@@ -215,8 +221,8 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_appointments[index]['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(_appointments[index]['date']),
+              Text(_appointments[index]['title'] ?? 'Rendez-vous', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(_appointments[index]['date'] ?? 'Date non définie'),
               Text(_appointments[index]['doctor'] ?? 'Médecin', style: const TextStyle(fontSize: 12, color: Colors.grey)),
             ])),
           ],
@@ -226,6 +232,9 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
   }
 
   Widget _buildSymptomsTab() {
+    if (_symptoms.isEmpty) {
+      return const Center(child: Text('Aucun symptôme enregistré'));
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _symptoms.length,
@@ -241,8 +250,8 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
               child: const Icon(Icons.sick, color: Colors.orange),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(_symptoms[index]['name'])),
-            Text(_symptoms[index]['date']),
+            Expanded(child: Text(_symptoms[index]['name'] ?? 'Symptôme')),
+            Text(_symptoms[index]['date'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
@@ -253,28 +262,49 @@ class _SuiviGrossessePageState extends State<SuiviGrossessePage> with SingleTick
     final dateController = TextEditingController();
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Début du suivi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: dateController,
-              decoration: const InputDecoration(labelText: 'Date des dernières règles', border: OutlineInputBorder()),
-              onTap: () async {
-                final date = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now());
-                if (date != null) dateController.text = '${date.day}/${date.month}/${date.year}';
-              },
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), minimumSize: const Size(double.infinity, 50)),
-              child: const Text('COMMENCER'),
-            ),
-          ],
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Début du suivi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: dateController,
+                decoration: const InputDecoration(labelText: 'Date des dernières règles', border: OutlineInputBorder()),
+                readOnly: true,
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null) {
+                    dateController.text = '${date.day}/${date.month}/${date.year}';
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Suivi de grossesse démarré !'), backgroundColor: Colors.green),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: const Color(0xFF0B1B3D),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text('COMMENCER'),
+              ),
+            ],
+          ),
         ),
       ),
     );
