@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
@@ -40,7 +41,7 @@ class _MemberProfileState extends State<MemberProfile> {
         _isConnectionPending = connectionStatus == 'pending';
       });
     } catch (e) {
-      print('Error loading profile: $e');
+      debugPrint('Error loading profile: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -56,6 +57,10 @@ class _MemberProfileState extends State<MemberProfile> {
         title: Text(
           _user?['display_name'] ?? 'Profil',
           style: const TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0B1B3D)),
+          onPressed: () => context.pop(),
         ),
         actions: [
           IconButton(
@@ -84,6 +89,12 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildHeader() {
+    // ✅ CORRECTION: extraire les valeurs avec toString() pour éviter les erreurs de type
+    final avatarUrl = _user?['avatar_url']?.toString();
+    final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
+    final title = _user?['title']?.toString() ?? 'Membre THIX';
+    final bio = _user?['bio']?.toString();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -98,27 +109,25 @@ class _MemberProfileState extends State<MemberProfile> {
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey.shade200,
-            backgroundImage: _user?['avatar_url'] != null
-                ? NetworkImage(_user!['avatar_url'])
-                : null,
-            child: _user?['avatar_url'] == null
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null
                 ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
                 : null,
           ),
           const SizedBox(height: 12),
           Text(
-            _user?['display_name'] ?? 'Utilisateur',
+            displayName,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
-            _user?['title'] ?? 'Membre THIX',
+            title,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
-          if (_user?['bio'] != null)
+          if (bio != null && bio.isNotEmpty)
             Text(
-              _user!['bio'],
+              bio,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
               textAlign: TextAlign.center,
             ),
@@ -128,6 +137,10 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildStats() {
+    final postsCount = _user?['posts_count'] as int? ?? 0;
+    final followersCount = _user?['followers_count'] as int? ?? 0;
+    final followingCount = _user?['following_count'] as int? ?? 0;
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -145,9 +158,9 @@ class _MemberProfileState extends State<MemberProfile> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(_user?['posts_count'] ?? 0, 'Publications'),
-          _buildStatItem(_user?['followers_count'] ?? 0, 'Abonnés'),
-          _buildStatItem(_user?['following_count'] ?? 0, 'Abonnements'),
+          _buildStatItem(postsCount, 'Publications'),
+          _buildStatItem(followersCount, 'Abonnés'),
+          _buildStatItem(followingCount, 'Abonnements'),
         ],
       ),
     );
@@ -230,6 +243,8 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildPostCard(NetworkPost post) {
+    final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -250,7 +265,7 @@ class _MemberProfileState extends State<MemberProfile> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _user?['display_name'] ?? '',
+                  displayName,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
@@ -299,7 +314,8 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   void _sendMessage() {
-    context.push('/network/chat/${widget.userId}');
+    // ✅ CORRECTION: utiliser context.go au lieu de context.push
+    context.go('/network/chat/${widget.userId}');
   }
 
   void _showOptions() {
