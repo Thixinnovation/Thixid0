@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';  // ← AJOUTER
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
+import 'package:thix_id/models/network_message.dart';  // ← AJOUTER CET IMPORT
 import 'chat_screen.dart';
 
 class ConversationsList extends StatefulWidget {
@@ -13,7 +14,7 @@ class ConversationsList extends StatefulWidget {
 
 class _ConversationsListState extends State<ConversationsList> {
   late NetworkService _networkService;
-  List<Conversation> _conversations = [];  // ✅ CORRECTION: utiliser List<Conversation>
+  List<Conversation> _conversations = [];
   bool _loading = true;
 
   @override
@@ -43,6 +44,10 @@ class _ConversationsListState extends State<ConversationsList> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text('Messages', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0B1B3D)),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -69,6 +74,14 @@ class _ConversationsListState extends State<ConversationsList> {
   }
 
   Widget _buildConversationTile(Conversation conv) {
+    // ✅ Extraire les valeurs avec gestion des nulls
+    final otherUserAvatar = conv.otherUserAvatar;
+    final otherUserName = conv.otherUserName;
+    final lastMessage = conv.lastMessage ?? 'Démarrer une conversation';
+    final unreadCount = conv.unreadCount;
+    final lastMessageIsFromMe = conv.lastMessageIsFromMe;
+    final lastMessageAt = conv.lastMessageAt;
+
     return GestureDetector(
       onTap: () => _openChat(conv),
       child: Container(
@@ -82,24 +95,27 @@ class _ConversationsListState extends State<ConversationsList> {
             CircleAvatar(
               radius: 24,
               backgroundColor: Colors.grey.shade200,
-              backgroundImage: conv.otherUserAvatar != null ? NetworkImage(conv.otherUserAvatar!) : null,
-              child: conv.otherUserAvatar == null ? const Icon(Icons.person, color: Colors.grey) : null,
+              backgroundImage: otherUserAvatar != null ? NetworkImage(otherUserAvatar) : null,
+              child: otherUserAvatar == null ? const Icon(Icons.person, color: Colors.grey) : null,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(conv.otherUserName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    otherUserName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    conv.lastMessage ?? 'Démarrer une conversation',
+                    lastMessage,
                     style: TextStyle(
                       fontSize: 13,
-                      color: conv.unreadCount > 0 && !conv.lastMessageIsFromMe
+                      color: unreadCount > 0 && !lastMessageIsFromMe
                           ? const Color(0xFF0B1B3D)
                           : Colors.grey.shade600,
-                      fontWeight: conv.unreadCount > 0 && !conv.lastMessageIsFromMe ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: unreadCount > 0 && !lastMessageIsFromMe ? FontWeight.w600 : FontWeight.normal,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -110,15 +126,15 @@ class _ConversationsListState extends State<ConversationsList> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(_formatTime(conv.lastMessageAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                Text(_formatTime(lastMessageAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                 const SizedBox(height: 4),
-                if (conv.unreadCount > 0 && !conv.lastMessageIsFromMe)
+                if (unreadCount > 0 && !lastMessageIsFromMe)
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(color: Color(0xFFD4AF37), shape: BoxShape.circle),
                     constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                     child: Text(
-                      '${conv.unreadCount}',
+                      '$unreadCount',
                       style: const TextStyle(color: Color(0xFF0B1B3D), fontSize: 10, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
