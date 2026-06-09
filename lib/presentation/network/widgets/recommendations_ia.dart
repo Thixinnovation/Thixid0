@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class RecommendationsIA extends StatelessWidget {
-  const RecommendationsIA({super.key});
+  final VoidCallback? onPeopleTap;
+  final VoidCallback? onOpportunitiesTap;
+  final VoidCallback? onCommunitiesTap;
+
+  const RecommendationsIA({
+    super.key,
+    this.onPeopleTap,
+    this.onOpportunitiesTap,
+    this.onCommunitiesTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +43,11 @@ class RecommendationsIA extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildRecommendationCard('3', 'personnes à rencontrer', Icons.people),
+              _buildRecommendationCard('3', 'personnes à rencontrer', Icons.people, onPeopleTap),
               const SizedBox(width: 12),
-              _buildRecommendationCard('2', 'opportunités adaptées', Icons.work),
+              _buildRecommendationCard('2', 'opportunités adaptées', Icons.work, onOpportunitiesTap),
               const SizedBox(width: 12),
-              _buildRecommendationCard('5', 'communautés pour vous', Icons.groups),
+              _buildRecommendationCard('5', 'communautés pour vous', Icons.groups, onCommunitiesTap),
             ],
           ),
         ],
@@ -45,35 +55,38 @@ class RecommendationsIA extends StatelessWidget {
     );
   }
 
-  Widget _buildRecommendationCard(String number, String label, IconData icon) {
+  Widget _buildRecommendationCard(String number, String label, IconData icon, VoidCallback? onTap) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFFD4AF37), size: 24),
-            const SizedBox(height: 8),
-            Text(
-              number,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: const Color(0xFFD4AF37), size: 24),
+              const SizedBox(height: 8),
+              Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 10,
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
