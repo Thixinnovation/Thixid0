@@ -126,6 +126,10 @@ class AppRouter {
           return AppRoutes.login;
         }
         if (isLoggedIn && isAuthPage) {
+          final user = auth.currentUser;
+          if (user?.accountType == AccountType.enterprise) {
+            return AppRoutes.enterpriseDashboard;
+          }
           return AppRoutes.userDashboard;
         }
         return null;
@@ -492,7 +496,7 @@ class AppRouter {
       case 'settings':
         return AdminModule.settings;
       default:
-        print('⚠️ Module inconnu: $slug → fallback sur overview');
+        debugPrint('⚠️ Module inconnu: $slug → fallback sur overview');
         return AdminModule.overview;
     }
   }
