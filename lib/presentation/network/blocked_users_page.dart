@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlockedUsersPage extends StatefulWidget {
@@ -37,7 +38,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         _blockedUsers = (response as List).map((e) => e['blocked'] as Map<String, dynamic>).toList();
       });
     } catch (e) {
-      print('Error loading blocked users: $e');
+      debugPrint('Error loading blocked users: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -76,6 +77,10 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text('Utilisateurs bloqués', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0B1B3D)),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -99,6 +104,12 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Widget _buildBlockedUserTile(Map<String, dynamic> user) {
+    // ✅ CORRECTION: Extraire les valeurs avec des valeurs par défaut
+    final avatarUrl = user['avatar_url'] as String?;
+    final displayName = user['display_name'] as String? ?? 'Utilisateur';
+    final title = user['title'] as String?;
+    final userId = user['id'] as String? ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -110,21 +121,22 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null,
-            child: user['avatar_url'] == null ? const Icon(Icons.person) : null,
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null ? const Icon(Icons.person) : null,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (user['title'] != null) Text(user['title'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (title != null) 
+                  Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               ],
             ),
           ),
           OutlinedButton(
-            onPressed: () => _unblockUser(user['id']),
+            onPressed: () => _unblockUser(userId),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Colors.green),
             ),
