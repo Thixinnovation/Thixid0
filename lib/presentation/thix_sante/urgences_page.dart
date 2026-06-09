@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UrgencesPage extends StatelessWidget {
-  const UrgencesPage({super.key});
+  // ✅ SOLUTION: Enlever 'const' devant le constructeur
+  UrgencesPage({super.key});
 
-  // ✅ CORRECTION: Enlever 'final' et les rendre non-constants ou utiliser static
   final List<Map<String, dynamic>> _emergencyNumbers = [
     {'name': 'SAMU', 'number': '15', 'icon': Icons.local_hospital, 'color': Colors.red},
     {'name': 'Police', 'number': '17', 'icon': Icons.local_police, 'color': Colors.blue},
@@ -18,6 +18,8 @@ class UrgencesPage extends StatelessWidget {
     {'name': 'Clinique Kinoise', 'address': 'Kinshasa, Ngaliema', 'phone': '+243 123 456 791', 'distance': '3.5 km', 'waiting_time': '20 min'},
   ];
 
+  // ... reste du code inchangé
+}
   Future<void> _makeCall(String number) async {
     final url = Uri.parse('tel:$number');
     if (await canLaunchUrl(url)) {
