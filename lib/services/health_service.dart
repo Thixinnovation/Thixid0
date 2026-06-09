@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/health_consultation.dart';
 import '../models/health_examen.dart';
@@ -22,31 +23,31 @@ class HealthService {
       
       final consultations = await _supabase
           .from('health_consultations')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId);
       
       final examens = await _supabase
           .from('health_examens')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId);
       
       final ordonnances = await _supabase
           .from('health_ordonnances')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId)
           .gte('expires_at', DateTime.now().toIso8601String());
       
       final urgences = await _supabase
           .from('health_emergency_calls')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId)
           .gte('created_at', DateTime.now().subtract(const Duration(days: 365)).toIso8601String());
       
       return {
-        'consultations_count': consultations.count ?? 0,
-        'examens_count': examens.count ?? 0,
-        'ordonnances_count': ordonnances.count ?? 0,
-        'urgences_count': urgences.count ?? 0,
+        'consultations_count': (consultations as List).length,
+        'examens_count': (examens as List).length,
+        'ordonnances_count': (ordonnances as List).length,
+        'urgences_count': (urgences as List).length,
       };
     } catch (e) {
       debugPrint('Error getting health stats: $e');
