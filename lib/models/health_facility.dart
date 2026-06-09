@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class HealthFacility {
   final String id;
   final String name;
@@ -63,6 +65,15 @@ class HealthFacility {
   bool get isPharmacy => type == 'pharmacy';
   bool get isClinic => type == 'clinic';
   
-  String get icon => isHospital ? Icons.local_hospital : (isPharmacy ? Icons.local_pharmacy : Icons.medical_services);
-  Color get color => isHospital ? Colors.red : (isPharmacy ? Colors.green : Colors.blue);
+  IconData get icon {
+    if (isHospital) return Icons.local_hospital;
+    if (isPharmacy) return Icons.local_pharmacy;
+    return Icons.medical_services;
+  }
+  
+  Color get color {
+    if (isHospital) return Colors.red;
+    if (isPharmacy) return Colors.green;
+    return Colors.blue;
+  }
 }
