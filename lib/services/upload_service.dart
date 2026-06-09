@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path/path.dart';
 
@@ -57,7 +58,6 @@ class UploadService {
     return publicUrl;
   }
 
-  // ✅ AJOUTER CETTE MÉTHODE POUR LES STORIES
   Future<String> uploadStoryImage(File image) async {
     final fileName = 'story_${DateTime.now().millisecondsSinceEpoch}_${basename(image.path)}';
     final filePath = 'stories/$fileName';
