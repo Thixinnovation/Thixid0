@@ -23,10 +23,9 @@ class _AssuranceSantePageState extends State<AssuranceSantePage> {
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
-
+      // ✅ CORRECTION: Supprimer la ligne en double et ajouter ?? ''
       final userId = supabase.auth.currentUser?.id ?? '';
-final insurance = await supabase.from('health_insurance').select().eq('user_id', userId).maybeSingle();
+      final insurance = await supabase.from('health_insurance').select().eq('user_id', userId).maybeSingle();
 
       setState(() {
         _insurance = insurance as Map<String, dynamic>?;
@@ -72,6 +71,10 @@ final insurance = await supabase.from('health_insurance').select().eq('user_id',
   }
 
   Widget _buildCurrentInsurance() {
+    // ✅ CORRECTION: Vérifications de sécurité avec valeurs par défaut
+    final planName = _insurance?['plan_name']?.toString() ?? 'Assurance';
+    final expiryDate = _insurance?['expiry_date']?.toString() ?? 'Non définie';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -89,9 +92,9 @@ final insurance = await supabase.from('health_insurance').select().eq('user_id',
             ],
           ),
           const SizedBox(height: 12),
-          Text(_insurance!['plan_name'], style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(planName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Valable jusqu\'au ${_insurance!['expiry_date']}', style: const TextStyle(color: Colors.white70)),
+          Text('Valable jusqu\'au $expiryDate', style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () {},
@@ -104,22 +107,28 @@ final insurance = await supabase.from('health_insurance').select().eq('user_id',
   }
 
   Widget _buildPlanCard(Map<String, dynamic> plan) {
+    // ✅ CORRECTION: Extraire les valeurs avec sécurité
+    final name = plan['name']?.toString() ?? 'Offre';
+    final price = plan['price']?.toString() ?? '0 FCFA';
+    final coverage = plan['coverage']?.toString() ?? '';
+    final isPopular = plan['popular'] == true;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: plan['popular'] == true ? Colors.blue.shade50 : Colors.white,
+        color: isPopular ? Colors.blue.shade50 : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: plan['popular'] == true ? Colors.blue.shade200 : Colors.grey.shade200),
+        border: Border.all(color: isPopular ? Colors.blue.shade200 : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(plan['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Spacer(),
-              if (plan['popular'] == true)
+              if (isPopular)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(20)),
@@ -128,18 +137,18 @@ final insurance = await supabase.from('health_insurance').select().eq('user_id',
             ],
           ),
           const SizedBox(height: 4),
-          Text(plan['price'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
+          Text(price, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
           const SizedBox(height: 8),
-          Text(plan['coverage']),
+          Text(coverage),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: plan['popular'] == true ? const Color(0xFFD4AF37) : Colors.white,
+                backgroundColor: isPopular ? const Color(0xFFD4AF37) : Colors.white,
                 foregroundColor: const Color(0xFF0B1B3D),
-                side: BorderSide(color: plan['popular'] == true ? Colors.transparent : const Color(0xFFD4AF37)),
+                side: BorderSide(color: isPopular ? Colors.transparent : const Color(0xFFD4AF37)),
               ),
               child: const Text('Souscrire'),
             ),
@@ -158,9 +167,33 @@ final insurance = await supabase.from('health_insurance').select().eq('user_id',
         children: [
           const Text('Questions fréquentes', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          ExpansionTile(title: const Text('Comment souscrire ?'), children: [const Padding(padding: EdgeInsets.all(16), child: Text('Vous pouvez souscrire en ligne en quelques minutes.'))]),
-          ExpansionTile(title: const Text('Quels sont les délais ?'), children: [const Padding(padding: EdgeInsets.all(16), child: Text('La couverture commence 48h après souscription.'))]),
-          ExpansionTile(title: const Text('Comment résilier ?'), children: [const Padding(padding: EdgeInsets.all(16), child: Text('Résiliation possible à tout moment.'))]),
+          ExpansionTile(
+            title: const Text('Comment souscrire ?'),
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Vous pouvez souscrire en ligne en quelques minutes.'),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            title: const Text('Quels sont les délais ?'),
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('La couverture commence 48h après souscription.'),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            title: const Text('Comment résilier ?'),
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Résiliation possible à tout moment.'),
+              ),
+            ],
+          ),
         ],
       ),
     );
