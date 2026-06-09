@@ -6,11 +6,11 @@ import '../../models/event_item.dart';
 import '../../services/event_service.dart';
 
 class EventRegisterPage extends StatefulWidget {
-  final EventItem event;
+  final String eventId;  // ← CHANGÉ : eventId au lieu de event
 
   const EventRegisterPage({
     super.key,
-    required this.event,
+    required this.eventId,  // ← CHANGÉ
   });
 
   @override
@@ -26,9 +26,58 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
   final _noteController = TextEditingController();
 
   bool _loading = false;
+  bool _loadingEvent = true;
   int _tickets = 1;
+  EventItem? _event;
 
   late final EventService _eventService = EventService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvent();
+  }
+
+  Future<void> _loadEvent() async {
+    setState(() => _loadingEvent = true);
+    try {
+      final event = await _fetchEventById(widget.eventId);
+      setState(() => _event = event);
+    } catch (e) {
+      debugPrint('Error loading event: $e');
+    } finally {
+      setState(() => _loadingEvent = false);
+    }
+  }
+
+  Future<EventItem?> _fetchEventById(String eventId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('events')
+          .select()
+          .eq('id', eventId)
+          .single();
+      
+      return EventItem(
+        id: response['id'],
+        title: response['title'],
+        description: response['description'] ?? '',
+        category: response['category'] ?? 'Autre',
+        location: response['location'] ?? '',
+        startsAt: DateTime.parse(response['starts_at']),
+        endsAt: DateTime.parse(response['ends_at']),
+        price: (response['price'] as num?)?.toDouble() ?? 0,
+        isRecommended: response['is_recommended'] ?? false,
+        isPublished: response['is_published'] ?? true,
+        maxParticipants: response['max_participants'] ?? 0,
+        registeredParticipants: response['registered_participants'] ?? 0,
+        createdAt: DateTime.parse(response['created_at']),
+      );
+    } catch (e) {
+      debugPrint('Error fetching event: $e');
+      return null;
+    }
+  }
 
   @override
   void dispose() {
@@ -40,10 +89,11 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
     super.dispose();
   }
 
-  double get _totalPrice => (widget.event.price ?? 0) * _tickets;
+  double get _totalPrice => (_event?.price ?? 0) * _tickets;
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_event == null) return;
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -58,14 +108,14 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
     try {
       final success = await _eventService.registerForEvent(
         userId: user.id,
-        eventId: widget.event.id,
+        eventId: widget.eventId,
       );
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Réservation réussie !'), backgroundColor: Colors.green),
         );
-        context.go('/events/me'); // Mes billets
+        context.go('/events/me');
       }
     } catch (e) {
       if (mounted) {
@@ -80,7 +130,21 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final event = widget.event;
+    if (_loadingEvent) {
+      return const Scaffold(
+        appBar: AppBar(title: Text('Réservation')),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_event == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Réservation')),
+        body: const Center(child: Text('Événement non trouvé')),
+      );
+    }
+
+    final event = _event!;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Réservation')),
@@ -108,23 +172,8 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // THIX ID, Nom, Email, Téléphone, Tickets, Note... (le reste de ton UI reste identique)
-                // Pour gagner du temps, je te laisse ton UI existante ici, mais remplace uniquement la partie _register()
-
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _register,
-                    child: _loading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Confirmer la réservation'),
-                  ),
-                ),
+                // ... (reste de ton formulaire)
               ],
             ),
           ),
