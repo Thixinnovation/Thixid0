@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';  // ← AJOUTER
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thix_id/models/network_community.dart';
 
 class CommunityDetailPage extends StatefulWidget {
   final String communityId;
@@ -11,7 +13,7 @@ class CommunityDetailPage extends StatefulWidget {
 
 class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Map<String, dynamic>? _community;
+  NetworkCommunity? _community;
   List<Map<String, dynamic>> _members = [];
   List<Map<String, dynamic>> _posts = [];
   bool _loading = true;
@@ -61,9 +63,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
           .order('created_at', ascending: false)
           .limit(20);
 
-      // Vérifier si l'utilisateur est membre
       if (currentUserId != null) {
-        const memberCheck = await supabase
+        final memberCheck = await supabase
             .from('community_members')
             .select('id')
             .eq('community_id', widget.communityId)
@@ -73,12 +74,12 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
       }
 
       setState(() {
-        _community = community;
+        _community = NetworkCommunity.fromJson(community);
         _members = (members as List).map((e) => e['profiles'] as Map<String, dynamic>).toList();
         _posts = (posts as List).cast<Map<String, dynamic>>();
       });
     } catch (e) {
-      print('Error loading community: $e');
+      debugPrint('Error loading community: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -108,7 +109,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
 
       setState(() => _isMember = !_isMember);
     } catch (e) {
-      print('Error toggling join: $e');
+      debugPrint('Error toggling join: $e');
     } finally {
       setState(() => _isJoining = false);
     }
@@ -121,7 +122,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(_community?['name'] ?? 'Communauté', style: const TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        title: Text(_community?.name ?? 'Communauté', style: const TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
         actions: [
           if (_community != null)
             Padding(
@@ -166,44 +167,35 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bannière
           Container(
             height: 150,
             width: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFFD4AF37).withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
-              image: _community?['banner_url'] != null
-                  ? DecorationImage(image: NetworkImage(_community!['banner_url']), fit: BoxFit.cover)
+              image: _community?.bannerUrl != null
+                  ? DecorationImage(image: NetworkImage(_community!.bannerUrl!), fit: BoxFit.cover)
                   : null,
             ),
-            child: _community?['banner_url'] == null
+            child: _community?.bannerUrl == null
                 ? const Center(child: Icon(Icons.groups, size: 50, color: Color(0xFFD4AF37)))
                 : null,
           ),
           const SizedBox(height: 16),
-
-          // Description
-          if (_community?['description'] != null) ...[
+          if (_community?.description != null) ...[
             const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            Text(_community!['description']),
+            Text(_community!.description!),
             const SizedBox(height: 16),
           ],
-
-          // Statistiques
           Row(
             children: [
-              _buildStatItem(_members.length.toString(), 'membres'),
+              _buildStatItem('${_members.length}', 'membres'),
               const SizedBox(width: 24),
-              _buildStatItem(_community?['posts_count']?.toString() ?? '0', 'publications'),
-              const SizedBox(width: 24),
-              _buildStatItem(_community?['created_at'] != null ? '2024' : 'Nouvelle', 'créée'),
+              _buildStatItem('${_community?.postsCount ?? 0}', 'publications'),
             ],
           ),
           const SizedBox(height: 24),
-
-          // Publications de la communauté
           const Text('Dernières publications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           if (_posts.isEmpty)
@@ -225,26 +217,29 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
 
   Widget _buildPostTile(Map<String, dynamic> post) {
     final user = post['profiles'];
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(radius: 16, backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null),
-              const SizedBox(width: 8),
-              Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(post['content'], maxLines: 3, overflow: TextOverflow.ellipsis),
-        ],
+    return GestureDetector(
+      onTap: () => context.push('/network/post/${post['id']}'),  // ✅ correction
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(radius: 16, backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null),
+                const SizedBox(width: 8),
+                Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(post['content'], maxLines: 3, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }
@@ -262,7 +257,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
 
   Widget _buildMemberTile(Map<String, dynamic> member) {
     return GestureDetector(
-      onTap: () => context.push('/network/profile/${member['id']}'),
+      onTap: () => context.push('/network/profile/${member['id']}'),  // ✅ correction
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -287,12 +282,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
                 ],
               ),
             ),
-            if (_isMember && member['id'] != Supabase.instance.client.auth.currentUser?.id)
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))),
-                child: const Text('Contacter', style: TextStyle(fontSize: 11)),
-              ),
           ],
         ),
       ),
