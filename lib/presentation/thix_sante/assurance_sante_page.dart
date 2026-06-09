@@ -25,7 +25,8 @@ class _AssuranceSantePageState extends State<AssuranceSantePage> {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
 
-      final insurance = await supabase.from('health_insurance').select().eq('user_id', userId).maybeSingle();
+      final userId = supabase.auth.currentUser?.id ?? '';
+final insurance = await supabase.from('health_insurance').select().eq('user_id', userId).maybeSingle();
 
       setState(() {
         _insurance = insurance as Map<String, dynamic>?;
