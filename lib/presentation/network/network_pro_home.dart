@@ -14,6 +14,8 @@ import 'widgets/communities_list.dart';
 import 'widgets/opportunities_list.dart';
 import 'widgets/events_list.dart';
 import 'widgets/recommendations_ia.dart';
+import 'widgets/create_post_dialog.dart';
+import 'widgets/edit_profile_dialog.dart';
 
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
@@ -28,6 +30,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   List<NetworkConnection> _suggestions = [];
   bool _loading = true;
   int _unreadNotifications = 0;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -38,7 +41,11 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    if (_isRefreshing) return;
+    setState(() {
+      _loading = true;
+      _isRefreshing = true;
+    });
     try {
       final posts = await _networkService.getFeedPosts();
       final suggestions = await _networkService.getSuggestedConnections();
@@ -48,156 +55,84 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       });
     } catch (e) {
       print('Error loading network data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
   Future<void> _loadUnreadCount() async {
     final count = await _networkService.getUnreadNotificationsCount();
-    setState(() => _unreadNotifications = count);
+    if (mounted) setState(() => _unreadNotifications = count);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final auth = Provider.of<AuthController>(context);
-    if (auth.currentUser == null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Connectez-vous pour accéder au Réseau Pro'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => context.push('/login'),
-                child: const Text('Se connecter'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Future<void> _onRefresh() async {
+    await _loadData();
+    await _loadUnreadCount();
+  }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'THIX RÉSEAU PRO',
-          style: TextStyle(
-            color: Color(0xFF0B1B3D),
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)),
-                onPressed: () => _showNotifications(),
-              ),
-              if (_unreadNotifications > 0)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                    child: Text(
-                      '$_unreadNotifications',
-                      style: const TextStyle(color: Colors.white, fontSize: 8),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)),
-            onPressed: () => _goToMessages(),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const ProfileHeaderCard(),
-              const SizedBox(height: 16),
-              const StatsRow(),
-              const SizedBox(height: 20),
-              const StoriesList(),
-              const SizedBox(height: 20),
-              if (_loading)
-                const Center(child: CircularProgressIndicator())
-              else ...[
-                ..._posts.map((post) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: PostCard(
-                    post: post,
-                    onLike: () async {
-                      if (post.isLikedByCurrentUser) {
-                        await _networkService.unlikePost(post.id);
-                      } else {
-                        await _networkService.likePost(post.id);
-                      }
-                      await _loadData();
-                    },
-                    onComment: () => _showCommentDialog(post),
-                  ),
-                )),
-              ],
-              const SizedBox(height: 16),
-              if (_suggestions.isNotEmpty) ...[
-                const Text(
-                  'Suggestions de connexions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                SuggestionsList(
-                  suggestions: _suggestions,
-                  onConnect: (userId) async {
-                    await _networkService.sendConnectionRequest(userId);
-                    await _loadData();
-                  },
-                ),
-              ],
-              const SizedBox(height: 20),
-              const CommunitiesList(),
-              const SizedBox(height: 20),
-              const OpportunitiesList(),
-              const SizedBox(height: 20),
-              const EventsList(),
-              const SizedBox(height: 20),
-              const RecommendationsIA(),
-              const SizedBox(height: 80),
-            ],
-          ),
-        ),
+  void _showCreatePostDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => const CreatePostDialog(),
+    ).then((refresh) {
+      if (refresh == true) {
+        _loadData();
+      }
+    });
+  }
+
+  void _showEditProfileDialog() async {
+    final auth = Provider.of<AuthController>(context, listen: false);
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final result = await showDialog(
+      context: context,
+      builder: (_) => EditProfileDialog(
+        userId: user.id,
+        currentName: user.displayName,
+        currentTitle: user.profession,
+        currentBio: user.bio,
+        currentAvatarUrl: user.photoUrl,
+        currentSkills: user.skills ?? [],
       ),
     );
+    
+    if (result != null && mounted) {
+      await auth.updateCurrentUser(user.copyWith(
+        displayName: result['name'],
+        profession: result['title'],
+        bio: result['bio'],
+        photoUrl: result['avatar_url'],
+      ));
+      await _loadData();
+    }
   }
 
   void _showNotifications() {
-    // TODO: Implémenter l'écran des notifications
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notifications - à venir')),
-    );
+    context.push('/network/notifications').then((_) => _loadUnreadCount());
   }
 
   void _goToMessages() {
-    // TODO: Naviguer vers les messages
     context.push('/network/messages');
+  }
+
+  void _goToSearch() {
+    context.push('/network/search');
+  }
+
+  void _goToGroups() {
+    context.push('/network/groups');
   }
 
   void _showCommentDialog(NetworkPost post) {
@@ -245,8 +180,10 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                             post.id,
                             commentController.text.trim(),
                           );
-                          Navigator.pop(context);
-                          await _loadData();
+                          if (mounted) {
+                            Navigator.pop(context);
+                            await _loadData();
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -260,6 +197,167 @@ class _NetworkProHomeState extends State<NetworkProHome> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthController>(context);
+    if (auth.currentUser == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Connectez-vous pour accéder au Réseau Pro'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Se connecter'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'THIX RÉSEAU PRO',
+          style: TextStyle(
+            color: Color(0xFF0B1B3D),
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF0B1B3D)),
+            onPressed: _goToSearch,
+          ),
+          IconButton(
+            icon: const Icon(Icons.groups, color: Color(0xFF0B1B3D)),
+            onPressed: _goToGroups,
+          ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)),
+                onPressed: _showNotifications,
+              ),
+              if (_unreadNotifications > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                    child: Text(
+                      '$_unreadNotifications',
+                      style: const TextStyle(color: Colors.white, fontSize: 8),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)),
+            onPressed: _goToMessages,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProfileHeaderCard(
+                onEditPressed: _showEditProfileDialog,
+              ),
+              const SizedBox(height: 16),
+              const StatsRow(),
+              const SizedBox(height: 20),
+              const StoriesList(),
+              const SizedBox(height: 20),
+              if (_loading)
+                const Center(child: CircularProgressIndicator())
+              else if (_posts.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        Icon(Icons.post_add, size: 48, color: Colors.grey),
+                        SizedBox(height: 8),
+                        Text('Aucune publication'),
+                        Text('Soyez le premier à partager quelque chose'),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ..._posts.map((post) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: PostCard(
+                    post: post,
+                    onLike: () async {
+                      if (post.isLikedByCurrentUser) {
+                        await _networkService.unlikePost(post.id);
+                      } else {
+                        await _networkService.likePost(post.id);
+                      }
+                      await _loadData();
+                    },
+                    onComment: () => _showCommentDialog(post),
+                    onShare: () {
+                      // Partager la publication
+                    },
+                    onTap: () {
+                      context.push('/network/post/${post.id}');
+                    },
+                  ),
+                )),
+              const SizedBox(height: 16),
+              if (_suggestions.isNotEmpty) ...[
+                const Text(
+                  'Suggestions de connexions',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                SuggestionsList(
+                  suggestions: _suggestions,
+                  onConnect: (userId) async {
+                    await _networkService.sendConnectionRequest(userId);
+                    await _loadData();
+                  },
+                ),
+              ],
+              const SizedBox(height: 20),
+              const CommunitiesList(),
+              const SizedBox(height: 20),
+              const OpportunitiesList(),
+              const SizedBox(height: 20),
+              const EventsList(),
+              const SizedBox(height: 20),
+              const RecommendationsIA(),
+              const SizedBox(height: 80),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreatePostDialog,
+        backgroundColor: const Color(0xFFD4AF37),
+        child: const Icon(Icons.add, color: Color(0xFF0B1B3D)),
       ),
     );
   }
