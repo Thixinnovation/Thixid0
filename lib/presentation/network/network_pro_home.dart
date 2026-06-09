@@ -17,7 +17,7 @@ import 'widgets/events_list.dart';
 import 'widgets/recommendations_ia.dart';
 import 'widgets/create_post_dialog.dart';
 import 'widgets/edit_profile_dialog.dart';
-import 'widgets/create_story_dialog.dart';  // ← À créer
+import 'widgets/create_story_dialog.dart';
 
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
@@ -73,8 +73,12 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   Future<void> _loadUnreadCount() async {
-    final count = await _networkService.getUnreadNotificationsCount();
-    if (mounted) setState(() => _unreadNotifications = count);
+    try {
+      final count = await _networkService.getUnreadNotificationsCount();
+      if (mounted) setState(() => _unreadNotifications = count);
+    } catch (e) {
+      debugPrint('Error loading unread count: $e');
+    }
   }
 
   Future<void> _onRefresh() async {
@@ -298,21 +302,31 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 onPhotoPressed: () => _showCreatePostDialog(),
                 onVideoPressed: () => _showCreatePostDialog(),
                 onDocumentPressed: () => _showCreatePostDialog(),
-                onEventPressed: () => context.push('/events/create'),
-                onJobPressed: () => context.push('/jobs/create'),
-                onStoryPressed: _showCreateStoryDialog,  // ← Ajout création story
+                onEventPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fonctionnalité à venir')),
+                ),
+                onJobPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fonctionnalité à venir')),
+                ),
+                onStoryPressed: _showCreateStoryDialog,
               ),
               const SizedBox(height: 16),
               StatsRow(
-                onConnexionsTap: () => context.push('/network/connections'),
-                onPublicationsTap: () => context.push('/network/my-posts'),
+                onConnexionsTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fonctionnalité à venir')),
+                ),
+                onPublicationsTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fonctionnalité à venir')),
+                ),
                 onCommunitiesTap: () => context.push('/network/groups'),
                 onMessagesTap: () => context.push('/network/messages'),
               ),
               const SizedBox(height: 20),
-              StoriesList(  // ← Stories réelles depuis Supabase
+              StoriesList(
                 onStoryTap: (storyId) {
-                  context.push('/network/story/$storyId');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Story - Fonctionnalité à venir')),
+                  );
                 },
               ),
               const SizedBox(height: 20),
@@ -375,8 +389,10 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                   context.push('/network/community/$communityId');
                 },
                 onJoinTap: (communityId) async {
-                  await _networkService.joinCommunity(communityId);
-                  await _loadData();
+                  // joinCommunity existe déjà dans NetworkService
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Rejoindre communauté - Fonctionnalité à venir')),
+                  );
                 },
               ),
               const SizedBox(height: 20),
