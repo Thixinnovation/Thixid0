@@ -33,6 +33,8 @@ import 'presentation/network/network_groups_list.dart';
 import 'presentation/network/messages/conversations_list.dart';
 import 'presentation/network/messages/chat_screen.dart';
 import 'presentation/network/notifications/notifications_page.dart';
+import 'presentation/network/connections_list_page.dart';
+import 'presentation/network/my_posts_page.dart';
 
 // ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
@@ -64,8 +66,7 @@ import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart
 import 'package:thix_id/presentation/thix_money/thix_money_page.dart';
 import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
 import 'package:thix_id/presentation/admin/pages/admin_media_page.dart';
-import 'presentation/network/connections_list_page.dart';
-import 'presentation/network/my_posts_page.dart';
+
 /// Page sans transition (indispensable pour GoRouter)
 class NoTransitionPage<T> extends Page<T> {
   final Widget child;
@@ -105,6 +106,8 @@ class AppRoutes {
   static const String networkMessages = '/network/messages';
   static const String networkChat = '/network/chat/:userId';
   static const String networkNotifications = '/network/notifications';
+  static const String networkConnections = '/network/connections';
+  static const String networkMyPosts = '/network/my-posts';
   
   // Autres services
   static const String jobs = '/jobs';
@@ -127,8 +130,7 @@ class AppRoutes {
   static const String thixMoney = '/thix-money';
   static const String thixMedia = '/thix-media';
   static const String adminMedia = '/admin/media';
-static const String networkConnections = '/network/connections';
-static const String networkMyPosts = '/network/my-posts';
+
   static String enterprisePortalBase(String slug) => '$enterprisePortalBasePath/$slug';
   static String enterprisePortalDashboard(String slug, String section) => '/company/$slug/dashboard/$section';
 }
@@ -389,6 +391,16 @@ class AppRouter {
           name: 'network-notifications',
           pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsPage()),
         ),
+        GoRoute(
+          path: AppRoutes.networkConnections,
+          name: 'network-connections',
+          pageBuilder: (context, state) => const NoTransitionPage(child: ConnectionsListPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkMyPosts,
+          name: 'network-my-posts',
+          pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
+        ),
 
         // ==================== THIX MARKET ROUTES ====================
         GoRoute(
@@ -511,6 +523,7 @@ class AppRouter {
           name: 'eventRegister',
           pageBuilder: (context, state) {
             final eventId = state.pathParameters['eventId'] ?? '';
+            // Récupération de l'événement par ID
             return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
           },
         ),
@@ -556,17 +569,7 @@ class AppRouter {
             return NoTransitionPage(child: LessonPlayerPage(enrollmentId: enrollmentId));
           },
         ),
-// Ajouter dans les routes
-GoRoute(
-  path: AppRoutes.networkConnections,
-  name: 'network-connections',
-  pageBuilder: (context, state) => const NoTransitionPage(child: ConnectionsListPage()),
-),
-GoRoute(
-  path: AppRoutes.networkMyPosts,
-  name: 'network-my-posts',
-  pageBuilder: (context, state) => const NoTransitionPage(child: MyPostsPage()),
-),
+
         // ==================== EDUCATION ROUTE ====================
         GoRoute(
           path: AppRoutes.education,
