@@ -54,14 +54,13 @@ class NotificationService {
       }
     }
 
-    // Polling toutes les 3 secondes
     void startPolling() {
       pollTimer?.cancel();
       pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => fetchAndEmit());
     }
 
     startPolling();
-    fetchAndEmit(); // Chargement initial
+    fetchAndEmit();
 
     controller.onCancel = () {
       cancelled = true;
@@ -109,7 +108,6 @@ class NotificationService {
     }
   }
 
-  /// Créer une notification de like
   Future<void> notifyLike({
     required String toUid,
     required String actorId,
@@ -129,7 +127,6 @@ class NotificationService {
     );
   }
 
-  /// Créer une notification de commentaire
   Future<void> notifyComment({
     required String toUid,
     required String actorId,
@@ -149,7 +146,6 @@ class NotificationService {
     );
   }
 
-  /// Créer une notification de demande de connexion
   Future<void> notifyConnectionRequest({
     required String toUid,
     required String actorId,
@@ -167,7 +163,6 @@ class NotificationService {
     );
   }
 
-  /// Créer une notification de connexion acceptée
   Future<void> notifyConnectionAccepted({
     required String toUid,
     required String actorId,
@@ -185,7 +180,6 @@ class NotificationService {
     );
   }
 
-  /// Créer une notification générique
   Future<void> notifyGeneric({
     required String toUid,
     required String title,
@@ -229,9 +223,10 @@ class NotificationService {
 
   Future<int> getUnreadCount(String uid) async {
     try {
+      // ✅ CORRECTION: utiliser '*' au lieu de 'id'
       final response = await _client
           .from(_table)
-          .select('id', count: CountOption.exact)
+          .select('*', count: CountOption.exact)
           .eq('user_id', uid)
           .eq('read', false);
       
