@@ -131,7 +131,7 @@ class _EventRegisterPageState extends State<EventRegisterPage> {
   @override
   Widget build(BuildContext context) {
     if (_loadingEvent) {
-      return const Scaffold(
+      return Scaffold(
         appBar: AppBar(title: Text('Réservation')),
         body: Center(child: CircularProgressIndicator()),
       );
