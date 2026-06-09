@@ -245,7 +245,54 @@ class NetworkService {
       return null;
     }
   }
+// ==================== STORIES ====================
 
+Future<List<NetworkStory>> getActiveStories() async {
+  try {
+    final currentUserId = this.currentUserId;
+    NetworkStory.setCurrentUserId(currentUserId);
+    
+    final response = await _supabase
+        .from('network_stories')
+        .select('''
+          *,
+          profiles!user_id (
+            display_name, avatar_url, title
+          )
+        ''')
+        .eq('is_active', true)
+        .gte('expires_at', DateTime.now().toIso8601String())
+        .order('created_at', ascending: false)
+        .limit(20);
+    
+    return (response as List).map((e) => NetworkStory.fromJson(e)).toList();
+  } catch (e) {
+    print('Error getActiveStories: $e');
+    return [];
+  }
+}
+
+Future<void> createStory(String imageUrl, {int duration = 24}) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('network_stories').insert({
+    'user_id': currentUserId,
+    'image_url': imageUrl,
+    'duration': duration,
+    'is_active': true,
+    'created_at': DateTime.now().toIso8601String(),
+    'expires_at': DateTime.now().add(Duration(hours: duration)).toIso8601String(),
+  });
+}
+
+Future<void> deleteStory(String storyId) async {
+  final currentUserId = this.currentUserId;
+  await _supabase
+      .from('network_stories')
+      .delete()
+      .eq('id', storyId)
+      .eq('user_id', currentUserId);
+}
+} 
   // ==================== PROFIL UTILISATEUR ====================
 
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
