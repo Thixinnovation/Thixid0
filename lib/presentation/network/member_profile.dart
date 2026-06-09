@@ -1,0 +1,336 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thix_id/services/network_service.dart';
+import 'package:thix_id/models/network_post.dart';
+
+class MemberProfile extends StatefulWidget {
+  final String userId;
+  const MemberProfile({super.key, required this.userId});
+
+  @override
+  State<MemberProfile> createState() => _MemberProfileState();
+}
+
+class _MemberProfileState extends State<MemberProfile> {
+  late NetworkService _networkService;
+  Map<String, dynamic>? _user;
+  List<NetworkPost> _posts = [];
+  bool _loading = true;
+  bool _isConnected = false;
+  bool _isConnectionPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _networkService = NetworkService(Supabase.instance.client);
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final userData = await _networkService.getUserProfile(widget.userId);
+      final posts = await _networkService.getUserPosts(widget.userId);
+      final connectionStatus = await _networkService.getConnectionStatus(widget.userId);
+      
+      setState(() {
+        _user = userData;
+        _posts = posts;
+        _isConnected = connectionStatus == 'accepted';
+        _isConnectionPending = connectionStatus == 'pending';
+      });
+    } catch (e) {
+      print('Error loading profile: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          _user?['display_name'] ?? 'Profil',
+          style: const TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Color(0xFF0B1B3D)),
+            onPressed: () => _showOptions(),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    _buildStats(),
+                    _buildActionButtons(),
+                    const SizedBox(height: 16),
+                    _buildPosts(),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: Colors.grey.shade200,
+            backgroundImage: _user?['avatar_url'] != null
+                ? NetworkImage(_user!['avatar_url'])
+                : null,
+            child: _user?['avatar_url'] == null
+                ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _user?['display_name'] ?? 'Utilisateur',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _user?['title'] ?? 'Membre THIX',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          if (_user?['bio'] != null)
+            Text(
+              _user!['bio'],
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStats() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(_user?['posts_count'] ?? 0, 'Publications'),
+          _buildStatItem(_user?['followers_count'] ?? 0, 'Abonnés'),
+          _buildStatItem(_user?['following_count'] ?? 0, 'Abonnements'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(int value, String label) {
+    return Column(
+      children: [
+        Text(
+          value.toString(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _isConnected
+                ? OutlinedButton.icon(
+                    onPressed: () => _sendMessage(),
+                    icon: const Icon(Icons.message),
+                    label: const Text('Message'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _isConnectionPending ? null : _sendConnectionRequest,
+                    icon: Icon(_isConnectionPending ? Icons.hourglass_empty : Icons.person_add),
+                    label: Text(_isConnectionPending ? 'En attente' : 'Se connecter'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37),
+                      foregroundColor: const Color(0xFF0B1B3D),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.share),
+              label: const Text('Partager'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPosts() {
+    if (_posts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(
+          child: Text('Aucune publication pour le moment'),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _posts.length,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _buildPostCard(_posts[index]),
+      ),
+    );
+  }
+
+  Widget _buildPostCard(NetworkPost post) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey.shade200,
+                child: const Icon(Icons.person, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _user?['display_name'] ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              Text(
+                _formatTime(post.createdAt),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(post.content, style: const TextStyle(fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildActionButton(Icons.favorite_border, '${post.likes}'),
+              const SizedBox(width: 16),
+              _buildActionButton(Icons.comment_outlined, '${post.comments}'),
+              const SizedBox(width: 16),
+              _buildActionButton(Icons.share_outlined, '${post.shares}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, String label) {
+    return GestureDetector(
+      onTap: () {},
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendConnectionRequest() async {
+    await _networkService.sendConnectionRequest(widget.userId);
+    setState(() => _isConnectionPending = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Demande de connexion envoyée')),
+    );
+  }
+
+  void _sendMessage() {
+    context.push('/network/chat/${widget.userId}');
+  }
+
+  void _showOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag),
+              title: const Text('Signaler'),
+              onTap: () => Navigator.pop(context),
+            ),
+            if (_isConnected)
+              ListTile(
+                leading: const Icon(Icons.block, color: Colors.red),
+                title: const Text('Bloquer', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(context),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return '${diff.inDays}j';
+    if (diff.inHours > 0) return '${diff.inHours}h';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}min';
+    return 'à l\'instant';
+  }
+}
