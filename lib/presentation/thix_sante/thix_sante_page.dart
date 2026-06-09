@@ -1,613 +1,355 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:thix_id/auth/auth_controller.dart';
 
-class ThixSantePage extends StatelessWidget {
-  const ThixSantePage({super.key});
+class ThixSanteHome extends StatefulWidget {
+  const ThixSanteHome({super.key});
+
+  @override
+  State<ThixSanteHome> createState() => _ThixSanteHomeState();
+}
+
+class _ThixSanteHomeState extends State<ThixSanteHome> {
+  Map<String, dynamic>? _stats;
+  List<Map<String, dynamic>> _services = [];
+  List<Map<String, dynamic>> _articles = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      // Charger les statistiques
+      final stats = await supabase
+          .from('health_stats')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      // Charger les services
+      final services = await supabase
+          .from('health_services')
+          .select()
+          .eq('is_active', true)
+          .order('order_index');
+
+      // Charger les articles
+      final articles = await supabase
+          .from('health_articles')
+          .select()
+          .eq('is_published', true)
+          .order('created_at', ascending: false)
+          .limit(5);
+
+      setState(() {
+        _stats = stats as Map<String, dynamic>?;
+        _services = (services as List).cast<Map<String, dynamic>>();
+        _articles = (articles as List).cast<Map<String, dynamic>>();
+      });
+    } catch (e) {
+      debugPrint('Error loading health data: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthController>(context);
+    final userName = auth.currentUser?.displayName?.split(' ').first ?? 'Visiteur';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FC),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ========== EN-TÊTE ==========
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('THIX SANTÉ', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.settings_outlined, color: Color(0xFF0B1B3D)), onPressed: () {}),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.local_hospital, color: Colors.blue, size: 32),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            "THIX SANTÉ",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          Text(
-                            "Votre santé, notre priorité.",
-                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      _IconWithBadge(
-                        icon: Icons.notifications_none,
-                        hasBadge: true,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 12),
-                      const CircleAvatar(
-                        radius: 18,
-                        backgroundImage: NetworkImage("https://i.pravatar.cc/150"),
-                      ),
-                    ],
-                  ),
+                  _buildHeader(userName),
+                  const SizedBox(height: 20),
+                  _buildStatsGrid(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('SERVICES SANTÉ', 'Voir tout'),
+                  const SizedBox(height: 12),
+                  _buildServicesGrid(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('SERVICES RAPIDES', null),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(),
+                  const SizedBox(height: 24),
+                  _buildInsuranceCard(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('POUR VOUS', 'Voir tous'),
+                  const SizedBox(height: 12),
+                  _buildArticlesList(),
+                  const SizedBox(height: 24),
+                  _buildEmergencyButton(),
+                  const SizedBox(height: 80),
                 ],
               ),
-              const SizedBox(height: 20),
+            ),
+    );
+  }
 
-              // ========== BANNIÈRE HÉRO ==========
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF135EF2), Color(0xFF1FD6C1)],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Bonjour, Michel 🥰",
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Votre santé\nentre de bonnes mains",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Consultez, suivez et prenez soin de votre santé au quotidien.",
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.folder, size: 16),
-                      label: const Text("Dossier de santé"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+  Widget _buildHeader(String userName) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF0B1B3D), Color(0xFF1A2D56)]),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Bonjour, $userName 👋', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('Votre santé entre de bonnes mains', style: TextStyle(color: Colors.white70)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+            child: const Text('Dossier de santé', style: TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // ========== MENU RAPIDE (6 icônes) ==========
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  _QuickAction(icon: Icons.calendar_month, label: "Rendez-vous"),
-                  _QuickAction(icon: Icons.medical_services, label: "Consultation"),
-                  _QuickAction(icon: Icons.science, label: "Examens"),
-                  _QuickAction(icon: Icons.medication, label: "Ordonnances"),
-                  _QuickAction(icon: Icons.favorite, label: "Urgences"),
-                  _QuickAction(icon: Icons.more_horiz, label: "Plus"),
-                ],
-              ),
-              const SizedBox(height: 24),
+  Widget _buildStatsGrid() {
+    return Row(
+      children: [
+        _buildStatCard('Consultations', '${_stats?['consultations_count'] ?? 0}', 'Cette année', () => context.push('/sante/consultations')),
+        const SizedBox(width: 12),
+        _buildStatCard('Examens', '${_stats?['examens_count'] ?? 0}', 'En attente', () => context.push('/sante/examens')),
+        const SizedBox(width: 12),
+        _buildStatCard('Ordonnances', '${_stats?['ordonnances_count'] ?? 0}', 'Actives', () => context.push('/sante/ordonnances')),
+        const SizedBox(width: 12),
+        _buildStatCard('Urgences', '${_stats?['urgences_count'] ?? 0}', 'Appels', () => context.push('/sante/urgences')),
+      ],
+    );
+  }
 
-              // ========== RÉSUMÉ DE SANTÉ ==========
-              _SectionHeader(title: "Résumé de santé"),
-              const SizedBox(height: 12),
-              Row(
-                children: const [
-                  Expanded(child: _HealthStatCard(title: "Consultations", value: "12", subtitle: "Cette année", color: Color(0xFFEFF6FF))),
-                  SizedBox(width: 10),
-                  Expanded(child: _HealthStatCard(title: "Examens", value: "7", subtitle: "Complètes", color: Color(0xFFECFDF5))),
-                  SizedBox(width: 10),
-                  Expanded(child: _HealthStatCard(title: "Médicaments", value: "3", subtitle: "En cours", color: Color(0xFFF5F3FF))),
-                  SizedBox(width: 10),
-                  Expanded(child: _HealthStatCard(title: "RDV", value: "2", subtitle: "À venir", color: Color(0xFFFFF7ED))),
-                ],
-              ),
-              const SizedBox(height: 28),
-
-              // ========== SERVICES SANTÉ (grille 2 colonnes) ==========
-              _SectionHeader(title: "Services santé"),
-              const SizedBox(height: 12),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 3.5,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                children: const [
-                  _ServiceItem(
-                    icon: Icons.child_care,
-                    title: "Santé des enfants",
-                    subtitle: "Suivez la santé de vos enfants",
-                  ),
-                  _ServiceItem(
-                    icon: Icons.vaccines,
-                    title: "Carnet de vaccination",
-                    subtitle: "Consultez et gérez les vaccins",
-                  ),
-                  _ServiceItem(
-                    icon: Icons.pregnant_woman,
-                    title: "Suivi grossesses",
-                    subtitle: "Suivez votre grossesse pas à pas",
-                  ),
-                  _ServiceItem(
-                    icon: Icons.health_and_safety,
-                    title: "Assurance santé",
-                    subtitle: "Protégez votre santé",
-                  ),
-                  _ServiceItem(
-                    icon: Icons.assured_workload,
-                    title: "Assurance",
-                    subtitle: "Découvrez nos solutions",
-                  ),
-                  _ServiceItem(
-                    icon: Icons.more_horiz,
-                    title: "Plus de services",
-                    subtitle: "Découvrez tous nos services",
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-
-              // ========== SERVICES RAPIDES (grille 2×4) ==========
-              _SectionHeader(title: "Services rapides"),
-              const SizedBox(height: 12),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 3.2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                children: const [
-                  _QuickServiceTile(icon: Icons.person, title: "Consulter un médecin", subtitle: "Parlez à un professionnel"),
-                  _QuickServiceTile(icon: Icons.folder_open, title: "Dossier médical", subtitle: "Accédez à votre dossier"),
-                  _QuickServiceTile(icon: Icons.science, title: "Résultats d’examens", subtitle: "Consultez vos analyses"),
-                  _QuickServiceTile(icon: Icons.medication, title: "Mes ordonnances", subtitle: "Gérez et renouvelez"),
-                  _QuickServiceTile(icon: Icons.local_hospital, title: "Trouver un hôpital", subtitle: "Le plus proche"),
-                  _QuickServiceTile(icon: Icons.local_pharmacy, title: "Trouver un médicament", subtitle: "Vérifiez la disponibilité"),
-                  _QuickServiceTile(icon: Icons.storefront, title: "Pharmacies proches", subtitle: "Trouvez la pharmacie"),
-                  _QuickServiceTile(icon: Icons.emergency, title: "Urgences proches", subtitle: "Services 24/7"),
-                ],
-              ),
-              const SizedBox(height: 28),
-
-              // ========== ASSURANCE SANTÉ (bannière) ==========
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6)],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.security, color: Color(0xFF2563EB), size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            "Assurance santé",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "Bénéficiez d’une couverture complète adaptée à vos besoins.",
-                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ========== ASSURANCE (ligne simple) ==========
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6)],
-                ),
-                child: Row(
-                  children: const [
-                    Icon(Icons.verified_user, color: Color(0xFF10B981), size: 24),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        "Protégez-vous et vos proches avec nos solutions d'assurance.",
-                        style: TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // ========== POUR VOUS (articles horizontaux) ==========
-              _SectionHeader(title: "Pour vous"),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: const [
-                    _HealthArticle(
-                      title: "Conseil santé",
-                      subtitle: "5 conseils pour rester en bonne santé",
-                      readTime: "3 min de lecture",
-                    ),
-                    _HealthArticle(
-                      title: "Nutrition",
-                      subtitle: "Alimentation équilibrée : les bases",
-                      readTime: "3 min de lecture",
-                    ),
-                    _HealthArticle(
-                      title: "Bien-être",
-                      subtitle: "Gérer le stress au quotidien",
-                      readTime: "3 min de lecture",
-                    ),
-                    _HealthArticle(
-                      title: "Prévention",
-                      subtitle: "Prévention : un geste qui sauve",
-                      readTime: "2 min de lecture",
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ========== BANNIÈRE URGENCE ==========
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1F0),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFEE2E2)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.local_hospital, color: Color(0xFFEF4444), size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            "Besoin d’aide immédiate ?",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "Contactez les urgences en un clic",
-                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.call, size: 16),
-                      label: const Text("Appeler 15"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 80),
+  Widget _buildStatCard(String title, String value, String subtitle, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            children: [
+              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D))),
+              const SizedBox(height: 4),
+              Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-// ========== COMPOSANTS ==========
-
-class _IconWithBadge extends StatelessWidget {
-  final IconData icon;
-  final bool hasBadge;
-  final VoidCallback onTap;
-
-  const _IconWithBadge({required this.icon, this.hasBadge = false, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            onPressed: onTap,
-            icon: Icon(icon, size: 20, color: const Color(0xFF1E293B)),
-          ),
-        ),
-        if (hasBadge)
-          Positioned(
-            top: 6,
-            right: 6,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _QuickAction({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4)],
-          ),
-          child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF475569))),
-      ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSectionTitle(String title, String? seeAll) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-        const Text(
-          "Voir tout",
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
-        ),
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        if (seeAll != null)
+          GestureDetector(
+            onTap: () {},
+            child: Text(seeAll, style: const TextStyle(fontSize: 12, color: Color(0xFFD4AF37))),
+          ),
       ],
     );
   }
-}
 
-class _HealthStatCard extends StatelessWidget {
-  final String title, value, subtitle;
-  final Color color;
+  Widget _buildServicesGrid() {
+    if (_services.isEmpty) {
+      return const Center(child: Text('Aucun service disponible'));
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.9, crossAxisSpacing: 8, mainAxisSpacing: 8),
+      itemCount: _services.length,
+      itemBuilder: (context, index) {
+        final service = _services[index];
+        return _buildServiceCard(service['icon'] as String? ?? '🏥', service['name'], service['route'] as String?);
+      },
+    );
+  }
 
-  const _HealthStatCard({required this.title, required this.value, required this.subtitle, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white)),
-          const SizedBox(height: 6),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(fontSize: 8, color: Color(0xFF94A3B8))),
-        ],
+  Widget _buildServiceCard(String icon, String name, String? route) {
+    return GestureDetector(
+      onTap: route != null ? () => context.push(route) : null,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 8),
+            Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
-}
 
-class _ServiceItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _ServiceItem({required this.icon, required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 4)],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, size: 18, color: Colors.blue),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                Text(subtitle, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickServiceTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _QuickServiceTile({required this.icon, required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 4)],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 16, color: const Color(0xFF2563EB)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                Text(subtitle, style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Colors.grey),
-        ],
-      ),
-    );
-  }
-}
-
-class _HealthArticle extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String readTime;
-
-  const _HealthArticle({required this.title, required this.subtitle, required this.readTime});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 180,
-      margin: const EdgeInsets.only(right: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            ),
-          ),
-          Padding(
+  Widget _buildQuickActions() {
+    final actions = [
+      ('👨‍⚕️', 'Consulter un médecin', '/sante/consultation'),
+      ('📁', 'Dossier médical', '/sante/dossier'),
+      ('🔬', 'Résultats d\'examens', '/sante/resultats'),
+      ('📄', 'Mes ordonnances', '/sante/ordonnances'),
+    ];
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.5, crossAxisSpacing: 12, mainAxisSpacing: 12),
+      itemCount: actions.length,
+      itemBuilder: (context, index) {
+        final action = actions[index];
+        return GestureDetector(
+          onTap: () => context.push(action.$3),
+          child: Container(
             padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            child: Row(
+              children: [
+                Text(action.$1, style: const TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(action.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInsuranceCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5B13A)]),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.shield, size: 40, color: Color(0xFF0B1B3D)),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                const SizedBox(height: 6),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                const Text('Assurance santé', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D))),
+                const Text('Bénéficiez d\'une couverture complète', style: TextStyle(fontSize: 12, color: Color(0xFF0B1B3D))),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(readTime, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
+                ElevatedButton(
+                  onPressed: () => context.push('/sante/assurance'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B1B3D)),
+                  child: const Text('Découvrir'),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildArticlesList() {
+    if (_articles.isEmpty) {
+      return const Center(child: Text('Aucun article disponible'));
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _articles.length,
+      itemBuilder: (context, index) {
+        final article = _articles[index];
+        return GestureDetector(
+          onTap: () => context.push('/sante/article/${article['id']}'),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              children: [
+                Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.article, color: Colors.grey),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(article['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${article['read_time'] ?? 3} min de lecture', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmergencyButton() {
+    return GestureDetector(
+      onTap: () => context.push('/sante/urgences'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('BESOIN D\'AIDE IMMÉDIATE ?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
+                Text('Contactez les urgences en un clic', style: TextStyle(fontSize: 11, color: Colors.red)),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(30)),
+              child: const Text('Appeler 15', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   }
