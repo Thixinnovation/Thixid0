@@ -23,6 +23,7 @@ class UserService {
     String? maritalStatus,
     String? gender,
     String? occupation,
+    String? profession,
     String? address,
     String? fatherName,
     String? motherName,
@@ -31,7 +32,6 @@ class UserService {
     String? emergencyContactRelation,
     List<Map<String, dynamic>>? education,
     List<Map<String, dynamic>>? experience,
-    // ===== NOUVEAUX PARAMÈTRES =====
     String? originProvince,
     String? originTerritory,
     String? originSector,
@@ -54,6 +54,14 @@ class UserService {
     String? idDocumentIssueDate,
     String? idDocumentExpiryDate,
     String? idDocumentIssuePlace,
+    String? idDocumentFrontDocId,
+    String? idDocumentBackDocId,
+    String? idDocumentSelfieDocId,
+    String? idVerificationStatus,
+    bool? biometricsEnabled,
+    bool? twoFaEnabled,
+    List<String>? languages,
+    List<Map<String, dynamic>>? languagesDetailed,
   }) async {
     final Map<String, dynamic> updates = {};
     
@@ -73,6 +81,7 @@ class UserService {
     if (maritalStatus != null) updates['marital_status'] = maritalStatus;
     if (gender != null) updates['gender'] = gender;
     if (occupation != null) updates['occupation'] = occupation;
+    if (profession != null) updates['profession'] = profession;
     if (address != null) updates['address'] = address;
     if (fatherName != null) updates['father_name'] = fatherName;
     if (motherName != null) updates['mother_name'] = motherName;
@@ -113,12 +122,83 @@ class UserService {
     if (idDocumentIssueDate != null) updates['id_document_issue_date'] = idDocumentIssueDate;
     if (idDocumentExpiryDate != null) updates['id_document_expiry_date'] = idDocumentExpiryDate;
     if (idDocumentIssuePlace != null) updates['id_document_issue_place'] = idDocumentIssuePlace;
+    if (idDocumentFrontDocId != null) updates['id_document_front_doc_id'] = idDocumentFrontDocId;
+    if (idDocumentBackDocId != null) updates['id_document_back_doc_id'] = idDocumentBackDocId;
+    if (idDocumentSelfieDocId != null) updates['id_document_selfie_doc_id'] = idDocumentSelfieDocId;
+    if (idVerificationStatus != null) updates['id_verification_status'] = idVerificationStatus;
+    
+    // Sécurité
+    if (biometricsEnabled != null) updates['biometrics_enabled'] = biometricsEnabled;
+    if (twoFaEnabled != null) updates['two_fa_enabled'] = twoFaEnabled;
+    
+    // Langues
+    if (languages != null) updates['languages'] = languages;
+    if (languagesDetailed != null) updates['languages_detailed'] = languagesDetailed;
 
     if (updates.isNotEmpty) {
       updates['updated_at'] = DateTime.now().toIso8601String();
       await _supabase.from('profiles').update(updates).eq('id', uid);
     }
   }
+
+  // ==================== MÉTHODES DE PAIEMENT ====================
+
+  Future<void> addPaymentTransaction({
+    required String uid,
+    required String title,
+    required double amount,
+    required String currency,
+    required String method,
+    required String status,
+  }) async {
+    final payment = {
+      'user_id': uid,
+      'title': title,
+      'amount': amount,
+      'currency': currency,
+      'method': method,
+      'status': status,
+      'tx_ref': 'TX-${DateTime.now().millisecondsSinceEpoch}',
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    await _supabase.from('thix_payments').insert(payment);
+  }
+
+  Stream<List<Map<String, dynamic>>> streamPayments(String uid) {
+    return _supabase
+        .from('thix_payments')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .order('created_at', ascending: false)
+        .map((list) => list.cast<Map<String, dynamic>>());
+  }
+
+  // ==================== MÉTHODES DE SÉCURITÉ ====================
+
+  Future<void> logSecurityEvent({
+    required String uid,
+    required String type,
+    required String label,
+  }) async {
+    final event = {
+      'user_id': uid,
+      'type': type,
+      'label': label,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    await _supabase.from('security_events').insert(event);
+  }
+
+  Stream<List<Map<String, dynamic>>> streamSecurityEvents(String uid) {
+    return _supabase
+        .from('security_events')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .order('created_at', ascending: false)
+        .map((list) => list.cast<Map<String, dynamic>>());
+  }
+
+  // ==================== MÉTHODES EXISTANTES ====================
 
   Future<String> ensureThixId({required String uid}) async {
     final row = await _supabase.from('profiles').select('thix_id').eq('id', uid).maybeSingle();
