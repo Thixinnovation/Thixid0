@@ -104,7 +104,6 @@ class NetworkService {
       'created_at': DateTime.now().toIso8601String(),
     });
     
-    // Créer une notification
     await _createNotification(
       userId: await _getPostOwnerId(postId),
       type: 'like',
@@ -130,7 +129,6 @@ class NetworkService {
       'created_at': DateTime.now().toIso8601String(),
     });
     
-    // Créer une notification
     await _createNotification(
       userId: await _getPostOwnerId(postId),
       type: 'comment',
@@ -199,7 +197,9 @@ class NetworkService {
         name: e['display_name'],
         avatar: e['avatar_url'],
         title: e['title'] ?? 'Membre THIX',
-        mutualConnections: e['mutual_connections'][0]['count'] ?? 0,
+        mutualConnections: e['mutual_connections'] != null && (e['mutual_connections'] as List).isNotEmpty 
+            ? (e['mutual_connections'][0]['count'] ?? 0) 
+            : 0,
       )).toList();
     } catch (e) {
       print('Error getSuggestedConnections: $e');
@@ -216,7 +216,6 @@ class NetworkService {
       'created_at': DateTime.now().toIso8601String(),
     });
     
-    // Créer une notification
     await _createNotification(
       userId: targetUserId,
       type: 'connection_request',
@@ -346,7 +345,6 @@ class NetworkService {
   Future<Map<String, dynamic>> sendMessage(String receiverId, String content) async {
     final currentUserId = this.currentUserId;
     
-    // Trouver ou créer la conversation
     var conv = await _supabase
         .from('network_conversations')
         .select()
@@ -380,7 +378,6 @@ class NetworkService {
           .eq('id', conversationId);
     }
     
-    // Insérer le message
     final response = await _supabase
         .from('network_messages')
         .insert({
@@ -469,9 +466,10 @@ class NetworkService {
   Future<int> getUnreadNotificationsCount() async {
     try {
       final currentUserId = this.currentUserId;
+      // ✅ CORRECTION: utilisation correcte de select avec count
       final response = await _supabase
           .from('network_notifications')
-          .select('id', count: CountOption.exact)
+          .select('*', count: CountOption.exact)
           .eq('user_id', currentUserId)
           .eq('is_read', false);
       
@@ -501,7 +499,7 @@ class NetworkService {
     String? postId,
   }) async {
     final currentUserId = this.currentUserId;
-    if (userId == currentUserId) return; // Ne pas se notifier soi-même
+    if (userId == currentUserId) return;
     
     await _supabase.from('network_notifications').insert({
       'user_id': userId,
