@@ -534,7 +534,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               title: 'Réseau Pro',
                               iconBackgroundColor: const Color(0xFFEFF7FF),
                               iconColor: const Color(0xFF0077B6),
-                              onTap: () => context.push(AppRoutes.network),
+                              onTap: () => context.push(AppRoutes.networkPro),
                             ),
                             _ServiceCard(
                               icon: Icons.local_hospital_rounded,
