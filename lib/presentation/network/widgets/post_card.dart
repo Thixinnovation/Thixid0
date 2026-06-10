@@ -258,6 +258,7 @@ class _PostCardState extends State<PostCard> {
     final auth = Provider.of<AuthController>(context);
     final isOwner = auth.currentUser?.id == widget.post.userId;
     final hasUserTitle = widget.post.userTitle != null && widget.post.userTitle!.isNotEmpty;
+    final hasImages = widget.post.images.isNotEmpty;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -343,7 +344,7 @@ class _PostCardState extends State<PostCard> {
                 ),
               
               // Images
-              if (widget.post.images.isNotEmpty)
+              if (hasImages)
                 SizedBox(
                   height: 200,
                   child: ListView.builder(
@@ -395,7 +396,7 @@ class _PostCardState extends State<PostCard> {
                           size: 20,
                         ),
                         const SizedBox(width: 4),
-                        Text('${widget.post.likesCount}', style: const TextStyle(fontSize: 12)),
+                        Text('${widget.post.likes}', style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -406,18 +407,18 @@ class _PostCardState extends State<PostCard> {
                       children: [
                         const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
                         const SizedBox(width: 4),
-                        Text('${widget.post.commentsCount}', style: const TextStyle(fontSize: 12)),
+                        Text('${widget.post.comments}', style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
                   const SizedBox(width: 20),
                   InkWell(
                     onTap: widget.onShare,
-                    child: Row(
+                    child: const Row(
                       children: [
-                        const Icon(Icons.share, size: 20, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text('${widget.post.sharesCount ?? 0}', style: const TextStyle(fontSize: 12)),
+                        Icon(Icons.share, size: 20, color: Colors.grey),
+                        SizedBox(width: 4),
+                        Text('Partager', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
