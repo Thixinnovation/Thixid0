@@ -21,6 +21,8 @@ class TontineService {
         progress: 0.45,
         currentMembers: 9,
         maxMembers: 20,
+        contributionAmount: 75000,
+        frequency: TontineFrequency.monthly,
       ),
       Tontine(
         id: '5',
@@ -28,6 +30,8 @@ class TontineService {
         progress: 0.30,
         currentMembers: 6,
         maxMembers: 20,
+        contributionAmount: 25000,
+        frequency: TontineFrequency.weekly,
       ),
     ];
   }
@@ -108,7 +112,7 @@ class TontineService {
     }
   }
 
-  Future<void> _createTontineApi(
+  Future<String> _createTontineApi(
     String name,
     double amount,
     int members,
@@ -118,6 +122,7 @@ class TontineService {
   ) async {
     await Future.delayed(const Duration(seconds: 1));
     // Appel API
+    return 'tontine_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<void> _submitContribution(String tontineId, double amount) async {
