@@ -6,10 +6,7 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/models/app_user.dart';
 
 // ==================== THIX RESERVATION ====================
-// Page principale
 import 'presentation/thix_reservation/thix_reservation_page.dart';
-
-// Vols
 import 'presentation/thix_reservation/pages/reservation_vols.dart';
 import 'presentation/thix_reservation/pages/vol_recherche.dart';
 import 'presentation/thix_reservation/pages/vol_liste.dart';
@@ -17,37 +14,23 @@ import 'presentation/thix_reservation/pages/vol_details.dart';
 import 'presentation/thix_reservation/pages/vol_passagers.dart';
 import 'presentation/thix_reservation/pages/vol_paiement.dart';
 import 'presentation/thix_reservation/pages/vol_confirmation.dart';
-
-// Hôtels (CORRIGÉ)
 import 'presentation/thix_reservation/pages/reservation_hotels.dart';
 import 'presentation/thix_reservation/pages/hotel_recherche.dart';
-import 'presentation/thix_reservation/pages/hotel_liste.dart';      // ← corrigé
-import 'presentation/thix_reservation/pages/hotel_details.dart';    // ← corrigé (details au lieu de detalls)
+import 'presentation/thix_reservation/pages/hotel_liste.dart';
+import 'presentation/thix_reservation/pages/hotel_details.dart';
 import 'presentation/thix_reservation/pages/hotel_reservation.dart';
-
-// Bus
 import 'presentation/thix_reservation/pages/reservation_bus.dart';
 import 'presentation/thix_reservation/pages/bus_recherche.dart';
 import 'presentation/thix_reservation/pages/bus_liste.dart';
 import 'presentation/thix_reservation/pages/bus_reservation.dart';
-
-// Taxi
 import 'presentation/thix_reservation/pages/reservation_taxi.dart';
 import 'presentation/thix_reservation/pages/taxi_commande.dart';
 import 'presentation/thix_reservation/pages/taxi_trajets.dart';
-
-// Colis
 import 'presentation/thix_reservation/pages/reservation_colis.dart';
 import 'presentation/thix_reservation/pages/colis_envoi.dart';
 import 'presentation/thix_reservation/pages/colis_suivi.dart';
-
-// Événements
 import 'presentation/thix_reservation/pages/reservation_event.dart';
-
-// Restaurants
 import 'presentation/thix_reservation/pages/reservation_restaurant.dart';
-
-// Mes réservations, Favoris, Profil
 import 'presentation/thix_reservation/pages/mes_reservations.dart';
 import 'presentation/thix_reservation/pages/favoris.dart';
 import 'presentation/thix_reservation/pages/profil.dart';
@@ -236,7 +219,7 @@ class AppRoutes {
   static const String thixMoneyNotifications = '/thix-money/notifications';
   static const String thixMoneyHistory = '/thix-money/history';
 
-  // ==================== THIX RESERVATION ====================
+  // THIX RESERVATION
   static const String reservation = '/reservation';
   static const String reservationVols = '/reservation/vols';
   static const String reservationVolsRecherche = '/reservation/vols/recherche';
@@ -312,7 +295,8 @@ class AppRouter {
             location == AppRoutes.education ||
             location == AppRoutes.trainingHome ||
             location.startsWith('/training/') ||
-            location.startsWith('/sante/');
+            location.startsWith('/sante/') ||
+            location.startsWith('/reservation');
 
         final isProtected = !isPublic && !isAuthPage;
         if (!isLoggedIn && isProtected) return AppRoutes.login;
@@ -350,7 +334,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.home,
           name: 'home',
-          pageBuilder: (context, state) => NoTransitionPage(child: HomePagePremium()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const HomePage()),
         ),
 
         // ==================== AUTHENTIFICATION ====================
@@ -481,7 +465,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkPro,
           name: 'network-pro',
-          pageBuilder: (context, state) => NoTransitionPage(child: NetworkProHome()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const NetworkProHome()),
         ),
         GoRoute(
           path: AppRoutes.networkProfile,
@@ -502,7 +486,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkSearch,
           name: 'network-search',
-          pageBuilder: (context, state) => NoTransitionPage(child: SearchNetworkPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const SearchNetworkPage()),
         ),
         GoRoute(
           path: AppRoutes.networkCommunity,
@@ -515,22 +499,22 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkSettings,
           name: 'network-settings',
-          pageBuilder: (context, state) => NoTransitionPage(child: SettingsNetworkPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const SettingsNetworkPage()),
         ),
         GoRoute(
           path: AppRoutes.networkBlocked,
           name: 'network-blocked',
-          pageBuilder: (context, state) => NoTransitionPage(child: BlockedUsersPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const BlockedUsersPage()),
         ),
         GoRoute(
           path: AppRoutes.networkGroups,
           name: 'network-groups',
-          pageBuilder: (context, state) => NoTransitionPage(child: NetworkGroupsList()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const NetworkGroupsList()),
         ),
         GoRoute(
           path: AppRoutes.networkMessages,
           name: 'network-messages',
-          pageBuilder: (context, state) => NoTransitionPage(child: ConversationsList()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const ConversationsList()),
         ),
         GoRoute(
           path: AppRoutes.networkChat,
@@ -544,24 +528,24 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.networkNotifications,
           name: 'network-notifications',
-          pageBuilder: (context, state) => NoTransitionPage(child: NotificationsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const NotificationsPage()),
         ),
         GoRoute(
           path: AppRoutes.networkConnections,
           name: 'network-connections',
-          pageBuilder: (context, state) => NoTransitionPage(child: ConnectionsListPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const ConnectionsListPage()),
         ),
         GoRoute(
           path: AppRoutes.networkMyPosts,
           name: 'network-my-posts',
-          pageBuilder: (context, state) => NoTransitionPage(child: MyPostsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const MyPostsPage()),
         ),
 
         // ==================== THIX SANTÉ ====================
         GoRoute(
           path: AppRoutes.thixSante,
           name: 'thixSante',
-          pageBuilder: (context, state) => NoTransitionPage(child: ThixSanteHome()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const ThixSanteHome()),
         ),
         GoRoute(
           path: AppRoutes.santeConsultations,
@@ -781,205 +765,181 @@ class AppRouter {
         ),
 
         // ==================== THIX RESERVATION ====================
-        
-        
-        // ==================== THIX RESERVATION ====================
-// Page principale
-GoRoute(
-  path: AppRoutes.reservation,
-  name: 'reservation',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ThixReservationPage()),
-),
-
-// Vols
-GoRoute(
-  path: AppRoutes.reservationVols,
-  name: 'reservationVols',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationVolsPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsRecherche,
-  name: 'reservationVolsRecherche',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolRecherchePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsListe,
-  name: 'reservationVolsListe',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolListePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsDetails,
-  name: 'reservationVolsDetails',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolDetailsPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsPassagers,
-  name: 'reservationVolsPassagers',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolPassagersPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsPaiement,
-  name: 'reservationVolsPaiement',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolPaiementPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationVolsConfirmation,
-  name: 'reservationVolsConfirmation',
-  pageBuilder: (context, state) => NoTransitionPage(child: const VolConfirmationPage()),
-),
-
-// Hôtels (CORRIGÉ)
-GoRoute(
-  path: AppRoutes.reservationHotels,
-  name: 'reservationHotels',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationHotelsPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationHotelsRecherche,
-  name: 'reservationHotelsRecherche',
-  pageBuilder: (context, state) => NoTransitionPage(child: const HotelRecherchePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationHotelsListe,
-  name: 'reservationHotelsListe',
-  pageBuilder: (context, state) => NoTransitionPage(child: const HotelListePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationHotelsDetails,
-  name: 'reservationHotelsDetails',
-  pageBuilder: (context, state) => NoTransitionPage(child: const HotelDetailsPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationHotelsReservation,
-  name: 'reservationHotelsReservation',
-  pageBuilder: (context, state) => NoTransitionPage(child: const HotelReservationPage()),
-),
-
-// Bus
-GoRoute(
-  path: AppRoutes.reservationBus,
-  name: 'reservationBus',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationBusPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationBusRecherche,
-  name: 'reservationBusRecherche',
-  pageBuilder: (context, state) => NoTransitionPage(child: const BusRecherchePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationBusListe,
-  name: 'reservationBusListe',
-  pageBuilder: (context, state) => NoTransitionPage(child: const BusListePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationBusReservation,
-  name: 'reservationBusReservation',
-  pageBuilder: (context, state) => NoTransitionPage(child: const BusReservationPage()),
-),
-
-// Taxi
-GoRoute(
-  path: AppRoutes.reservationTaxi,
-  name: 'reservationTaxi',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationTaxiPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationTaxiCommande,
-  name: 'reservationTaxiCommande',
-  pageBuilder: (context, state) => NoTransitionPage(child: const TaxiCommandePage()),
-),
-GoRoute(
-  path: AppRoutes.reservationTaxiTrajets,
-  name: 'reservationTaxiTrajets',
-  pageBuilder: (context, state) => NoTransitionPage(child: const TaxiTrajetsPage()),
-),
-
-// Colis
-GoRoute(
-  path: AppRoutes.reservationColis,
-  name: 'reservationColis',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationColisPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationColisEnvoi,
-  name: 'reservationColisEnvoi',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ColisEnvoiPage()),
-),
-GoRoute(
-  path: AppRoutes.reservationColisSuivi,
-  name: 'reservationColisSuivi',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ColisSuiviPage()),
-),
-
-// Événements
-GoRoute(
-  path: AppRoutes.reservationEvent,
-  name: 'reservationEvent',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationEventPage()),
-),
-
-// Restaurants
-GoRoute(
-  path: AppRoutes.reservationRestaurant,
-  name: 'reservationRestaurant',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ReservationRestaurantPage()),
-),
-
-// Mes réservations
-GoRoute(
-  path: AppRoutes.reservationMesReservations,
-  name: 'reservationMesReservations',
-  pageBuilder: (context, state) => NoTransitionPage(child: const MesReservationsPage()),
-),
-
-// Favoris
-GoRoute(
-  path: AppRoutes.reservationFavoris,
-  name: 'reservationFavoris',
-  pageBuilder: (context, state) => NoTransitionPage(child: const FavorisPage()),
-),
-
-// Profil
-GoRoute(
-  path: AppRoutes.reservationProfil,
-  name: 'reservationProfil',
-  pageBuilder: (context, state) => NoTransitionPage(child: const ProfilPage()),
-),
+        GoRoute(
+          path: AppRoutes.reservation,
+          name: 'reservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ThixReservationPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVols,
+          name: 'reservationVols',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationVolsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsRecherche,
+          name: 'reservationVolsRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsListe,
+          name: 'reservationVolsListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsDetails,
+          name: 'reservationVolsDetails',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolDetailsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsPassagers,
+          name: 'reservationVolsPassagers',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolPassagersPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsPaiement,
+          name: 'reservationVolsPaiement',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolPaiementPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsConfirmation,
+          name: 'reservationVolsConfirmation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolConfirmationPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotels,
+          name: 'reservationHotels',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationHotelsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsRecherche,
+          name: 'reservationHotelsRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsListe,
+          name: 'reservationHotelsListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsDetails,
+          name: 'reservationHotelsDetails',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelDetailsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsReservation,
+          name: 'reservationHotelsReservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelReservationPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBus,
+          name: 'reservationBus',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationBusPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusRecherche,
+          name: 'reservationBusRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusListe,
+          name: 'reservationBusListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusReservation,
+          name: 'reservationBusReservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusReservationPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationTaxi,
+          name: 'reservationTaxi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationTaxiPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationTaxiCommande,
+          name: 'reservationTaxiCommande',
+          pageBuilder: (context, state) => NoTransitionPage(child: const TaxiCommandePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationTaxiTrajets,
+          name: 'reservationTaxiTrajets',
+          pageBuilder: (context, state) => NoTransitionPage(child: const TaxiTrajetsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationColis,
+          name: 'reservationColis',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationColisPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationColisEnvoi,
+          name: 'reservationColisEnvoi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ColisEnvoiPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationColisSuivi,
+          name: 'reservationColisSuivi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ColisSuiviPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationEvent,
+          name: 'reservationEvent',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationEventPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationRestaurant,
+          name: 'reservationRestaurant',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationRestaurantPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationMesReservations,
+          name: 'reservationMesReservations',
+          pageBuilder: (context, state) => NoTransitionPage(child: const MesReservationsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationFavoris,
+          name: 'reservationFavoris',
+          pageBuilder: (context, state) => NoTransitionPage(child: const FavorisPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationProfil,
+          name: 'reservationProfil',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ProfilPage()),
+        ),
 
         // ==================== THIX MARKET ====================
         GoRoute(
           path: AppRoutes.thixMarket,
           name: 'thixMarket',
-          pageBuilder: (context, state) => NoTransitionPage(child: ThixMarketPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const ThixMarketPage()),
         ),
         GoRoute(
           path: AppRoutes.thixMarketCart,
           name: 'marketCart',
-          pageBuilder: (context, state) => NoTransitionPage(child: CartPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const CartPage()),
         ),
         GoRoute(
           path: AppRoutes.thixMarketCheckout,
           name: 'marketCheckout',
-          pageBuilder: (context, state) => NoTransitionPage(child: CheckoutPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const CheckoutPage()),
         ),
         GoRoute(
           path: AppRoutes.thixMarketOrders,
           name: 'marketOrders',
-          pageBuilder: (context, state) => NoTransitionPage(child: OrderHistoryPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const OrderHistoryPage()),
         ),
 
         // ==================== THIX MEDIA ====================
         GoRoute(
           path: AppRoutes.thixMedia,
           name: 'thixMedia',
-          pageBuilder: (context, state) => NoTransitionPage(child: ThixMediaPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const ThixMediaPage()),
         ),
 
         // ==================== JOB ROUTES ====================
         GoRoute(
           path: AppRoutes.jobs,
           name: 'jobs',
-          pageBuilder: (context, state) => NoTransitionPage(child: JobsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const JobsPage()),
         ),
         GoRoute(
           path: '/jobs/:jobId',
@@ -1001,19 +961,19 @@ GoRoute(
         GoRoute(
           path: AppRoutes.jobDashboard,
           name: 'jobDashboard',
-          pageBuilder: (context, state) => NoTransitionPage(child: JobDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const JobDashboardPage()),
         ),
         GoRoute(
           path: AppRoutes.recruiter,
           name: 'recruiter',
-          pageBuilder: (context, state) => NoTransitionPage(child: RecruiterPortalPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const RecruiterPortalPage()),
         ),
 
         // ==================== OPPORTUNITIES ROUTES ====================
         GoRoute(
           path: AppRoutes.opportunities,
           name: 'opportunities',
-          pageBuilder: (context, state) => NoTransitionPage(child: OpportunitiesPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const OpportunitiesPage()),
         ),
         GoRoute(
           path: '/opportunities/:opportunityId',
@@ -1037,7 +997,7 @@ GoRoute(
         GoRoute(
           path: AppRoutes.events,
           name: 'events',
-          pageBuilder: (context, state) => NoTransitionPage(child: EventsPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const EventsPage()),
         ),
         GoRoute(
           path: '/events/:eventId',
@@ -1067,14 +1027,14 @@ GoRoute(
         GoRoute(
           path: '/events/me',
           name: 'userEventsDashboard',
-          pageBuilder: (context, state) => NoTransitionPage(child: UserEventDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const UserEventDashboardPage()),
         ),
 
         // ==================== TRAINING ROUTES ====================
         GoRoute(
           path: AppRoutes.trainingHome,
           name: 'trainingHome',
-          pageBuilder: (context, state) => NoTransitionPage(child: TrainingHomePage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const TrainingHomePage()),
         ),
         GoRoute(
           path: '/training/:trainingId',
@@ -1087,7 +1047,7 @@ GoRoute(
         GoRoute(
           path: AppRoutes.learningDashboard,
           name: 'learningDashboard',
-          pageBuilder: (context, state) => NoTransitionPage(child: LearningDashboardPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const LearningDashboardPage()),
         ),
         GoRoute(
           path: '/lesson/:enrollmentId',
@@ -1102,7 +1062,7 @@ GoRoute(
         GoRoute(
           path: AppRoutes.education,
           name: 'education',
-          pageBuilder: (context, state) => NoTransitionPage(child: EducationPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const EducationPage()),
         ),
 
         // ==================== ADMIN ROUTES ====================
@@ -1122,7 +1082,7 @@ GoRoute(
         GoRoute(
           path: AppRoutes.adminMedia,
           name: 'adminMedia',
-          pageBuilder: (context, state) => NoTransitionPage(child: AdminMediaPage()),
+          pageBuilder: (context, state) => NoTransitionPage(child: const AdminMediaPage()),
         ),
       ],
     );
