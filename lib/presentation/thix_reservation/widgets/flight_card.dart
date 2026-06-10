@@ -1,9 +1,8 @@
 // lib/presentation/thix_reservation/widgets/flight_card.dart
 import 'package:flutter/material.dart';
-import '../../models/vol.dart';
 
 class FlightCard extends StatelessWidget {
-  final Vol vol;
+  final Map<String, dynamic> vol;
   final VoidCallback onTap;
 
   const FlightCard({
@@ -14,6 +13,20 @@ class FlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compagnie = vol['compagnie'] as String;
+    final codeVol = vol['codeVol'] as String;
+    final depart = vol['depart'] as String;
+    final arrivee = vol['arrivee'] as String;
+    final heureDepart = vol['heureDepart'] as String;
+    final heureArrivee = vol['heureArrivee'] as String;
+    final duree = vol['duree'] as String;
+    final escales = vol['escales'] as int;
+    final bagageCabine = vol['bagageCabine'] as String;
+    final bagageSoute = vol['bagageSoute'] as String;
+    final repasInclus = vol['repasInclus'] as bool;
+    final prix = vol['prix'] as double;
+    final devise = vol['devise'] as String;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -29,17 +42,17 @@ class FlightCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(vol.compagnie, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(compagnie, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: vol.escales == 0 ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                    color: escales == 0 ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    vol.escales == 0 ? 'Direct' : '${vol.escales} escale',
+                    escales == 0 ? 'Direct' : '$escales escale',
                     style: TextStyle(
-                      color: vol.escales == 0 ? Colors.green : Colors.orange,
+                      color: escales == 0 ? Colors.green : Colors.orange,
                       fontSize: 10,
                     ),
                   ),
@@ -53,15 +66,15 @@ class FlightCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(vol.heureDepart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(vol.depart, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(heureDepart, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(depart, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                 ),
                 Expanded(
                   child: Column(
                     children: [
-                      Text(vol.duree, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(duree, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       const Icon(Icons.flight, size: 20, color: Color(0xFFD4AF37)),
                     ],
                   ),
@@ -70,8 +83,8 @@ class FlightCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(vol.heureArrivee, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(vol.arrivee, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(heureArrivee, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(arrivee, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                 ),
@@ -83,18 +96,18 @@ class FlightCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _buildDetailBadge(Icons.work_outline, vol.bagageCabine),
+                    _buildDetailBadge(Icons.work_outline, bagageCabine),
                     const SizedBox(width: 12),
-                    _buildDetailBadge(Icons.work, vol.bagageSoute),
+                    _buildDetailBadge(Icons.work, bagageSoute),
                     const SizedBox(width: 12),
-                    _buildDetailBadge(Icons.restaurant, vol.repasInclus ? 'Repas' : 'Sans repas'),
+                    _buildDetailBadge(Icons.restaurant, repasInclus ? 'Repas' : 'Sans repas'),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${vol.prix.round()} ${vol.devise}',
+                      '${prix.round()} $devise',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFD4AF37)),
                     ),
                     const Text('par passager', style: TextStyle(fontSize: 10, color: Colors.grey)),
