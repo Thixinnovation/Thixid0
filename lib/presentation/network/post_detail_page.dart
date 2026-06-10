@@ -70,7 +70,102 @@ class _PostDetailPageState extends State<PostDetailPage> {
     await _loadData();
   }
 
-  Future<void> _deleteComment(String commentId) async {
+  // ==================== GESTION DU POST ====================
+
+  Future<void> _editPost() async {
+    final controller = TextEditingController(text: _post?.content);
+    final newContent = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifier la publication'),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'Modifiez votre publication...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    
+    if (newContent != null && newContent != _post?.content) {
+      await _networkService.updatePost(widget.postId, newContent);
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publication modifiée'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  Future<void> _deletePost() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer la publication'),
+        content: const Text('Voulez-vous vraiment supprimer cette publication ? Cette action est irréversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      await _networkService.deletePost(widget.postId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publication supprimée'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _hidePost() async {
+    await _networkService.hidePost(widget.postId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  void _reportPost() {
+    showDialog(
+      context: context,
+      builder: (_) => ReportDialog(
+        contentType: 'post',
+        contentId: widget.postId,
+        reportedUserId: _post?.userId,
+        postId: widget.postId,
+      ),
+    );
+  }
+
+  // ==================== GESTION DES COMMENTAIRES ====================
+
+  Future<void> _deleteComment(String commentId, String commentUserId) async {
+    final auth = Provider.of<AuthController>(context, listen: false);
+    final isOwner = auth.currentUser?.id == commentUserId;
+    
+    if (!isOwner) return;
+    
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -78,7 +173,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
         content: const Text('Voulez-vous vraiment supprimer ce commentaire ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Supprimer')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
         ],
       ),
     );
@@ -94,6 +193,82 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  void _reportComment(Map<String, dynamic> comment) {
+    showDialog(
+      context: context,
+      builder: (_) => ReportDialog(
+        contentType: 'comment',
+        contentId: comment['id'],
+        reportedUserId: comment['user_id'],
+        postId: widget.postId,
+      ),
+    );
+  }
+
+  // ==================== OPTIONS ====================
+
+  void _showPostOptions() {
+    final auth = Provider.of<AuthController>(context, listen: false);
+    final isOwner = auth.currentUser?.id == _post?.userId;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            if (isOwner) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Gérer ma publication', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: const Text('Modifier'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editPost();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deletePost();
+                },
+              ),
+              const Divider(),
+            ],
+            ListTile(
+              leading: const Icon(Icons.visibility_off, color: Colors.orange),
+              title: const Text('Masquer cette publication'),
+              onTap: () {
+                Navigator.pop(context);
+                _hidePost();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text('Signaler', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _reportPost();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==================== UI ====================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,7 +280,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: Color(0xFF0B1B3D)),
-            onPressed: () => _showOptions(),
+            onPressed: _showPostOptions,
           ),
         ],
       ),
@@ -157,6 +332,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
             children: [
               CircleAvatar(
@@ -170,7 +346,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(_post!.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    if (_post!.userTitle != null)
+                    if (_post!.userTitle != null && _post!.userTitle!.isNotEmpty)
                       Text(_post!.userTitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
@@ -179,8 +355,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
+          
+          // Contenu
           if (_post!.content.isNotEmpty)
             Text(_post!.content, style: const TextStyle(fontSize: 15, height: 1.4)),
+          
+          // Images
           if (_post!.images.isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -192,13 +372,26 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   padding: const EdgeInsets.only(right: 8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(_post!.images[index], width: 250, fit: BoxFit.cover),
+                    child: Image.network(
+                      _post!.images[index],
+                      width: 250,
+                      height: 250,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 250,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image, size: 50),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ],
+          
           const SizedBox(height: 12),
+          
+          // Actions
           Row(
             children: [
               _buildActionButton(
@@ -227,7 +420,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Widget _buildCommentCard(Map<String, dynamic> comment) {
-    final auth = Provider.of<AuthController>(context);
+    final auth = Provider.of<AuthController>(context, listen: false);
     final isOwner = auth.currentUser?.id == comment['user_id'];
 
     return Container(
@@ -272,7 +465,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               if (value == 'report') {
                 _reportComment(comment);
               } else if (value == 'delete') {
-                _deleteComment(comment['id']);
+                _deleteComment(comment['id'], comment['user_id']);
               }
             },
           ),
@@ -281,7 +474,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  Widget _buildActionButton({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    Color? color,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -329,52 +527,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  void _showOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.flag, color: Colors.red),
-              title: const Text('Signaler', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (_) => ReportDialog(
-                    contentType: 'post',
-                    contentId: widget.postId,
-                    reportedUserId: _post?.userId,
-                    postId: widget.postId,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _reportComment(Map<String, dynamic> comment) {
-    showDialog(
-      context: context,
-      builder: (_) => ReportDialog(
-        contentType: 'comment',
-        contentId: comment['id'],
-        reportedUserId: comment['user_id'],
-        postId: widget.postId,
-      ),
-    );
-  }
-
   String _formatTime(DateTime date) {
     final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays}j';
-    if (diff.inHours > 0) return '${diff.inHours}h';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}min';
-    return 'maintenant';
+    if (diff.inDays > 0) return 'il y a ${diff.inDays}j';
+    if (diff.inHours > 0) return 'il y a ${diff.inHours}h';
+    if (diff.inMinutes > 0) return 'il y a ${diff.inMinutes}min';
+    return 'à l\'instant';
   }
 }
