@@ -58,7 +58,6 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
   }
 
   void _generateMockData() {
-    // Génération des produits mockés par ville et catégorie
     _allProducts = [];
     
     for (final city in _cities.where((c) => c != 'Toutes')) {
@@ -69,17 +68,15 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
             title: _getProductName(category, i),
             description: 'Description du produit $i dans la catégorie $category à $city',
             price: _getRandomPrice(category),
-            originalPrice: _getRandomOriginalPrice(category),
             category: category,
             city: city,
             rating: 3.5 + (i * 0.3),
-            reviewsCount: 50 + (i * 10),
-            imageUrls: ['https://picsum.photos/400/400?random=${city.hashCode + i}'],
-            sellerId: 'seller_$city',
-            sellerName: 'Vendeur de $city',
-            stock: 10 + i,
-            isFlashSale: false,
-            discountPercentage: i % 3 == 0 ? 15 : 0,
+            reviews: 50 + (i * 10),
+            imageUrl: 'https://picsum.photos/400/400?random=${city.hashCode + i}',
+            seller: 'Vendeur de $city',
+            sellerAvatar: 'https://picsum.photos/50/50?random=${city.hashCode}',
+            country: 'RDC',
+            inStock: true,
             createdAt: DateTime.now().subtract(Duration(days: i)),
           ));
         }
@@ -99,19 +96,18 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         title: 'Flash ${_getProductName(category, i + 1)}',
         description: 'Offre flash - 72h seulement !',
         price: _getFlashPrice(category),
-        originalPrice: _getFlashOriginalPrice(category),
         category: category,
         city: city,
         rating: 4.5 + (i * 0.1),
-        reviewsCount: 200 + (i * 15),
-        imageUrls: ['https://picsum.photos/400/400?random=flash$i'],
-        sellerId: 'flash_seller_$i',
-        sellerName: 'Flash Vendeur',
-        stock: 5,
-        isFlashSale: true,
-        discountPercentage: 30 + (i * 5),
-        flashEndTime: DateTime.now().add(const Duration(hours: 72)),
+        reviews: 200 + (i * 15),
+        imageUrl: 'https://picsum.photos/400/400?random=flash$i',
+        seller: 'Flash Vendeur',
+        sellerAvatar: 'https://picsum.photos/50/50?random=flash$i',
+        country: 'RDC',
+        inStock: true,
         createdAt: DateTime.now(),
+        discountPercentage: 30 + (i * 5),
+        originalPrice: _getFlashOriginalPrice(category),
       ));
     }
     
@@ -137,15 +133,15 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
 
   double _getRandomPrice(String category) {
     final basePrices = {
-      'Électronique': 500000,
-      'Mode & Fashion': 150000,
-      'Maison & Déco': 300000,
-      'Beauté & Santé': 75000,
-      'Sports & Loisirs': 200000,
-      'Alimentation': 25000,
-      'Automobile': 450000,
+      'Électronique': 500000.0,
+      'Mode & Fashion': 150000.0,
+      'Maison & Déco': 300000.0,
+      'Beauté & Santé': 75000.0,
+      'Sports & Loisirs': 200000.0,
+      'Alimentation': 25000.0,
+      'Automobile': 450000.0,
     };
-    return basePrices[category] ?? 100000;
+    return basePrices[category] ?? 100000.0;
   }
 
   double _getRandomOriginalPrice(String category) {
@@ -154,12 +150,12 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
 
   double _getFlashPrice(String category) {
     final basePrices = {
-      'Électronique': 350000,
-      'Mode & Fashion': 99000,
-      'Maison & Déco': 199000,
-      'Beauté & Santé': 49000,
+      'Électronique': 350000.0,
+      'Mode & Fashion': 99000.0,
+      'Maison & Déco': 199000.0,
+      'Beauté & Santé': 49000.0,
     };
-    return basePrices[category] ?? 100000;
+    return basePrices[category] ?? 100000.0;
   }
 
   double _getFlashOriginalPrice(String category) {
@@ -205,7 +201,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         case 'price_asc': filtered.sort((a, b) => a.price.compareTo(b.price)); break;
         case 'price_desc': filtered.sort((a, b) => b.price.compareTo(a.price)); break;
         case 'rating': filtered.sort((a, b) => b.rating.compareTo(a.rating)); break;
-        case 'popularity': filtered.sort((a, b) => b.reviewsCount.compareTo(a.reviewsCount)); break;
+        case 'popularity': filtered.sort((a, b) => b.reviews.compareTo(a.reviews)); break;
         default: filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       
@@ -550,7 +546,6 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                   onTap: () => _showProductDetail(context, _flashSales[index]),
                   showLocation: true,
                   showStock: true,
-                  showCountdown: true,
                 ),
               ),
             ),
@@ -578,6 +573,8 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
             itemCount: _carouselProducts.length,
             itemBuilder: (context, index) {
               final product = _carouselProducts[index];
+              final originalPrice = product.originalPrice ?? product.price * 1.3;
+              final discount = ((originalPrice - product.price) / originalPrice * 100).toInt();
               return Container(
                 width: MediaQuery.of(context).size.width * 0.7,
                 margin: const EdgeInsets.only(right: 12),
@@ -591,7 +588,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                     ClipRRect(
                       borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
                       child: Image.network(
-                        product.imageUrls.first,
+                        product.imageUrl,
                         width: 120,
                         height: 220,
                         fit: BoxFit.cover,
@@ -613,14 +610,14 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                               children: [
                                 Text('${product.price.round()} FCFA', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
                                 const SizedBox(width: 6),
-                                Text('${product.originalPrice?.round()} FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 11, color: Colors.grey)),
+                                Text('${originalPrice.round()} FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 11, color: Colors.grey)),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
-                              child: Text('-${product.discountPercentage}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              child: Text('-$discount%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
