@@ -1,7 +1,7 @@
 // lib/services/qr_payment_service.dart
 import 'dart:async';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:thix_id/services/paiement_service.dart';  // ← Chemin absolu corrigé
+import 'package:thix_id/services/paiement_service.dart';  // ← Vérifie que le fichier existe
 
 class QrPaymentService {
   final PaiementService _paymentService = PaiementService();
@@ -51,7 +51,6 @@ class QrPaymentService {
   }
 
   Map<String, dynamic>? _parseQrData(String qrData) {
-    // Format 1: THIX|merchantId|merchantName|amount|reference
     if (qrData.startsWith('THIX|')) {
       final parts = qrData.split('|');
       if (parts.length >= 3) {
@@ -63,7 +62,6 @@ class QrPaymentService {
         };
       }
     }
-    
     return null;
   }
 
