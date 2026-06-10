@@ -10,7 +10,7 @@ class HotelDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Détails de l\'hôtel'),
+        title: const Text('Details de l\'hotel'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -33,7 +33,7 @@ class HotelDetailsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildReviews(),
                   const SizedBox(height: 24),
-                  _buildBookButton(),
+                  _buildBookButton(context),
                 ],
               ),
             ),
@@ -60,12 +60,12 @@ class HotelDetailsPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Azalai Hôtel Abidjan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text('Azalai Hotel Abidjan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Row(
           children: [
             const Icon(Icons.location_on, size: 16, color: Colors.grey),
-            const Text(' Abidjan, Côte d\'Ivoire', style: TextStyle(fontSize: 14)),
+            const Text(' Abidjan, Cote d\'Ivoire', style: TextStyle(fontSize: 14)),
             const SizedBox(width: 16),
             ...List.generate(5, (i) => Icon(Icons.star, size: 16, color: i < 4 ? Colors.amber : Colors.grey)),
             const SizedBox(width: 8),
@@ -74,8 +74,8 @@ class HotelDetailsPage extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'L\'Azalai Hôtel Abidjan est un établissement 4 étoiles situé en plein cœur du Plateau. '
-          'Il propose des chambres luxueuses, une piscine extérieure, un spa et un restaurant gastronomique.',
+          'L\'Azalai Hotel Abidjan est un etablissement 4 etoiles situe en plein coeur du Plateau. '
+          'Il propose des chambres luxueuses, une piscine exterieure, un spa et un restaurant gastronomique.',
           style: TextStyle(fontSize: 14, height: 1.4),
         ),
       ],
@@ -101,7 +101,7 @@ class HotelDetailsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Services & équipements', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Services & equipements', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -144,9 +144,9 @@ class HotelDetailsPage extends StatelessWidget {
           const SizedBox(height: 12),
           _buildRoomCard('Chambre Standard', '1 lit double ou 2 lits simples', '68.000 FCFA'),
           const SizedBox(height: 8),
-          _buildRoomCard('Chambre Supérieure', 'Lit king size, vue sur ville', '85.000 FCFA'),
+          _buildRoomCard('Chambre Superieure', 'Lit king size, vue sur ville', '85.000 FCFA'),
           const SizedBox(height: 8),
-          _buildRoomCard('Suite Junior', 'Salon séparé, vue sur mer', '120.000 FCFA'),
+          _buildRoomCard('Suite Junior', 'Salon separe, vue sur mer', '120.000 FCFA'),
         ],
       ),
     );
@@ -197,8 +197,8 @@ class HotelDetailsPage extends StatelessWidget {
           const SizedBox(height: 12),
           const ListTile(
             leading: CircleAvatar(child: Text('KA')),
-            title: Text('Kouamé A.'),
-            subtitle: Text('Séjour parfait ! L\'hôtel était propre, le personnel très accueillant.'),
+            title: Text('Kouame A.'),
+            subtitle: Text('Sejour parfait ! L\'hotel etait propre, le personnel tres accueillant.'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -211,7 +211,7 @@ class HotelDetailsPage extends StatelessWidget {
           const ListTile(
             leading: CircleAvatar(child: Text('M')),
             title: Text('Mari'),
-            subtitle: Text('Très bon recommande'),
+            subtitle: Text('Tres bon recommande'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -225,7 +225,7 @@ class HotelDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBookButton() {
+  Widget _buildBookButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -236,7 +236,7 @@ class HotelDetailsPage extends StatelessWidget {
           foregroundColor: const Color(0xFF0B1B3D),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         ),
-        child: const Text('Réserver maintenant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        child: const Text('Reserver maintenant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }
