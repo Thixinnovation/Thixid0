@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,6 +15,7 @@ class SearchNetworkPage extends StatefulWidget {
 class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounceTimer;
   String _query = '';
   bool _loading = false;
   late NetworkService _networkService;
@@ -33,7 +35,15 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _search();
+    });
   }
 
   Future<void> _search() async {
@@ -57,133 +67,81 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
       });
     } catch (e) {
       debugPrint('Search error: $e');
-      // ✅ Données fictives pour test
       setState(() {
-        _users = _getMockUsers();
-        _posts = _getMockPosts();
-        _communities = _getMockCommunities();
+        _users = [];
+        _posts = [];
+        _communities = [];
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  // ✅ Méthode pour envoyer une demande de connexion
   Future<void> _sendConnectionRequest(String userId, String userName) async {
     try {
       await _networkService.sendConnectionRequest(userId);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demande de connexion envoyée à $userName'),
-            backgroundColor: Colors.green,
-          ),
+          SnackBar(content: Text('Demande envoyée à $userName'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // ✅ Données fictives pour test
-  List<Map<String, dynamic>> _getMockUsers() {
-    return [
-      {
-        'id': 'user1',
-        'display_name': 'Jean Kouassi',
-        'avatar_url': null,
-        'title': 'CEO @ Tech Solutions',
-      },
-      {
-        'id': 'user2',
-        'display_name': 'Marie Konan',
-        'avatar_url': null,
-        'title': 'CTO @ Africa Fintech',
-      },
-      {
-        'id': 'user3',
-        'display_name': 'Abdoul Diallo',
-        'avatar_url': null,
-        'title': 'Flutter Developer',
-      },
-      {
-        'id': 'user4',
-        'display_name': 'Claire N\'Guessan',
-        'avatar_url': null,
-        'title': 'Marketing Manager',
-      },
-    ];
-  }
-
-  List<Map<String, dynamic>> _getMockPosts() {
-    return [
-      {
-        'id': 'post1',
-        'content': 'Découvrez notre nouvelle plateforme de paiement digital disponible dès maintenant en Afrique.',
-        'profiles': {
-          'display_name': 'Jean Kouassi',
-          'avatar_url': null,
-        },
-      },
-      {
-        'id': 'post2',
-        'content': 'Nous recrutons des développeurs Flutter pour notre équipe à Abidjan.',
-        'profiles': {
-          'display_name': 'Marie Konan',
-          'avatar_url': null,
-        },
-      },
-      {
-        'id': 'post3',
-        'content': 'Formation gratuite sur l\'intelligence artificielle pour les entrepreneurs.',
-        'profiles': {
-          'display_name': 'Abdoul Diallo',
-          'avatar_url': null,
-        },
-      },
-    ];
-  }
-
-  // ✅ CORRECTION: Ajout de postsCount
-  List<NetworkCommunity> _getMockCommunities() {
-    return [
-      NetworkCommunity(
-        id: 'comm1',
-        name: 'Fintech Afrique',
-        membersCount: 12500,
-        postsCount: 342,
-        createdAt: DateTime.now(),
-      ),
-      NetworkCommunity(
-        id: 'comm2',
-        name: 'Développeurs Flutter',
-        membersCount: 18000,
-        postsCount: 1256,
-        createdAt: DateTime.now(),
-      ),
-      NetworkCommunity(
-        id: 'comm3',
-        name: 'Entrepreneurs Afrique',
-        membersCount: 24500,
-        postsCount: 2345,
-        createdAt: DateTime.now(),
-      ),
-      NetworkCommunity(
-        id: 'comm4',
-        name: 'IA & Innovation',
-        membersCount: 9200,
-        postsCount: 789,
-        createdAt: DateTime.now(),
-      ),
-    ];
+  Future<void> _joinCommunity(NetworkCommunity community) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final currentUserId = supabase.auth.currentUser!.id;
+      
+      final existing = await supabase
+          .from('community_members')
+          .select('id')
+          .eq('community_id', community.id)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      
+      if (existing == null) {
+        await supabase.from('community_members').insert({
+          'community_id': community.id,
+          'user_id': currentUserId,
+          'joined_at': DateTime.now().toIso8601String(),
+        });
+        
+        await supabase.rpc('increment_community_members', params: {'community_id': community.id});
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Vous avez rejoint ${community.name}'), backgroundColor: Colors.green),
+          );
+          await _search();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Vous êtes déjà membre'), backgroundColor: Colors.orange),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error joining community: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -199,7 +157,11 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
           labelColor: const Color(0xFFD4AF37),
           unselectedLabelColor: Colors.grey,
           indicatorColor: const Color(0xFFD4AF37),
-          tabs: const [Tab(text: 'Personnes'), Tab(text: 'Publications'), Tab(text: 'Communautés')],
+          tabs: const [
+            Tab(text: 'Personnes'),
+            Tab(text: 'Publications'),
+            Tab(text: 'Communautés'),
+          ],
         ),
       ),
       body: Column(
@@ -233,6 +195,7 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
           Expanded(
             child: TextField(
               controller: _searchController,
+              onChanged: _onSearchChanged,
               onSubmitted: (_) => _search(),
               decoration: InputDecoration(
                 hintText: 'Rechercher...',
@@ -291,7 +254,8 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (title != null) Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                if (title != null && title.isNotEmpty)
+                  Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
@@ -332,6 +296,7 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
     final userAvatar = user?['avatar_url']?.toString();
     final postId = post['id']?.toString() ?? '';
     final content = post['content']?.toString() ?? '';
+    final communityId = post['community_id']?.toString();
 
     return GestureDetector(
       onTap: () => context.go('/network/post/$postId'),
@@ -349,7 +314,16 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
                   backgroundImage: userAvatar != null ? NetworkImage(userAvatar) : null,
                 ),
                 const SizedBox(width: 8),
-                Text(userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      if (communityId != null)
+                        Text('Publié dans une communauté', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -398,7 +372,7 @@ class _SearchNetworkPageState extends State<SearchNetworkPage> with SingleTicker
               ),
             ),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: () => _joinCommunity(community),
               style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFD4AF37))),
               child: const Text('Rejoindre', style: TextStyle(fontSize: 11)),
             ),
