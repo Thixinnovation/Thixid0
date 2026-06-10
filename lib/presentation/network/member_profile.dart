@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';  // ← AJOUTER CET IMPORT
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
@@ -42,9 +42,159 @@ class _MemberProfileState extends State<MemberProfile> {
       });
     } catch (e) {
       debugPrint('Error loading profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _sendConnectionRequest() async {
+    try {
+      await _networkService.sendConnectionRequest(widget.userId);
+      setState(() => _isConnectionPending = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande de connexion envoyée'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _sendMessage() {
+    context.push('/network/chat/${widget.userId}');
+  }
+
+  void _shareProfile() {
+    final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
+    final shareText = 'Découvrez le profil de $displayName sur THIX Réseau Pro !';
+    // Share.share(shareText);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Partage bientôt disponible'), backgroundColor: Colors.orange),
+    );
+  }
+
+  Future<void> _blockUser() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bloquer l\'utilisateur'),
+        content: const Text('Voulez-vous vraiment bloquer cet utilisateur ? Il ne pourra plus vous contacter.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Bloquer')),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      try {
+        final supabase = Supabase.instance.client;
+        final currentUserId = supabase.auth.currentUser!.id;
+        
+        final existing = await supabase
+            .from('blocked_users')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .eq('blocked_user_id', widget.userId)
+            .maybeSingle();
+        
+        if (existing == null) {
+          await supabase.from('blocked_users').insert({
+            'user_id': currentUserId,
+            'blocked_user_id': widget.userId,
+            'blocked_at': DateTime.now().toIso8601String(),
+          });
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Utilisateur bloqué'), backgroundColor: Colors.red),
+          );
+          context.pop();
+        }
+      } catch (e) {
+        debugPrint('Error blocking user: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _reportUser() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Signaler cet utilisateur'),
+        content: const Text('Voulez-vous signaler ce profil pour comportement inapproprié ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Signalement envoyé'), backgroundColor: Colors.orange),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Signaler'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text('Signaler', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _reportUser();
+              },
+            ),
+            if (_isConnected)
+              ListTile(
+                leading: const Icon(Icons.block, color: Colors.red),
+                title: const Text('Bloquer', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _blockUser();
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return 'il y a ${diff.inDays}j';
+    if (diff.inHours > 0) return 'il y a ${diff.inHours}h';
+    if (diff.inMinutes > 0) return 'il y a ${diff.inMinutes}min';
+    return 'à l\'instant';
   }
 
   @override
@@ -65,7 +215,7 @@ class _MemberProfileState extends State<MemberProfile> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: Color(0xFF0B1B3D)),
-            onPressed: () => _showOptions(),
+            onPressed: _showOptions,
           ),
         ],
       ),
@@ -74,6 +224,7 @@ class _MemberProfileState extends State<MemberProfile> {
           : RefreshIndicator(
               onRefresh: _loadData,
               child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
                     _buildHeader(),
@@ -81,6 +232,7 @@ class _MemberProfileState extends State<MemberProfile> {
                     _buildActionButtons(),
                     const SizedBox(height: 16),
                     _buildPosts(),
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
@@ -89,7 +241,6 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildHeader() {
-    // ✅ CORRECTION: extraire les valeurs avec toString() pour éviter les erreurs de type
     final avatarUrl = _user?['avatar_url']?.toString();
     final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
     final title = _user?['title']?.toString() ?? 'Membre THIX';
@@ -109,8 +260,8 @@ class _MemberProfileState extends State<MemberProfile> {
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey.shade200,
-            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-            child: avatarUrl == null
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null || avatarUrl.isEmpty
                 ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
                 : null,
           ),
@@ -187,11 +338,12 @@ class _MemberProfileState extends State<MemberProfile> {
           Expanded(
             child: _isConnected
                 ? OutlinedButton.icon(
-                    onPressed: () => _sendMessage(),
+                    onPressed: _sendMessage,
                     icon: const Icon(Icons.message),
                     label: const Text('Message'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
                   )
                 : ElevatedButton.icon(
@@ -202,17 +354,19 @@ class _MemberProfileState extends State<MemberProfile> {
                       backgroundColor: const Color(0xFFD4AF37),
                       foregroundColor: const Color(0xFF0B1B3D),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
                   ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: _shareProfile,
               icon: const Icon(Icons.share),
               label: const Text('Partager'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
             ),
           ),
@@ -243,110 +397,96 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildPostCard(NetworkPost post) {
-    final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.grey.shade200,
-                child: const Icon(Icons.person, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  displayName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+    return GestureDetector(
+      onTap: () => context.push('/network/post/${post.id}'),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey.shade200,
+                  backgroundImage: post.userAvatar != null && post.userAvatar!.isNotEmpty
+                      ? NetworkImage(post.userAvatar!)
+                      : null,
+                  child: post.userAvatar == null || post.userAvatar!.isEmpty
+                      ? const Icon(Icons.person, size: 16)
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    post.userName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                Text(
+                  _formatTime(post.createdAt),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (post.content.isNotEmpty)
+              Text(post.content, style: const TextStyle(fontSize: 13)),
+            if (post.images.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 150,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: post.images.length,
+                  itemBuilder: (context, imgIndex) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        post.images[imgIndex],
+                        width: 120,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 120,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              Text(
-                _formatTime(post.createdAt),
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-              ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(post.content, style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildActionButton(Icons.favorite_border, '${post.likes}'),
-              const SizedBox(width: 16),
-              _buildActionButton(Icons.comment_outlined, '${post.comments}'),
-              const SizedBox(width: 16),
-              _buildActionButton(Icons.share_outlined, '${post.shares}'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String label) {
-    return GestureDetector(
-      onTap: () {},
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendConnectionRequest() async {
-    await _networkService.sendConnectionRequest(widget.userId);
-    setState(() => _isConnectionPending = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Demande de connexion envoyée')),
-    );
-  }
-
-  void _sendMessage() {
-    // ✅ CORRECTION: utiliser context.go au lieu de context.push
-    context.go('/network/chat/${widget.userId}');
-  }
-
-  void _showOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.flag),
-              title: const Text('Signaler'),
-              onTap: () => Navigator.pop(context),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildActionButton(Icons.favorite_border, '${post.likesCount}'),
+                const SizedBox(width: 16),
+                _buildActionButton(Icons.comment_outlined, '${post.commentsCount}'),
+                const SizedBox(width: 16),
+                _buildActionButton(Icons.share_outlined, '${post.sharesCount ?? 0}'),
+              ],
             ),
-            if (_isConnected)
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Bloquer', style: TextStyle(color: Colors.red)),
-                onTap: () => Navigator.pop(context),
-              ),
           ],
         ),
       ),
     );
   }
 
-  String _formatTime(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays}j';
-    if (diff.inHours > 0) return '${diff.inHours}h';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}min';
-    return 'à l\'instant';
+  Widget _buildActionButton(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ],
+    );
   }
 }
