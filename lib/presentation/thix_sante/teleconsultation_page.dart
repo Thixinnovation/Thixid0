@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+
 class TeleconsultationPage extends StatefulWidget {
   final String doctorId;
   final String doctorName;
@@ -19,71 +18,18 @@ class TeleconsultationPage extends StatefulWidget {
 }
 
 class _TeleconsultationPageState extends State<TeleconsultationPage> {
-  static const _appId = 'VOTRE_APP_ID_AGORA';
-  int? _remoteUid;
-  bool _isJoined = false;
   bool _isMuted = false;
   bool _isCameraOn = true;
-  late RtcEngine _engine;
-
-  @override
-  void initState() {
-    super.initState();
-    _initAgora();
-  }
-
-  @override
-  void dispose() {
-    _engine.leaveChannel();
-    _engine.release();
-    super.dispose();
-  }
-
-  Future<void> _initAgora() async {
-    await [Permission.microphone, Permission.camera].request();
-
-    _engine = createAgoraRtcEngine();
-    await _engine.initialize(const RtcEngineContext(
-      appId: _appId,
-      channelProfile: ChannelProfileType.channelProfileCommunication,
-    ));
-
-    _engine.registerEventHandler(
-      RtcEngineEventHandler(
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          setState(() => _isJoined = true);
-        },
-        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          setState(() => _remoteUid = remoteUid);
-        },
-        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          setState(() => _remoteUid = null);
-        },
-      ),
-    );
-
-    await _engine.enableVideo();
-    await _engine.startPreview();
-    await _engine.joinChannel(
-      token: '',
-      channelId: widget.channelName,
-      uid: 0,
-      options: const ChannelMediaOptions(),
-    );
-  }
 
   Future<void> _toggleMute() async {
-    await _engine.muteLocalAudioStream(!_isMuted);
     setState(() => _isMuted = !_isMuted);
   }
 
   Future<void> _toggleCamera() async {
-    await _engine.enableLocalVideo(!_isCameraOn);
     setState(() => _isCameraOn = !_isCameraOn);
   }
 
   Future<void> _endCall() async {
-    await _engine.leaveChannel();
     if (mounted) Navigator.pop(context);
   }
 
@@ -93,29 +39,41 @@ class _TeleconsultationPageState extends State<TeleconsultationPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Vue principale (médecin)
-          if (_remoteUid != null)
-            AgoraVideoView(
-              controller: VideoViewController.remote(
-                rtcEngine: _engine,
-                canvas: VideoCanvas(uid: _remoteUid),
-                connection: const RtcConnection(channelId: ''),
-              ),
-            )
-          else
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    'Attente du médecin...',
-                    style: TextStyle(color: Colors.white),
+          // Vue principale (médecin) - Simulée
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey.shade800,
                   ),
-                ],
-              ),
+                  child: Icon(
+                    Icons.person,
+                    size: 100,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Dr. ${widget.doctorName}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'En consultation...',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
+          ),
 
           // Vue locale (patient)
           Positioned(
@@ -125,16 +83,17 @@ class _TeleconsultationPageState extends State<TeleconsultationPage> {
               width: 120,
               height: 160,
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: Colors.grey.shade900,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white, width: 2),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: AgoraVideoView(
-                  controller: VideoViewController(
-                    rtcEngine: _engine,
-                    canvas: const VideoCanvas(uid: 0),
+                child: Center(
+                  child: Icon(
+                    _isCameraOn ? Icons.videocam : Icons.videocam_off,
+                    color: Colors.white,
+                    size: 40,
                   ),
                 ),
               ),
@@ -156,7 +115,7 @@ class _TeleconsultationPageState extends State<TeleconsultationPage> {
                   const Icon(Icons.person, color: Colors.white, size: 16),
                   const SizedBox(width: 8),
                   Text(
-                    widget.doctorName,
+                    'Dr. ${widget.doctorName}',
                     style: const TextStyle(color: Colors.white),
                   ),
                 ],
@@ -176,7 +135,7 @@ class _TeleconsultationPageState extends State<TeleconsultationPage> {
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: _TimerWidget(),
+                child: const _TimerWidget(),
               ),
             ),
           ),
@@ -284,7 +243,11 @@ class _TeleconsultationPageState extends State<TeleconsultationPage> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Chat bientôt disponible')),
+                      );
+                    },
                     icon: const Icon(Icons.send),
                     color: const Color(0xFFD4AF37),
                   ),
