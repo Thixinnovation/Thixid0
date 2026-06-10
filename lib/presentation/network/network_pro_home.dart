@@ -6,6 +6,9 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/models/network_connection.dart';
+import 'package:thix_id/models/network_community.dart';
+import 'package:thix_id/models/opportunity.dart';
+import 'package:thix_id/models/event.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/stats_row.dart';
 import 'widgets/stories_list.dart';
@@ -19,7 +22,7 @@ import 'widgets/create_post_dialog.dart';
 import 'widgets/edit_profile_dialog.dart';
 import 'widgets/create_story_dialog.dart';
 
-// Imports pour les redirections réelles
+// Imports pour les redirections
 import 'package:thix_id/presentation/jobs/jobs_page.dart';
 import 'package:thix_id/presentation/events/events_page.dart';
 import 'package:thix_id/presentation/opportunities/opportunities_page.dart';
@@ -33,9 +36,20 @@ class NetworkProHome extends StatefulWidget {
 
 class _NetworkProHomeState extends State<NetworkProHome> {
   late NetworkService _networkService;
+  
+  // Données réelles
   List<NetworkPost> _posts = [];
   List<NetworkConnection> _suggestions = [];
-  bool _loading = true;
+  List<NetworkCommunity> _communities = [];
+  List<Opportunity> _opportunities = [];
+  List<Event> _events = [];
+  
+  bool _loadingPosts = true;
+  bool _loadingSuggestions = true;
+  bool _loadingCommunities = true;
+  bool _loadingOpportunities = true;
+  bool _loadingEvents = true;
+  
   int _unreadNotifications = 0;
   bool _isRefreshing = false;
 
@@ -43,37 +57,77 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   void initState() {
     super.initState();
     _networkService = NetworkService(Supabase.instance.client);
-    _loadData();
+    _loadAllData();
     _loadUnreadCount();
   }
 
-  Future<void> _loadData() async {
-    if (_isRefreshing) return;
-    setState(() {
-      _loading = true;
-      _isRefreshing = true;
-    });
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadPosts(),
+      _loadSuggestions(),
+      _loadCommunities(),
+      _loadOpportunities(),
+      _loadEvents(),
+    ]);
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() => _loadingPosts = true);
     try {
       final posts = await _networkService.getFeedPosts();
-      final suggestions = await _networkService.getSuggestedConnections();
-      setState(() {
-        _posts = posts;
-        _suggestions = suggestions;
-      });
+      setState(() => _posts = posts);
     } catch (e) {
-      debugPrint('Error loading network data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-        );
-      }
+      debugPrint('Error loading posts: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _isRefreshing = false;
-        });
-      }
+      setState(() => _loadingPosts = false);
+    }
+  }
+
+  Future<void> _loadSuggestions() async {
+    setState(() => _loadingSuggestions = true);
+    try {
+      final suggestions = await _networkService.getSuggestedConnections();
+      setState(() => _suggestions = suggestions);
+    } catch (e) {
+      debugPrint('Error loading suggestions: $e');
+    } finally {
+      setState(() => _loadingSuggestions = false);
+    }
+  }
+
+  Future<void> _loadCommunities() async {
+    setState(() => _loadingCommunities = true);
+    try {
+      final communities = await _networkService.getSuggestedCommunities();
+      setState(() => _communities = communities);
+    } catch (e) {
+      debugPrint('Error loading communities: $e');
+    } finally {
+      setState(() => _loadingCommunities = false);
+    }
+  }
+
+  Future<void> _loadOpportunities() async {
+    setState(() => _loadingOpportunities = true);
+    try {
+      final opportunities = await _networkService.getOpportunities();
+      setState(() => _opportunities = opportunities);
+    } catch (e) {
+      debugPrint('Error loading opportunities: $e');
+    } finally {
+      setState(() => _loadingOpportunities = false);
+    }
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() => _loadingEvents = true);
+    try {
+      final events = await _networkService.getUpcomingEvents();
+      setState(() => _events = events);
+    } catch (e) {
+      debugPrint('Error loading events: $e');
+    } finally {
+      setState(() => _loadingEvents = false);
     }
   }
 
@@ -87,8 +141,11 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   Future<void> _onRefresh() async {
-    await _loadData();
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    await _loadAllData();
     await _loadUnreadCount();
+    setState(() => _isRefreshing = false);
   }
 
   void _showCreatePostDialog() {
@@ -96,9 +153,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       context: context,
       builder: (_) => const CreatePostDialog(),
     ).then((refresh) {
-      if (refresh == true) {
-        _loadData();
-      }
+      if (refresh == true) _loadPosts();
     });
   }
 
@@ -107,9 +162,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       context: context,
       builder: (_) => const CreateStoryDialog(),
     ).then((refresh) {
-      if (refresh == true) {
-        _loadData();
-      }
+      if (refresh == true) _loadAllData();
     });
   }
 
@@ -137,7 +190,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         bio: result['bio'],
         photoUrl: result['avatar_url'],
       ));
-      await _loadData();
+      await _loadAllData();
     }
   }
 
@@ -145,44 +198,15 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     context.push('/network/notifications').then((_) => _loadUnreadCount());
   }
 
-  void _goToMessages() {
-    context.push('/network/messages');
-  }
-
-  void _goToSearch() {
-    context.push('/network/search');
-  }
-
-  void _goToGroups() {
-    context.push('/network/groups');
-  }
-
-  // ==================== NAVIGATIONS RÉELLES ====================
-  
-  void _goToJobs() {
-    context.push('/jobs');
-  }
-
-  void _goToEvents() {
-    context.push('/events');
-  }
-
-  void _goToOpportunities() {
-    context.push('/opportunities');
-  }
-
-  void _goToConnexions() {
-    context.push('/network/connections');
-  }
-
-  void _goToPublications() {
-    context.push('/network/my-posts');
-  }
-
-  void _goToStory(String storyId) {
-    // Navigation vers la story
-    context.push('/network/story/$storyId');
-  }
+  void _goToMessages() => context.push('/network/messages');
+  void _goToSearch() => context.push('/network/search');
+  void _goToGroups() => context.push('/network/groups');
+  void _goToJobs() => context.push('/jobs');
+  void _goToEvents() => context.push('/events');
+  void _goToOpportunities() => context.push('/opportunities');
+  void _goToConnexions() => context.push('/network/connections');
+  void _goToPublications() => context.push('/network/my-posts');
+  void _goToStory(String storyId) => context.push('/network/story/$storyId');
 
   void _showCommentDialog(NetworkPost post) {
     final commentController = TextEditingController();
@@ -190,18 +214,13 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       context: context,
       isScrollControlled: true,
       builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Container(
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Ajouter un commentaire',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+              const Text('Ajouter un commentaire', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 16),
               TextField(
                 controller: commentController,
@@ -225,19 +244,14 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (commentController.text.trim().isNotEmpty) {
-                          await _networkService.addComment(
-                            post.id,
-                            commentController.text.trim(),
-                          );
+                          await _networkService.addComment(post.id, commentController.text.trim());
                           if (mounted) {
                             Navigator.pop(context);
-                            await _loadData();
+                            await _loadPosts();
                           }
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
                       child: const Text('Publier'),
                     ),
                   ),
@@ -276,50 +290,26 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'THIX RÉSEAU PRO',
-          style: TextStyle(
-            color: Color(0xFF0B1B3D),
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
+        title: const Text('THIX RÉSEAU PRO', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF0B1B3D)),
-            onPressed: _goToSearch,
-          ),
-          IconButton(
-            icon: const Icon(Icons.groups, color: Color(0xFF0B1B3D)),
-            onPressed: _goToGroups,
-          ),
+          IconButton(icon: const Icon(Icons.search, color: Color(0xFF0B1B3D)), onPressed: _goToSearch),
+          IconButton(icon: const Icon(Icons.groups, color: Color(0xFF0B1B3D)), onPressed: _goToGroups),
           Stack(
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)),
-                onPressed: _showNotifications,
-              ),
+              IconButton(icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)), onPressed: _showNotifications),
               if (_unreadNotifications > 0)
                 Positioned(
-                  right: 4,
-                  top: 4,
+                  right: 4, top: 4,
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                    child: Text(
-                      '$_unreadNotifications',
-                      style: const TextStyle(color: Colors.white, fontSize: 8),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('$_unreadNotifications', style: const TextStyle(color: Colors.white, fontSize: 8), textAlign: TextAlign.center),
                   ),
                 ),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)),
-            onPressed: _goToMessages,
-          ),
+          IconButton(icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)), onPressed: _goToMessages),
         ],
       ),
       body: RefreshIndicator(
@@ -329,30 +319,33 @@ class _NetworkProHomeState extends State<NetworkProHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               ProfileHeaderCard(
                 onEditPressed: _showEditProfileDialog,
-                onPhotoPressed: () => _showCreatePostDialog(),
-                onVideoPressed: () => _showCreatePostDialog(),
-                onDocumentPressed: () => _showCreatePostDialog(),
+                onPhotoPressed: _showCreatePostDialog,
+                onVideoPressed: _showCreatePostDialog,
+                onDocumentPressed: _showCreatePostDialog,
                 onEventPressed: _goToEvents,
                 onJobPressed: _goToJobs,
                 onStoryPressed: _showCreateStoryDialog,
               ),
               const SizedBox(height: 16),
+
+              // Stats
               StatsRow(
                 onConnexionsTap: _goToConnexions,
                 onPublicationsTap: _goToPublications,
-                onCommunitiesTap: () => context.push('/network/groups'),
-                onMessagesTap: () => context.push('/network/messages'),
+                onCommunitiesTap: _goToGroups,
+                onMessagesTap: _goToMessages,
               ),
               const SizedBox(height: 20),
-              StoriesList(
-                onStoryTap: (storyId) {
-                  _goToStory(storyId);
-                },
-              ),
+
+              // Stories
+              StoriesList(onStoryTap: _goToStory),
               const SizedBox(height: 20),
-              if (_loading)
+
+              // Posts
+              if (_loadingPosts)
                 const Center(child: CircularProgressIndicator())
               else if (_posts.isEmpty)
                 const Center(
@@ -379,68 +372,87 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                       } else {
                         await _networkService.likePost(post.id);
                       }
-                      await _loadData();
+                      await _loadPosts();
                     },
                     onComment: () => _showCommentDialog(post),
-                    onTap: () {
-                      context.push('/network/post/${post.id}');
-                    },
-                    onShare: () {
-                      // Fonctionnalité de partage à venir
-                    },
+                    onTap: () => context.push('/network/post/${post.id}'),
+                    onShare: () {},
                   ),
                 )),
               const SizedBox(height: 16),
-              if (_suggestions.isNotEmpty) ...[
-                const Text(
-                  'Suggestions de connexions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+
+              // Suggestions de connexions
+              if (_loadingSuggestions)
+                const Center(child: CircularProgressIndicator())
+              else if (_suggestions.isNotEmpty) ...[
+                const Text('Suggestions de connexions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 SuggestionsList(
                   suggestions: _suggestions,
                   onConnect: (userId) async {
                     await _networkService.sendConnectionRequest(userId);
-                    await _loadData();
+                    await _loadSuggestions();
                   },
                 ),
+                const SizedBox(height: 20),
               ],
-              const SizedBox(height: 20),
-              CommunitiesList(
-                onCommunityTap: (communityId) {
-                  context.push('/network/community/$communityId');
-                },
-                onJoinTap: (communityId) async {
-                  await _networkService.joinCommunity(communityId);
-                  await _loadData();
-                },
-              ),
-              const SizedBox(height: 20),
-              OpportunitiesList(
-                onOpportunityTap: (opportunityId) {
-                  context.push('/opportunities/$opportunityId');
-                },
-                onApplyTap: (opportunityId) {
-                  context.push('/opportunities/$opportunityId/apply');
-                },
-              ),
-              const SizedBox(height: 20),
-              EventsList(
-                onEventTap: (eventId) {
-                  context.push('/events/$eventId');
-                },
-                onInterestedTap: (eventId) async {
-                  await _networkService.markEventInterest(eventId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Inscription à l\'événement confirmée'), backgroundColor: Colors.green),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
+
+              // Communautés populaires
+              if (_loadingCommunities)
+                const Center(child: CircularProgressIndicator())
+              else if (_communities.isNotEmpty) ...[
+                const Text('Communautés populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                CommunitiesList(
+                  communities: _communities,
+                  onCommunityTap: (communityId) => context.push('/network/community/$communityId'),
+                  onJoinTap: (communityId) async {
+                    await _networkService.joinCommunity(communityId);
+                    await _loadCommunities();
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Opportunités
+              if (_loadingOpportunities)
+                const Center(child: CircularProgressIndicator())
+              else if (_opportunities.isNotEmpty) ...[
+                const Text('Opportunités pour vous', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                OpportunitiesList(
+                  opportunities: _opportunities,
+                  onOpportunityTap: (id) => context.push('/opportunities/$id'),
+                  onApplyTap: (id) => context.push('/opportunities/$id/apply'),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Événements
+              if (_loadingEvents)
+                const Center(child: CircularProgressIndicator())
+              else if (_events.isNotEmpty) ...[
+                const Text('Événements à venir', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                EventsList(
+                  events: _events,
+                  onEventTap: (id) => context.push('/events/$id'),
+                  onInterestedTap: (id) async {
+                    await _networkService.markEventInterest(id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Inscription confirmée'), backgroundColor: Colors.green),
+                    );
+                    await _loadEvents();
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // IA Recommendations
               RecommendationsIA(
-                onPeopleTap: () => context.push('/network/search'),
+                onPeopleTap: _goToSearch,
                 onOpportunitiesTap: _goToOpportunities,
-                onCommunitiesTap: () => context.push('/network/groups'),
+                onCommunitiesTap: _goToGroups,
               ),
               const SizedBox(height: 80),
             ],
