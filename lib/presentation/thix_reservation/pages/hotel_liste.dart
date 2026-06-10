@@ -9,7 +9,7 @@ class HotelListePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     List<Map<String, dynamic>> hotels = [];
-    
+
     if (args is List) {
       hotels = List<Map<String, dynamic>>.from(args);
     } else {
@@ -219,12 +219,13 @@ class HotelListePage extends StatelessWidget {
                 'Prix',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const RangeSlider(
-                values: RangeValues(0, 200000),
+              // Correction ici : RangeSlider sans const
+              RangeSlider(
+                values: const RangeValues(0, 200000),
                 min: 0,
                 max: 500000,
                 divisions: 10,
-                onChanged: null,
+                onChanged: (values) {},
               ),
               const SizedBox(height: 16),
               const Text(
