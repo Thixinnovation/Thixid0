@@ -1,8 +1,6 @@
 // lib/presentation/thix_reservation/pages/reservation_bus.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/bus_service.dart';
-import 'bus_liste.dart';
 
 class ReservationBusPage extends StatefulWidget {
   const ReservationBusPage({super.key});
@@ -12,7 +10,6 @@ class ReservationBusPage extends StatefulWidget {
 }
 
 class _ReservationBusPageState extends State<ReservationBusPage> {
-  final BusService _busService = BusService();
   bool _isLoading = false;
   String _depart = 'Abidjan';
   String _arrivee = 'Yamoussoukro';
@@ -21,14 +18,15 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
 
   Future<void> _rechercherBus() async {
     setState(() => _isLoading = true);
-    final bus = await _busService.rechercherBus(
-      depart: _depart,
-      arrivee: _arrivee,
-      date: _date,
-      passagers: _passagers,
-    );
+    await Future.delayed(const Duration(seconds: 1));
+    
+    final bus = [
+      {'id': '1', 'compagnie': 'Rapide Bus', 'depart': 'Abidjan', 'arrivee': 'Yamoussoukro', 'heureDepart': '08:00', 'heureArrivee': '12:00', 'duree': '4h', 'prix': 5000, 'siegesDisponibles': 45},
+      {'id': '2', 'compagnie': 'Confort Lines', 'depart': 'Abidjan', 'arrivee': 'Yamoussoukro', 'heureDepart': '10:00', 'heureArrivee': '14:00', 'duree': '4h', 'prix': 6500, 'siegesDisponibles': 50},
+    ];
+    
     setState(() => _isLoading = false);
-    if (context.mounted) {
+    if (mounted) {
       context.push('/reservation/bus/liste', extra: bus);
     }
   }
@@ -38,7 +36,7 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Réserver un bus'),
+        title: const Text('Reserver un bus'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -48,46 +46,19 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Formulaires
-            _buildLocationField('Départ', _depart, (val) => setState(() => _depart = val),
-                ['Abidjan', 'Yamoussoukro', 'Bouaké', 'Korhogo', 'San Pedro']),
+            _buildLocationField('Depart', _depart, (val) => setState(() => _depart = val),
+                ['Abidjan', 'Yamoussoukro', 'Bouake', 'Korhogo', 'San Pedro']),
             const SizedBox(height: 16),
-            _buildLocationField('Arrivée', _arrivee, (val) => setState(() => _arrivee = val),
-                ['Yamoussoukro', 'Abidjan', 'Bouaké', 'Korhogo', 'San Pedro']),
+            _buildLocationField('Arrivee', _arrivee, (val) => setState(() => _arrivee = val),
+                ['Yamoussoukro', 'Abidjan', 'Bouake', 'Korhogo', 'San Pedro']),
             const SizedBox(height: 16),
             _buildDateField(),
             const SizedBox(height: 16),
             _buildPassagers(),
             const SizedBox(height: 24),
-
-            // Bouton rechercher
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _rechercherBus,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: const Color(0xFF0B1B3D),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                child: _isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Rechercher un bus', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-            ),
+            _buildSearchButton(),
             const SizedBox(height: 24),
-
-            // Routes populaires
-            const Text('Routes populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
             _buildRoutesPopulaires(),
-            const SizedBox(height: 24),
-
-            // Nos bus pour votre confort
-            const Text('Nos bus pour votre confort', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            _buildConfortFeatures(),
           ],
         ),
       ),
@@ -109,9 +80,9 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: value,
-            decoration: const InputDecoration(border: InputBorder.none),
             items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
             onChanged: (val) => onChanged(val!),
+            decoration: const InputDecoration(border: InputBorder.none),
           ),
         ],
       ),
@@ -129,7 +100,7 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Date de départ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text('Date de depart', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 8),
           InkWell(
             onTap: () async {
@@ -184,26 +155,42 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
     );
   }
 
+  Widget _buildSearchButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _rechercherBus,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFD4AF37),
+          foregroundColor: const Color(0xFF0B1B3D),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: _isLoading
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Rechercher un bus', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
+    );
+  }
+
   Widget _buildRoutesPopulaires() {
     final routes = [
       {'route': 'Abidjan → Yamoussoukro', 'heure': '08:00', 'prix': '5.000 FCFA'},
-      {'route': 'Abidjan → Bouaké', 'heure': '09:00', 'prix': '6.000 FCFA'},
+      {'route': 'Abidjan → Bouake', 'heure': '09:00', 'prix': '6.000 FCFA'},
       {'route': 'Abidjan → Korhogo', 'heure': '10:00', 'prix': '7.000 FCFA'},
       {'route': 'Yamoussoukro → Abidjan', 'heure': '14:00', 'prix': '5.000 FCFA'},
     ];
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: routes.length,
-      itemBuilder: (context, index) {
-        final route = routes[index];
-        return Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Routes populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...routes.map((route) => Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4)],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -220,40 +207,8 @@ class _ReservationBusPageState extends State<ReservationBusPage> {
               Text(route['prix']!, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildConfortFeatures() {
-    final features = [
-      {'icon': Icons.event_seat, 'label': 'Sièges confortables'},
-      {'icon': Icons.wifi, 'label': 'Wi-Fi gratuit'},
-      {'icon': Icons.ac_unit, 'label': 'Climatisation'},
-      {'icon': Icons.luggage, 'label': 'Bagages autorisés'},
-      {'icon': Icons.security, 'label': 'Sécurité garantie'},
-    ];
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: features.map((feature) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4)],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(feature['icon'] as IconData, size: 16, color: const Color(0xFFD4AF37)),
-              const SizedBox(width: 8),
-              Text(feature['label'] as String, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-        );
-      }).toList(),
+        )),
+      ],
     );
   }
 }
