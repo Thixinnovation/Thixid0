@@ -6,6 +6,7 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'widgets/report_dialog.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PostDetailPage extends StatefulWidget {
   final String postId;
@@ -323,6 +324,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Widget _buildPostCard() {
+    final hasImage = _post!.mediaUrl != null && _post!.mediaUrl!.isNotEmpty;
+    final hasContent = _post!.content != null && _post!.content!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -337,17 +341,21 @@ class _PostDetailPageState extends State<PostDetailPage> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage: _post!.userAvatar != null ? NetworkImage(_post!.userAvatar!) : null,
-                child: _post!.userAvatar == null ? const Icon(Icons.person) : null,
+                backgroundImage: _post!.authorAvatar != null && _post!.authorAvatar!.isNotEmpty
+                    ? CachedNetworkImageProvider(_post!.authorAvatar!)
+                    : null,
+                child: _post!.authorAvatar == null || _post!.authorAvatar!.isEmpty
+                    ? const Icon(Icons.person, size: 24)
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_post!.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    if (_post!.userTitle != null && _post!.userTitle!.isNotEmpty)
-                      Text(_post!.userTitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text(_post!.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    if (_post!.authorTitle != null && _post!.authorTitle!.isNotEmpty)
+                      Text(_post!.authorTitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
               ),
@@ -357,33 +365,27 @@ class _PostDetailPageState extends State<PostDetailPage> {
           const SizedBox(height: 12),
           
           // Contenu
-          if (_post!.content.isNotEmpty)
-            Text(_post!.content, style: const TextStyle(fontSize: 15, height: 1.4)),
+          if (hasContent)
+            Text(_post!.content!, style: const TextStyle(fontSize: 15, height: 1.4)),
           
-          // Images
-          if (_post!.images.isNotEmpty) ...[
+          // Image unique
+          if (hasImage) ...[
             const SizedBox(height: 12),
-            SizedBox(
-              height: 250,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _post!.images.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      _post!.images[index],
-                      width: 250,
-                      height: 250,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 250,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 50),
-                      ),
-                    ),
-                  ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: _post!.mediaUrl!,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 250,
+                  color: Colors.grey.shade200,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 250,
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.broken_image, size: 50),
                 ),
               ),
             ),
@@ -391,25 +393,25 @@ class _PostDetailPageState extends State<PostDetailPage> {
           
           const SizedBox(height: 12),
           
-          // Actions - CORRECTION : utilisation de likes, comments, shares
+          // Actions
           Row(
             children: [
               _buildActionButton(
                 icon: _post!.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                label: '${_post!.likes}',
+                label: _formatCount(_post!.likesCount),
                 color: _post!.isLikedByCurrentUser ? Colors.red : null,
                 onTap: _toggleLike,
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.comment_outlined,
-                label: '${_post!.comments}',
+                label: _formatCount(_post!.commentsCount),
                 onTap: () {},
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.share_outlined,
-                label: '${_post!.shares}',
+                label: _formatCount(_post!.sharesCount),
                 onTap: () {},
               ),
             ],
@@ -435,8 +437,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundImage: comment['user_avatar'] != null ? NetworkImage(comment['user_avatar']) : null,
-            child: comment['user_avatar'] == null ? const Icon(Icons.person, size: 16) : null,
+            backgroundImage: comment['user_avatar'] != null 
+                ? CachedNetworkImageProvider(comment['user_avatar'])
+                : null,
+            child: comment['user_avatar'] == null 
+                ? const Icon(Icons.person, size: 16) 
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -533,5 +539,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
     if (diff.inHours > 0) return 'il y a ${diff.inHours}h';
     if (diff.inMinutes > 0) return 'il y a ${diff.inMinutes}min';
     return 'à l\'instant';
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return count.toString();
   }
 }
