@@ -331,7 +331,12 @@ class AppRouter {
       },
       routes: [
         // ==================== PAGE D'ACCUEIL ====================
-        pageBuilder: (context, state) => NoTransitionPage(child: const HomePagePremium()),
+        // ==================== PAGE D'ACCUEIL ====================
+GoRoute(
+  path: AppRoutes.home,
+  name: 'home',
+  pageBuilder: (context, state) => NoTransitionPage(child: const HomePagePremium()),
+),
 
         // ==================== AUTHENTIFICATION ====================
         GoRoute(
