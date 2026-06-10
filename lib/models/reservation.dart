@@ -1,170 +1,189 @@
-import 'package:flutter/foundation.dart';
+// lib/models/reservation.dart
+import 'package:flutter/material.dart';
+
+enum ReservationType { vol, hotel, bus, taxi, colis, restaurant, event }
+enum ReservationStatus { pending, confirmed, completed, cancelled, refunded }
+
+extension ReservationTypeExtension on ReservationType {
+  String get label {
+    switch (this) {
+      case ReservationType.vol:
+        return 'Vol';
+      case ReservationType.hotel:
+        return 'Hôtel';
+      case ReservationType.bus:
+        return 'Bus';
+      case ReservationType.taxi:
+        return 'Taxi';
+      case ReservationType.colis:
+        return 'Colis';
+      case ReservationType.restaurant:
+        return 'Restaurant';
+      case ReservationType.event:
+        return 'Événement';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ReservationType.vol:
+        return Icons.flight;
+      case ReservationType.hotel:
+        return Icons.hotel;
+      case ReservationType.bus:
+        return Icons.directions_bus;
+      case ReservationType.taxi:
+        return Icons.local_taxi;
+      case ReservationType.colis:
+        return Icons.inventory;
+      case ReservationType.restaurant:
+        return Icons.restaurant;
+      case ReservationType.event:
+        return Icons.event;
+    }
+  }
+}
+
+extension ReservationStatusExtension on ReservationStatus {
+  String get label {
+    switch (this) {
+      case ReservationStatus.pending:
+        return 'En attente';
+      case ReservationStatus.confirmed:
+        return 'Confirmée';
+      case ReservationStatus.completed:
+        return 'Terminée';
+      case ReservationStatus.cancelled:
+        return 'Annulée';
+      case ReservationStatus.refunded:
+        return 'Remboursée';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case ReservationStatus.pending:
+        return Colors.orange;
+      case ReservationStatus.confirmed:
+        return Colors.green;
+      case ReservationStatus.completed:
+        return Colors.blue;
+      case ReservationStatus.cancelled:
+        return Colors.red;
+      case ReservationStatus.refunded:
+        return Colors.purple;
+    }
+  }
+}
 
 class Reservation {
   final String id;
-  final String userId;
-  final String serviceType; // 'bus', 'flight', 'hotel', 'taxi', 'delivery'
-  final String status; // 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled'
-  final DateTime reservationDate;
-  final DateTime checkInDate;
-  final DateTime? checkOutDate;
-  final String location;
-  final String? destination;
-  final int quantity;
-  final double totalPrice;
-  final String currency;
-  final Map<String, dynamic> details; // Service-specific details
-  final String? paymentStatus;
-  final String? paymentMethod;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final String? notes;
-  final List<String>? photoIds; // References to storage
+  final String code;
+  final ReservationType type;
+  final ReservationStatus status;
+  final DateTime dateReservation;
+  final DateTime dateService;
+  final DateTime? dateFin;
+  final String titre;
+  final String description;
+  final double montant;
+  final String devise;
+  final String? imageUrl;
+  final Map<String, dynamic> details;
 
   Reservation({
     required this.id,
-    required this.userId,
-    required this.serviceType,
+    required this.code,
+    required this.type,
     required this.status,
-    required this.reservationDate,
-    required this.checkInDate,
-    this.checkOutDate,
-    required this.location,
-    this.destination,
-    required this.quantity,
-    required this.totalPrice,
-    required this.currency,
+    required this.dateReservation,
+    required this.dateService,
+    this.dateFin,
+    required this.titre,
+    required this.description,
+    required this.montant,
+    required this.devise,
+    this.imageUrl,
     required this.details,
-    this.paymentStatus,
-    this.paymentMethod,
-    required this.createdAt,
-    required this.updatedAt,
-    this.notes,
-    this.photoIds,
   });
 
-  factory Reservation.fromJson(Map<String, dynamic> json) {
-    return Reservation(
-      id: json['id'] ?? '',
-      userId: json['user_id'] ?? '',
-      serviceType: json['service_type'] ?? 'bus',
-      status: json['status'] ?? 'pending',
-      reservationDate: json['reservation_date'] != null
-          ? DateTime.parse(json['reservation_date'])
-          : DateTime.now(),
-      checkInDate: json['check_in_date'] != null
-          ? DateTime.parse(json['check_in_date'])
-          : DateTime.now(),
-      checkOutDate: json['check_out_date'] != null
-          ? DateTime.parse(json['check_out_date'])
-          : null,
-      location: json['location'] ?? '',
-      destination: json['destination'],
-      quantity: json['quantity'] ?? 1,
-      totalPrice: (json['total_price'] ?? 0).toDouble(),
-      currency: json['currency'] ?? 'USD',
-      details: json['details'] ?? {},
-      paymentStatus: json['payment_status'],
-      paymentMethod: json['payment_method'],
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
-          : DateTime.now(),
-      notes: json['notes'],
-      photoIds: List<String>.from(json['photo_ids'] ?? []),
-    );
-  }
+  String get montantFormate => '$montant $devise';
+  String get dateReservationFormate => '${dateReservation.day}/${dateReservation.month}/${dateReservation.year}';
+  String get dateServiceFormate => '${dateService.day}/${dateService.month}/${dateService.year}';
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'user_id': userId,
-      'service_type': serviceType,
-      'status': status,
-      'reservation_date': reservationDate.toIso8601String(),
-      'check_in_date': checkInDate.toIso8601String(),
-      'check_out_date': checkOutDate?.toIso8601String(),
-      'location': location,
-      'destination': destination,
-      'quantity': quantity,
-      'total_price': totalPrice,
-      'currency': currency,
+      'code': code,
+      'type': type.name,
+      'status': status.name,
+      'dateReservation': dateReservation.toIso8601String(),
+      'dateService': dateService.toIso8601String(),
+      'dateFin': dateFin?.toIso8601String(),
+      'titre': titre,
+      'description': description,
+      'montant': montant,
+      'devise': devise,
+      'imageUrl': imageUrl,
       'details': details,
-      'payment_status': paymentStatus,
-      'payment_method': paymentMethod,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'notes': notes,
-      'photo_ids': photoIds,
     };
   }
 
-  Reservation copyWith({
-    String? id,
-    String? userId,
-    String? serviceType,
-    String? status,
-    DateTime? reservationDate,
-    DateTime? checkInDate,
-    DateTime? checkOutDate,
-    String? location,
-    String? destination,
-    int? quantity,
-    double? totalPrice,
-    String? currency,
-    Map<String, dynamic>? details,
-    String? paymentStatus,
-    String? paymentMethod,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    String? notes,
-    List<String>? photoIds,
-  }) {
+  factory Reservation.fromJson(Map<String, dynamic> json) {
     return Reservation(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      serviceType: serviceType ?? this.serviceType,
-      status: status ?? this.status,
-      reservationDate: reservationDate ?? this.reservationDate,
-      checkInDate: checkInDate ?? this.checkInDate,
-      checkOutDate: checkOutDate ?? this.checkOutDate,
-      location: location ?? this.location,
-      destination: destination ?? this.destination,
-      quantity: quantity ?? this.quantity,
-      totalPrice: totalPrice ?? this.totalPrice,
-      currency: currency ?? this.currency,
-      details: details ?? this.details,
-      paymentStatus: paymentStatus ?? this.paymentStatus,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      notes: notes ?? this.notes,
-      photoIds: photoIds ?? this.photoIds,
+      id: json['id'] as String,
+      code: json['code'] as String,
+      type: ReservationType.values.firstWhere((e) => e.name == json['type']),
+      status: ReservationStatus.values.firstWhere((e) => e.name == json['status']),
+      dateReservation: DateTime.parse(json['dateReservation'] as String),
+      dateService: DateTime.parse(json['dateService'] as String),
+      dateFin: json['dateFin'] != null ? DateTime.parse(json['dateFin'] as String) : null,
+      titre: json['titre'] as String,
+      description: json['description'] as String,
+      montant: (json['montant'] as num).toDouble(),
+      devise: json['devise'] as String,
+      imageUrl: json['imageUrl'] as String?,
+      details: json['details'] as Map<String, dynamic>,
     );
   }
 }
 
-class ReservationStatistics {
-  final int upcomingCount;
-  final int inProgressCount;
-  final int completedCount;
-  final int cancelledCount;
-
-  ReservationStatistics({
-    required this.upcomingCount,
-    required this.inProgressCount,
-    required this.completedCount,
-    required this.cancelledCount,
-  });
-
-  factory ReservationStatistics.fromJson(Map<String, dynamic> json) {
-    return ReservationStatistics(
-      upcomingCount: json['upcoming'] ?? 0,
-      inProgressCount: json['in_progress'] ?? 0,
-      completedCount: json['completed'] ?? 0,
-      cancelledCount: json['cancelled'] ?? 0,
-    );
-  }
-}
+// Mock data pour les réservations
+List<Reservation> mockReservations = [
+  Reservation(
+    id: '1',
+    code: 'THIX3F7K',
+    type: ReservationType.vol,
+    status: ReservationStatus.confirmed,
+    dateReservation: DateTime.now().subtract(const Duration(days: 2)),
+    dateService: DateTime.now().add(const Duration(days: 5)),
+    titre: 'Kinshasa → Paris',
+    description: 'Ethiopian Airlines - Vol ET914',
+    montant: 780,
+    devise: 'USD',
+    details: {
+      'compagnie': 'Ethiopian Airlines',
+      'codeVol': 'ET914',
+      'classe': 'Économique',
+      'passagers': '1 adulte',
+    },
+  ),
+  Reservation(
+    id: '2',
+    code: 'THIX9A2L',
+    type: ReservationType.hotel,
+    status: ReservationStatus.confirmed,
+    dateReservation: DateTime.now().subtract(const Duration(days: 5)),
+    dateService: DateTime.now().add(const Duration(days: 10)),
+    dateFin: DateTime.now().add(const Duration(days: 12)),
+    titre: 'Azalai Hôtel Abidjan',
+    description: 'Chambre Standard - 2 nuits',
+    montant: 148000,
+    devise: 'FCFA',
+    details: {
+      'ville': 'Abidjan',
+      'chambres': 1,
+      'adultes': 2,
+    },
+  ),
+];
