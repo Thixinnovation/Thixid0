@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/network_post.dart';
 import '../models/network_connection.dart';
 import '../models/network_community.dart';
@@ -20,7 +21,6 @@ class NetworkService {
     try {
       final currentUserId = this.currentUserId;
       
-      // Récupérer les IDs des posts masqués par l'utilisateur
       final hiddenPosts = await _supabase
           .from('hidden_posts')
           .select('post_id')
@@ -45,7 +45,6 @@ class NetworkService {
           .order('created_at', ascending: false)
           .limit(limit);
       
-      // Exclure les posts masqués
       if (hiddenIds.isNotEmpty) {
         query = query.not('id', 'in', hiddenIds);
       }
@@ -246,36 +245,522 @@ class NetworkService {
   }
 
   Future<String> _getPostOwnerId(String postId) async {
-  final response = await _supabase
-      .from('network_posts')
-      .select('user_id')
-      .eq('id', postId)
-      .single();
-  return response['user_id'];
-}
-
-// ==================== GESTION DES COMMENTAIRES ====================
-
-Future<void> deleteComment(String commentId) async {
-  final currentUserId = this.currentUserId;
-  
-  final comment = await _supabase
-      .from('network_comments')
-      .select('user_id')
-      .eq('id', commentId)
-      .single();
-  
-  if (comment['user_id'] != currentUserId) {
-    throw Exception('Vous ne pouvez pas supprimer ce commentaire');
+    final response = await _supabase
+        .from('network_posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    return response['user_id'];
   }
-  
-  await _supabase.from('network_comments').delete().eq('id', commentId);
-}
 
-// ==================== CONNECTIONS ====================
+  // ==================== GESTION DES COMMENTAIRES ====================
 
-Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
-  // ... le reste du code
+  Future<void> deleteComment(String commentId) async {
+    final currentUserId = this.currentUserId;
+    
+    final comment = await _supabase
+        .from('network_comments')
+        .select('user_id')
+        .eq('id', commentId)
+        .single();
+    
+    if (comment['user_id'] != currentUserId) {
+      throw Exception('Vous ne pouvez pas supprimer ce commentaire');
+    }
+    
+    await _supabase.from('network_comments').delete().eq('id', commentId);
+  }
+
+  // ==================== COMMUNAUTÉS (COMPLET) ====================
+
+  Future<NetworkCommunity> createCommunity({
+    required String name,
+    String? description,
+    String? bannerUrl,
+  }) async {
+    final currentUserId = this.currentUserId;
+    
+    final response = await _supabase
+        .from('network_communities')
+        .insert({
+          'name': name,
+          'description': description,
+          'banner_url': bannerUrl,
+          'created_by': currentUserId,
+          'created_at': DateTime.now().toIso8601String(),
+          'members_count': 1,
+          'posts_count': 0,
+        })
+        .select()
+        .single();
+    
+    await _supabase.from('community_members').insert({
+      'community_id': response['id'],
+      'user_id': currentUserId,
+      'role': 'admin',
+      'joined_at': DateTime.now().toIso8601String(),
+    });
+    
+    return NetworkCommunity.fromJson(response);
+  }
+
+  Future<List<NetworkCommunity>> getAllCommunities({int limit = 50}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('network_communities')
+          .select('''
+            *,
+            creator:profiles!created_by (
+              id, display_name, avatar_url
+            ),
+            is_member:community_members!community_id(user_id)
+          ''')
+          .order('members_count', ascending: false)
+          .limit(limit);
+      
+      return (response as List).map((e) {
+        final isMember = (e['is_member'] as List?)
+            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+        
+        return NetworkCommunity.fromJson({
+          ...e,
+          'is_member': isMember,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getAllCommunities: $e');
+      return [];
+    }
+  }
+
+  Future<List<NetworkCommunity>> getSuggestedCommunities({int limit = 10}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('network_communities')
+          .select('''
+            *,
+            creator:profiles!created_by (
+              id, display_name, avatar_url
+            ),
+            is_member:community_members!community_id(user_id)
+          ''')
+          .order('members_count', ascending: false)
+          .limit(limit);
+      
+      return (response as List).map((e) {
+        final isMember = (e['is_member'] as List?)
+            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+        
+        if (isMember) return null;
+        
+        return NetworkCommunity.fromJson({
+          ...e,
+          'is_member': isMember,
+        });
+      }).where((e) => e != null).cast<NetworkCommunity>().toList();
+    } catch (e) {
+      debugPrint('Error getSuggestedCommunities: $e');
+      return [];
+    }
+  }
+
+  Future<List<NetworkCommunity>> getMyCommunities() async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('community_members')
+          .select('''
+            community:communities!community_id (
+              *,
+              creator:profiles!created_by (
+                id, display_name, avatar_url
+              )
+            )
+          ''')
+          .eq('user_id', currentUserId);
+      
+      return (response as List).map((e) {
+        final community = e['community'] as Map<String, dynamic>;
+        return NetworkCommunity.fromJson({
+          ...community,
+          'is_member': true,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getMyCommunities: $e');
+      return [];
+    }
+  }
+
+  Future<NetworkCommunity?> getCommunityById(String communityId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('network_communities')
+          .select('''
+            *,
+            creator:profiles!created_by (
+              id, display_name, avatar_url
+            ),
+            is_member:community_members!community_id(user_id)
+          ''')
+          .eq('id', communityId)
+          .single();
+      
+      final isMember = (response['is_member'] as List?)
+          ?.any((member) => member['user_id'] == currentUserId) ?? false;
+      
+      return NetworkCommunity.fromJson({
+        ...response,
+        'is_member': isMember,
+      });
+    } catch (e) {
+      debugPrint('Error getCommunityById: $e');
+      return null;
+    }
+  }
+
+  Future<void> updateCommunity({
+    required String communityId,
+    String? name,
+    String? description,
+    String? bannerUrl,
+  }) async {
+    final currentUserId = this.currentUserId;
+    
+    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
+    if (!isAdmin) {
+      throw Exception('Seuls les administrateurs peuvent modifier la communauté');
+    }
+    
+    final updates = <String, dynamic>{};
+    if (name != null) updates['name'] = name;
+    if (description != null) updates['description'] = description;
+    if (bannerUrl != null) updates['banner_url'] = bannerUrl;
+    updates['updated_at'] = DateTime.now().toIso8601String();
+    
+    await _supabase
+        .from('network_communities')
+        .update(updates)
+        .eq('id', communityId);
+  }
+
+  Future<void> deleteCommunity(String communityId) async {
+    final currentUserId = this.currentUserId;
+    
+    final community = await _supabase
+        .from('network_communities')
+        .select('created_by')
+        .eq('id', communityId)
+        .single();
+    
+    if (community['created_by'] != currentUserId) {
+      throw Exception('Seul le créateur peut supprimer la communauté');
+    }
+    
+    await _supabase.from('network_communities').delete().eq('id', communityId);
+  }
+
+  // ==================== MEMBRES ====================
+
+  Future<void> joinCommunity(String communityId) async {
+    final currentUserId = this.currentUserId;
+    
+    final existing = await _supabase
+        .from('community_members')
+        .select('id')
+        .eq('community_id', communityId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+    
+    if (existing == null) {
+      await _supabase.from('community_members').insert({
+        'community_id': communityId,
+        'user_id': currentUserId,
+        'role': 'member',
+        'joined_at': DateTime.now().toIso8601String(),
+      });
+      
+      await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+    }
+  }
+
+  Future<void> leaveCommunity(String communityId) async {
+    final currentUserId = this.currentUserId;
+    
+    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
+    if (isAdmin) {
+      throw Exception('Les administrateurs ne peuvent pas quitter la communauté. Transférez d\'abord le rôle.');
+    }
+    
+    await _supabase
+        .from('community_members')
+        .delete()
+        .eq('community_id', communityId)
+        .eq('user_id', currentUserId);
+    
+    await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+  }
+
+  Future<List<CommunityMember>> getCommunityMembers(String communityId, {int limit = 50}) async {
+    try {
+      final response = await _supabase
+          .from('community_members')
+          .select('''
+            *,
+            user:profiles!user_id (
+              id, display_name, avatar_url, title
+            )
+          ''')
+          .eq('community_id', communityId)
+          .order('joined_at', ascending: true)
+          .limit(limit);
+      
+      return (response as List).map((e) => CommunityMember.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error getCommunityMembers: $e');
+      return [];
+    }
+  }
+
+  Future<void> addMember(String communityId, String userId, {String role = 'member'}) async {
+    final currentUserId = this.currentUserId;
+    
+    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
+    if (!isAdmin) {
+      throw Exception('Seuls les administrateurs peuvent ajouter des membres');
+    }
+    
+    final existing = await _supabase
+        .from('community_members')
+        .select('id')
+        .eq('community_id', communityId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    
+    if (existing == null) {
+      await _supabase.from('community_members').insert({
+        'community_id': communityId,
+        'user_id': userId,
+        'role': role,
+        'joined_at': DateTime.now().toIso8601String(),
+      });
+      
+      await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+    }
+  }
+
+  Future<void> removeMember(String communityId, String userId) async {
+    final currentUserId = this.currentUserId;
+    
+    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
+    if (!isAdmin) {
+      throw Exception('Seuls les administrateurs peuvent supprimer des membres');
+    }
+    
+    await _supabase
+        .from('community_members')
+        .delete()
+        .eq('community_id', communityId)
+        .eq('user_id', userId);
+    
+    await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+  }
+
+  Future<void> changeMemberRole(String communityId, String userId, String newRole) async {
+    final currentUserId = this.currentUserId;
+    
+    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
+    if (!isAdmin) {
+      throw Exception('Seuls les administrateurs peuvent changer les rôles');
+    }
+    
+    await _supabase
+        .from('community_members')
+        .update({'role': newRole})
+        .eq('community_id', communityId)
+        .eq('user_id', userId);
+  }
+
+  Future<bool> _isCommunityAdmin(String communityId, String userId) async {
+    try {
+      final response = await _supabase
+          .from('community_members')
+          .select('role')
+          .eq('community_id', communityId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      
+      return response != null && response['role'] == 'admin';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> _isCommunityMember(String communityId, String userId) async {
+    try {
+      final response = await _supabase
+          .from('community_members')
+          .select('id')
+          .eq('community_id', communityId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      
+      return response != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ==================== POSTS DANS COMMUNAUTÉ ====================
+
+  Future<void> createCommunityPost({
+    required String communityId,
+    required String content,
+    List<String> images = const [],
+  }) async {
+    final currentUserId = this.currentUserId;
+    
+    final isMember = await _isCommunityMember(communityId, currentUserId);
+    if (!isMember) {
+      throw Exception('Vous devez être membre pour publier dans cette communauté');
+    }
+    
+    await _supabase.from('network_posts').insert({
+      'user_id': currentUserId,
+      'community_id': communityId,
+      'content': content,
+      'images': images,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    
+    await _supabase.rpc('increment_community_posts', params: {'community_id': communityId});
+  }
+
+  Future<List<NetworkPost>> getCommunityPosts(String communityId, {int limit = 20}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('network_posts')
+          .select('''
+            *,
+            profiles!user_id (
+              id, display_name, avatar_url, title
+            ),
+            user_liked:network_likes!post_id(user_id)
+          ''')
+          .eq('community_id', communityId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      
+      return (response as List).map((e) {
+        final userLiked = (e['user_liked'] as List?)
+            ?.any((like) => like['user_id'] == currentUserId) ?? false;
+        
+        return NetworkPost.fromJson({
+          ...e,
+          'likes_count': 0,
+          'comments_count': 0,
+          'is_liked_by_current_user': userLiked,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getCommunityPosts: $e');
+      return [];
+    }
+  }
+
+  // ==================== PARTAGER UNE COMMUNAUTÉ ====================
+
+  String getCommunityShareLink(String communityId) {
+    return 'https://thix.app/community/$communityId';
+  }
+
+  Future<void> shareCommunity(BuildContext context, String communityId, String communityName) async {
+    final link = getCommunityShareLink(communityId);
+    final shareText = 'Rejoins la communauté "$communityName" sur THIX Réseau Pro ! $link';
+    
+    await Share.share(shareText);
+  }
+
+  // ==================== RECHERCHE ====================
+
+  Future<List<NetworkCommunity>> searchCommunities(String query) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('network_communities')
+          .select('''
+            *,
+            creator:profiles!created_by (
+              id, display_name, avatar_url
+            ),
+            is_member:community_members!community_id(user_id)
+          ''')
+          .ilike('name', '%$query%')
+          .order('members_count', ascending: false)
+          .limit(20);
+      
+      return (response as List).map((e) {
+        final isMember = (e['is_member'] as List?)
+            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+        
+        return NetworkCommunity.fromJson({
+          ...e,
+          'is_member': isMember,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error searchCommunities: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, title')
+          .ilike('display_name', '%$query%')
+          .limit(20);
+      
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error searchUsers: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchPosts(String query) async {
+    try {
+      final response = await _supabase
+          .from('network_posts')
+          .select('''
+            id, content, created_at,
+            profiles!user_id (display_name, avatar_url)
+          ''')
+          .ilike('content', '%$query%')
+          .order('created_at', ascending: false)
+          .limit(20);
+      
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error searchPosts: $e');
+      return [];
+    }
+  }
+
+  // ==================== CONNECTIONS ====================
+
+  Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
     try {
       final currentUserId = this.currentUserId;
       
@@ -657,45 +1142,6 @@ Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async 
     });
   }
 
-  // ==================== COMMUNAUTÉS ====================
-
-  Future<List<NetworkCommunity>> getSuggestedCommunities({int limit = 10}) async {
-    try {
-      final response = await _supabase
-          .from('network_communities')
-          .select('*')
-          .order('members_count', ascending: false)
-          .limit(limit);
-      
-      return (response as List).map((e) => NetworkCommunity.fromJson(e)).toList();
-    } catch (e) {
-      debugPrint('Error getSuggestedCommunities: $e');
-      return [];
-    }
-  }
-
-  Future<void> joinCommunity(String communityId) async {
-    final currentUserId = this.currentUserId;
-    await _supabase.from('community_members').insert({
-      'community_id': communityId,
-      'user_id': currentUserId,
-      'joined_at': DateTime.now().toIso8601String(),
-    });
-    
-    await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
-  }
-
-  Future<void> leaveCommunity(String communityId) async {
-    final currentUserId = this.currentUserId;
-    await _supabase
-        .from('community_members')
-        .delete()
-        .eq('community_id', communityId)
-        .eq('user_id', currentUserId);
-    
-    await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
-  }
-
   // ==================== ÉVÉNEMENTS ====================
 
   Future<void> markEventInterest(String eventId) async {
@@ -733,57 +1179,6 @@ Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async 
     } catch (e) {
       debugPrint('Error hasEventInterest: $e');
       return false;
-    }
-  }
-
-  // ==================== RECHERCHE ====================
-
-  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
-    try {
-      final response = await _supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, title')
-          .ilike('display_name', '%$query%')
-          .limit(20);
-      
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      debugPrint('Error searchUsers: $e');
-      return [];
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> searchPosts(String query) async {
-    try {
-      final response = await _supabase
-          .from('network_posts')
-          .select('''
-            id, content, created_at,
-            profiles!user_id (display_name, avatar_url)
-          ''')
-          .ilike('content', '%$query%')
-          .order('created_at', ascending: false)
-          .limit(20);
-      
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      debugPrint('Error searchPosts: $e');
-      return [];
-    }
-  }
-
-  Future<List<NetworkCommunity>> searchCommunities(String query) async {
-    try {
-      final response = await _supabase
-          .from('network_communities')
-          .select('*')
-          .ilike('name', '%$query%')
-          .limit(10);
-      
-      return (response as List).map((e) => NetworkCommunity.fromJson(e)).toList();
-    } catch (e) {
-      debugPrint('Error searchCommunities: $e');
-      return [];
     }
   }
 }
