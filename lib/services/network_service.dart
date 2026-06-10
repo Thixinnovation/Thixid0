@@ -46,7 +46,7 @@ class NetworkService {
           .limit(limit);
       
       if (hiddenIds.isNotEmpty) {
-        query = query.not('id', 'in', hiddenIds);
+        query = query.filter('id', 'not.in', hiddenIds);
       }
       
       final response = await query;
