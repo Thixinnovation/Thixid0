@@ -59,12 +59,25 @@ class PaymentService {
         );
       }
 
+      // Extraire le montant (convertir en double)
+      double amount = 0;
+      final amountStr = qrInfo['amount'];
+      if (amountStr != null) {
+        if (amountStr is double) {
+          amount = amountStr;
+        } else if (amountStr is String) {
+          amount = double.tryParse(amountStr) ?? 0;
+        } else if (amountStr is int) {
+          amount = amountStr.toDouble();
+        }
+      }
+
       // Traiter le paiement
       return await processPayment(
         merchantId: qrInfo['merchantId']!,
         merchantName: qrInfo['merchantName']!,
-        amount: qrInfo['amount'] ?? 0,
-        reference: qrInfo['reference'],
+        amount: amount,
+        reference: qrInfo['reference']?.toString(),
       );
     } catch (e) {
       return PaymentResult(
@@ -85,7 +98,7 @@ class PaymentService {
     return 'TXN_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
   }
 
-  Map<String, String>? _parseQrCode(String qrData) {
+  Map<String, dynamic>? _parseQrCode(String qrData) {
     // Format attendu: merchantId|merchantName|amount|reference
     try {
       final parts = qrData.split('|');
