@@ -1,6 +1,7 @@
 // lib/presentation/network/widgets/post_card.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/auth/auth_controller.dart';
@@ -33,7 +34,7 @@ class _PostCardState extends State<PostCard> {
   @override
   void initState() {
     super.initState();
-    _networkService = NetworkService();
+    _networkService = NetworkService(Supabase.instance.client);
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -61,29 +62,49 @@ class _PostCardState extends State<PostCard> {
         content: const Text('Voulez-vous vraiment supprimer cette publication ? Cette action est irréversible.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Supprimer')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
         ],
       ),
     );
     
     if (confirm == true) {
-      await _networkService.deletePost(widget.post.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Publication supprimée'), backgroundColor: Colors.green),
-        );
-        widget.onLike(); // Refresh
+      try {
+        await _networkService.deletePost(widget.post.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publication supprimée'), backgroundColor: Colors.green),
+          );
+          widget.onLike();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
 
   Future<void> _hidePost() async {
-    await _networkService.hidePost(widget.post.id);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
-      );
-      widget.onLike(); // Refresh
+    try {
+      await _networkService.hidePost(widget.post.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
+        );
+        widget.onLike();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -105,11 +126,19 @@ class _PostCardState extends State<PostCard> {
     );
     
     if (reason != null) {
-      await _networkService.reportPost(widget.post.id, reason);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
-        );
+      try {
+        await _networkService.reportPost(widget.post.id, reason);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -123,22 +152,37 @@ class _PostCardState extends State<PostCard> {
         content: TextField(
           controller: controller,
           maxLines: 5,
-          decoration: const InputDecoration(hintText: 'Modifiez votre publication...'),
+          decoration: const InputDecoration(
+            hintText: 'Modifiez votre publication...',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, controller.text), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)), child: const Text('Enregistrer')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('Enregistrer'),
+          ),
         ],
       ),
     );
     
     if (newContent != null && newContent != widget.post.content) {
-      await _networkService.updatePost(widget.post.id, newContent);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Publication modifiée'), backgroundColor: Colors.green),
-        );
-        widget.onLike(); // Refresh
+      try {
+        await _networkService.updatePost(widget.post.id, newContent);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publication modifiée'), backgroundColor: Colors.green),
+          );
+          widget.onLike();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -165,7 +209,7 @@ class _PostCardState extends State<PostCard> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Supprimer'),
+                title: const Text('Supprimer', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
                   _deletePost();
@@ -183,7 +227,7 @@ class _PostCardState extends State<PostCard> {
             ),
             ListTile(
               leading: const Icon(Icons.flag, color: Colors.red),
-              title: const Text('Signaler'),
+              title: const Text('Signaler', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _reportPost();
@@ -213,6 +257,7 @@ class _PostCardState extends State<PostCard> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
     final isOwner = auth.currentUser?.id == widget.post.userId;
+    final hasUserTitle = widget.post.userTitle != null && widget.post.userTitle!.isNotEmpty;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -226,13 +271,17 @@ class _PostCardState extends State<PostCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Avatar, Nom, Heure, Menu
+              // Header
               Row(
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundImage: widget.post.userAvatar != null ? NetworkImage(widget.post.userAvatar!) : null,
-                    child: widget.post.userAvatar == null ? const Icon(Icons.person) : null,
+                    backgroundImage: widget.post.userAvatar != null && widget.post.userAvatar!.isNotEmpty
+                        ? NetworkImage(widget.post.userAvatar!)
+                        : null,
+                    child: widget.post.userAvatar == null || widget.post.userAvatar!.isEmpty
+                        ? const Icon(Icons.person)
+                        : null,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -242,11 +291,15 @@ class _PostCardState extends State<PostCard> {
                         Text(
                           widget.post.userName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if (widget.post.userTitle != null)
+                        if (hasUserTitle)
                           Text(
                             widget.post.userTitle!,
                             style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                       ],
                     ),
@@ -283,7 +336,10 @@ class _PostCardState extends State<PostCard> {
               if (widget.post.content.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(widget.post.content, style: const TextStyle(fontSize: 14)),
+                  child: Text(
+                    widget.post.content,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
               
               // Images
@@ -297,14 +353,36 @@ class _PostCardState extends State<PostCard> {
                       padding: const EdgeInsets.only(right: 8),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(widget.post.images[index], width: 150, fit: BoxFit.cover),
+                        child: Image.network(
+                          widget.post.images[index],
+                          width: 150,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 150,
+                              height: 200,
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 150,
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               const SizedBox(height: 12),
 
-              // Actions: Like, Comment, Share
+              // Actions
               Row(
                 children: [
                   InkWell(
@@ -335,11 +413,11 @@ class _PostCardState extends State<PostCard> {
                   const SizedBox(width: 20),
                   InkWell(
                     onTap: widget.onShare,
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.share, size: 20, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text('Partager', style: TextStyle(fontSize: 12)),
+                        const Icon(Icons.share, size: 20, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('${widget.post.sharesCount ?? 0}', style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
