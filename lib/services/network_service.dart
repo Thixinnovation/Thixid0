@@ -4,7 +4,7 @@ import '../models/network_connection.dart';
 import '../models/network_community.dart';
 import '../models/network_message.dart';
 import '../models/network_notification.dart';
-import '../models/network_story.dart';  // ← AJOUTER CET IMPORT
+import '../models/network_story.dart';
 
 class NetworkService {
   final SupabaseClient _supabase;
@@ -47,7 +47,7 @@ class NetworkService {
         });
       }).toList();
     } catch (e) {
-      print('Error getFeedPosts: $e');
+      debugPrint('Error getFeedPosts: $e');
       return [];
     }
   }
@@ -82,7 +82,7 @@ class NetworkService {
         'is_liked_by_current_user': userLiked,
       });
     } catch (e) {
-      print('Error getPostById: $e');
+      debugPrint('Error getPostById: $e');
       return null;
     }
   }
@@ -161,7 +161,7 @@ class NetworkService {
         'created_at': e['created_at'],
       }).toList();
     } catch (e) {
-      print('Error getComments: $e');
+      debugPrint('Error getComments: $e');
       return [];
     }
   }
@@ -203,7 +203,7 @@ class NetworkService {
             : 0,
       )).toList();
     } catch (e) {
-      print('Error getSuggestedConnections: $e');
+      debugPrint('Error getSuggestedConnections: $e');
       return [];
     }
   }
@@ -242,7 +242,7 @@ class NetworkService {
       
       return response?['status'];
     } catch (e) {
-      print('Error getConnectionStatus: $e');
+      debugPrint('Error getConnectionStatus: $e');
       return null;
     }
   }
@@ -269,7 +269,7 @@ class NetworkService {
       
       return (response as List).map((e) => NetworkStory.fromJson(e)).toList();
     } catch (e) {
-      print('Error getActiveStories: $e');
+      debugPrint('Error getActiveStories: $e');
       return [];
     }
   }
@@ -329,7 +329,7 @@ class NetworkService {
         'following_count': (response['following_count'] as List?)?.length ?? 0,
       };
     } catch (e) {
-      print('Error getUserProfile: $e');
+      debugPrint('Error getUserProfile: $e');
       return null;
     }
   }
@@ -353,7 +353,7 @@ class NetworkService {
         'comments_count': 0,
       })).toList();
     } catch (e) {
-      print('Error getUserPosts: $e');
+      debugPrint('Error getUserPosts: $e');
       return [];
     }
   }
@@ -386,7 +386,7 @@ class NetworkService {
       
       return (response as List).map((e) => Conversation.fromJson(e, currentUserId)).toList();
     } catch (e) {
-      print('Error getConversations: $e');
+      debugPrint('Error getConversations: $e');
       return [];
     }
   }
@@ -459,14 +459,14 @@ class NetworkService {
           .or('sender_id.eq.$otherUserId,receiver_id.eq.$otherUserId')
           .order('created_at', ascending: true);
       
-      return (response as List).map((e) => {
+      return (response as List).map((e) => ({
         'id': e['id'],
         'content': e['content'],
         'is_sent_by_me': e['sender_id'] == currentUserId,
         'created_at': DateTime.parse(e['created_at']),
-      }).toList();
+      })).toList();
     } catch (e) {
-      print('Error getMessages: $e');
+      debugPrint('Error getMessages: $e');
       return [];
     }
   }
@@ -480,7 +480,7 @@ class NetworkService {
           .eq('receiver_id', currentUserId)
           .eq('sender_id', otherUserId);
     } catch (e) {
-      print('Error markMessagesAsRead: $e');
+      debugPrint('Error markMessagesAsRead: $e');
     }
   }
 
@@ -507,7 +507,7 @@ class NetworkService {
       
       return (response as List).map((e) => NetworkNotification.fromJson(e)).toList();
     } catch (e) {
-      print('Error getNotifications: $e');
+      debugPrint('Error getNotifications: $e');
       return [];
     }
   }
@@ -523,7 +523,7 @@ class NetworkService {
       
       return (response as List).length;
     } catch (e) {
-      print('Error getUnreadNotificationsCount: $e');
+      debugPrint('Error getUnreadNotificationsCount: $e');
       return 0;
     }
   }
@@ -537,7 +537,7 @@ class NetworkService {
           .eq('user_id', currentUserId)
           .eq('is_read', false);
     } catch (e) {
-      print('Error markAllNotificationsAsRead: $e');
+      debugPrint('Error markAllNotificationsAsRead: $e');
     }
   }
 
@@ -571,7 +571,7 @@ class NetworkService {
       
       return (response as List).map((e) => NetworkCommunity.fromJson(e)).toList();
     } catch (e) {
-      print('Error getSuggestedCommunities: $e');
+      debugPrint('Error getSuggestedCommunities: $e');
       return [];
     }
   }
@@ -598,6 +598,48 @@ class NetworkService {
     await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
   }
 
+  // ==================== ÉVÉNEMENTS ====================
+
+  Future<void> markEventInterest(String eventId) async {
+    final currentUserId = this.currentUserId;
+    
+    // Vérifier si l'utilisateur a déjà manifesté son intérêt
+    final existing = await _supabase
+        .from('event_interests')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+    
+    if (existing == null) {
+      await _supabase.from('event_interests').insert({
+        'event_id': eventId,
+        'user_id': currentUserId,
+        'interested_at': DateTime.now().toIso8601String(),
+      });
+      
+      // Incrémenter le compteur d'intérêts de l'événement
+      await _supabase.rpc('increment_event_interest_count', params: {'event_id': eventId});
+    }
+  }
+
+  Future<bool> hasEventInterest(String eventId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      final response = await _supabase
+          .from('event_interests')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      
+      return response != null;
+    } catch (e) {
+      debugPrint('Error hasEventInterest: $e');
+      return false;
+    }
+  }
+
   // ==================== RECHERCHE ====================
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
@@ -610,7 +652,7 @@ class NetworkService {
       
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
-      print('Error searchUsers: $e');
+      debugPrint('Error searchUsers: $e');
       return [];
     }
   }
@@ -629,7 +671,7 @@ class NetworkService {
       
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
-      print('Error searchPosts: $e');
+      debugPrint('Error searchPosts: $e');
       return [];
     }
   }
@@ -644,7 +686,7 @@ class NetworkService {
       
       return (response as List).map((e) => NetworkCommunity.fromJson(e)).toList();
     } catch (e) {
-      print('Error searchCommunities: $e');
+      debugPrint('Error searchCommunities: $e');
       return [];
     }
   }
