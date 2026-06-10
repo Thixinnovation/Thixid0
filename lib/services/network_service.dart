@@ -246,17 +246,36 @@ class NetworkService {
   }
 
   Future<String> _getPostOwnerId(String postId) async {
-    final response = await _supabase
-        .from('network_posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-    return response['user_id'];
+  final response = await _supabase
+      .from('network_posts')
+      .select('user_id')
+      .eq('id', postId)
+      .single();
+  return response['user_id'];
+}
+
+// ==================== GESTION DES COMMENTAIRES ====================
+
+Future<void> deleteComment(String commentId) async {
+  final currentUserId = this.currentUserId;
+  
+  final comment = await _supabase
+      .from('network_comments')
+      .select('user_id')
+      .eq('id', commentId)
+      .single();
+  
+  if (comment['user_id'] != currentUserId) {
+    throw Exception('Vous ne pouvez pas supprimer ce commentaire');
   }
+  
+  await _supabase.from('network_comments').delete().eq('id', commentId);
+}
 
-  // ==================== CONNECTIONS ====================
+// ==================== CONNECTIONS ====================
 
-  Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
+Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
+  // ... le reste du code
     try {
       final currentUserId = this.currentUserId;
       
