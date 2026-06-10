@@ -39,39 +39,23 @@ class _RecentTransactionsState extends State<RecentTransactions> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SizedBox.shrink();
     }
     
     if (_transactions.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Column(
-          children: [
-            Icon(Icons.receipt_long, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('Aucune transaction récente'),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
     
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: _transactions.map((transaction) {
-          return Column(
-            children: [
-              TransactionItem(transaction: transaction),
-              if (transaction != _transactions.last)
-                const Divider(height: 1, indent: 60),
-            ],
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: TransactionItem(transaction: transaction),
           );
         }).toList(),
       ),
