@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'widgets/report_dialog.dart';
@@ -26,6 +29,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
@@ -36,7 +45,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         _comments = comments;
       });
     } catch (e) {
-      print('Error loading post: $e');
+      debugPrint('Error loading post: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -59,6 +68,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
       await _networkService.likePost(widget.postId);
     }
     await _loadData();
+  }
+
+  Future<void> _deleteComment(String commentId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer le commentaire'),
+        content: const Text('Voulez-vous vraiment supprimer ce commentaire ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Supprimer')),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      await _networkService.deleteComment(commentId);
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Commentaire supprimé'), backgroundColor: Colors.green),
+        );
+      }
+    }
   }
 
   @override
@@ -137,7 +170,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(_post!.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(_post!.userTitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    if (_post!.userTitle != null)
+                      Text(_post!.userTitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
               ),
@@ -145,7 +179,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(_post!.content, style: const TextStyle(fontSize: 15, height: 1.4)),
+          if (_post!.content.isNotEmpty)
+            Text(_post!.content, style: const TextStyle(fontSize: 15, height: 1.4)),
           if (_post!.images.isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -168,20 +203,20 @@ class _PostDetailPageState extends State<PostDetailPage> {
             children: [
               _buildActionButton(
                 icon: _post!.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                label: '${_post!.likes}',
+                label: '${_post!.likesCount}',
                 color: _post!.isLikedByCurrentUser ? Colors.red : null,
                 onTap: _toggleLike,
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.comment_outlined,
-                label: '${_post!.comments}',
+                label: '${_post!.commentsCount}',
                 onTap: () {},
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.share_outlined,
-                label: '${_post!.shares}',
+                label: '${_post!.sharesCount ?? 0}',
                 onTap: () {},
               ),
             ],
@@ -192,6 +227,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Widget _buildCommentCard(Map<String, dynamic> comment) {
+    final auth = Provider.of<AuthController>(context);
+    final isOwner = auth.currentUser?.id == comment['user_id'];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -224,9 +262,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => _reportComment(comment),
-            child: const Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+          PopupMenuButton(
+            icon: const Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, size: 18), SizedBox(width: 8), Text('Signaler')])),
+              if (isOwner) const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: Colors.red))])),
+            ],
+            onSelected: (value) {
+              if (value == 'report') {
+                _reportComment(comment);
+              } else if (value == 'delete') {
+                _deleteComment(comment['id']);
+              }
+            },
           ),
         ],
       ),
