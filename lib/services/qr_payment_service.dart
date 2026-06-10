@@ -1,10 +1,10 @@
 // lib/services/qr_payment_service.dart
 import 'dart:async';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'paiement_service.dart';  // ← Correction : paiement_service.dart (pas payment_service.dart)
+import 'package:thix_id/services/paiement_service.dart';  // ← Chemin absolu corrigé
 
 class QrPaymentService {
-  final PaiementService _paymentService = PaiementService();  // ← Correction : PaiementService
+  final PaiementService _paymentService = PaiementService();
 
   Future<QrScanResult> scanQrCode(BarcodeCapture capture) async {
     try {
