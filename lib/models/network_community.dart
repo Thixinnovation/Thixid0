@@ -1,3 +1,6 @@
+// lib/models/network_community.dart
+import 'package:flutter/material.dart';
+
 class NetworkCommunity {
   final String id;
   final String name;
@@ -23,22 +26,59 @@ class NetworkCommunity {
     this.isMember = false,
   });
 
+  // Constructeur vide pour les tests
+  NetworkCommunity.empty()
+      : id = '',
+        name = '',
+        membersCount = 0,
+        postsCount = 0,
+        createdAt = DateTime.now(),
+        isMember = false;
+
+  // Getters utilitaires
+  bool get isValid => name.isNotEmpty && membersCount >= 0;
+  bool get hasBanner => bannerUrl != null && bannerUrl!.isNotEmpty;
+  bool get hasDescription => description != null && description!.isNotEmpty;
+  bool get isAdmin => createdBy != null;
+  
+  String get formattedMemberCount {
+    if (membersCount >= 1000000) {
+      return '${(membersCount / 1000000).toStringAsFixed(1)}M';
+    } else if (membersCount >= 1000) {
+      return '${(membersCount / 1000).toStringAsFixed(1)}k';
+    }
+    return membersCount.toString();
+  }
+  
+  String get formattedPostCount {
+    if (postsCount >= 1000000) {
+      return '${(postsCount / 1000000).toStringAsFixed(1)}M';
+    } else if (postsCount >= 1000) {
+      return '${(postsCount / 1000).toStringAsFixed(1)}k';
+    }
+    return postsCount.toString();
+  }
+  
+  String get initials => name.isNotEmpty ? name[0].toUpperCase() : '?';
+  
+  String get bannerOrDefault => hasBanner ? bannerUrl! : '';
+
   factory NetworkCommunity.fromJson(Map<String, dynamic> json) {
     final creator = json['creator'] as Map<String, dynamic>?;
     
     return NetworkCommunity(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      bannerUrl: json['banner_url'],
-      membersCount: json['members_count'] ?? 0,
-      postsCount: json['posts_count'] ?? 0,
-      createdBy: json['created_by'],
-      creatorName: creator?['display_name'],
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      bannerUrl: json['banner_url']?.toString(),
+      membersCount: (json['members_count'] as int?) ?? 0,
+      postsCount: (json['posts_count'] as int?) ?? 0,
+      createdBy: json['created_by']?.toString(),
+      creatorName: creator?['display_name']?.toString(),
       createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+          ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
-      isMember: json['is_member'] ?? false,
+      isMember: (json['is_member'] as bool?) ?? false,
     );
   }
 
@@ -76,6 +116,38 @@ class NetworkCommunity {
       isMember: isMember ?? this.isMember,
     );
   }
+
+  @override
+  String toString() => 'NetworkCommunity(id: $id, name: $name, members: $membersCount)';
+}
+
+// Extension pour les rôles
+extension CommunityRoleExtension on String? {
+  bool get isAdmin => this == 'admin';
+  bool get isModerator => this == 'moderator' || isAdmin;
+  bool get isMember => this == 'member' || isModerator;
+  
+  String get roleLabel {
+    switch (this) {
+      case 'admin':
+        return 'Administrateur';
+      case 'moderator':
+        return 'Modérateur';
+      default:
+        return 'Membre';
+    }
+  }
+  
+  Color get roleColor {
+    switch (this) {
+      case 'admin':
+        return Colors.amber;
+      case 'moderator':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
 }
 
 class CommunityMember {
@@ -84,7 +156,7 @@ class CommunityMember {
   final String userName;
   final String? userAvatar;
   final String userTitle;
-  final String? role; // admin, moderator, member
+  final String? role;
   final DateTime joinedAt;
 
   CommunityMember({
@@ -97,17 +169,47 @@ class CommunityMember {
     required this.joinedAt,
   });
 
+  // Constructeur vide
+  CommunityMember.empty()
+      : id = '',
+        userId = '',
+        userName = '',
+        userTitle = '',
+        joinedAt = DateTime.now();
+
+  // Getters
+  bool get hasAvatar => userAvatar != null && userAvatar!.isNotEmpty;
+  String get avatarUrl => hasAvatar ? userAvatar! : '';
+  String get initials => userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+  bool get isAdminRole => role.isAdmin;
+  bool get isModeratorRole => role.isModerator;
+  
+  String get joinedAtFormatted {
+    final now = DateTime.now();
+    final diff = now.difference(joinedAt);
+    
+    if (diff.inDays > 30) {
+      return 'Membre depuis ${joinedAt.day}/${joinedAt.month}/${joinedAt.year}';
+    } else if (diff.inDays > 0) {
+      return 'Membre depuis ${diff.inDays} jours';
+    } else {
+      return 'Nouveau membre';
+    }
+  }
+
   factory CommunityMember.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
     
     return CommunityMember(
-      id: json['id'],
-      userId: user?['id'] ?? json['user_id'],
-      userName: user?['display_name'] ?? 'Utilisateur',
-      userAvatar: user?['avatar_url'],
-      userTitle: user?['title'] ?? 'Membre',
-      role: json['role'] ?? 'member',
-      joinedAt: DateTime.parse(json['joined_at']),
+      id: json['id']?.toString() ?? '',
+      userId: user?['id']?.toString() ?? json['user_id']?.toString() ?? '',
+      userName: user?['display_name']?.toString() ?? 'Utilisateur',
+      userAvatar: user?['avatar_url']?.toString(),
+      userTitle: user?['title']?.toString() ?? 'Membre',
+      role: json['role']?.toString() ?? 'member',
+      joinedAt: json['joined_at'] != null 
+          ? DateTime.parse(json['joined_at'] as String) 
+          : DateTime.now(),
     );
   }
   
@@ -120,4 +222,27 @@ class CommunityMember {
     'role': role,
     'joined_at': joinedAt.toIso8601String(),
   };
+
+  CommunityMember copyWith({
+    String? id,
+    String? userId,
+    String? userName,
+    String? userAvatar,
+    String? userTitle,
+    String? role,
+    DateTime? joinedAt,
+  }) {
+    return CommunityMember(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      userAvatar: userAvatar ?? this.userAvatar,
+      userTitle: userTitle ?? this.userTitle,
+      role: role ?? this.role,
+      joinedAt: joinedAt ?? this.joinedAt,
+    );
+  }
+
+  @override
+  String toString() => 'CommunityMember(id: $id, name: $userName, role: $role)';
 }
