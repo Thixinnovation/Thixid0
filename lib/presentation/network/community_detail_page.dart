@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';  // ← AJOUTER
+import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/models/network_community.dart';
 
@@ -53,8 +54,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
           .eq('community_id', widget.communityId)
           .limit(20);
 
+      // ✅ Correction: utiliser network_posts au lieu de community_posts
       final posts = await supabase
-          .from('community_posts')
+          .from('network_posts')
           .select('''
             *,
             profiles!user_id (display_name, avatar_url)
@@ -80,6 +82,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
       });
     } catch (e) {
       debugPrint('Error loading community: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _loading = false);
     }
@@ -99,20 +106,37 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
             .delete()
             .eq('community_id', widget.communityId)
             .eq('user_id', currentUserId);
+        
+        // Décrémenter le compteur
+        await supabase.rpc('decrement_community_members', params: {'community_id': widget.communityId});
       } else {
         await supabase.from('community_members').insert({
           'community_id': widget.communityId,
           'user_id': currentUserId,
           'joined_at': DateTime.now().toIso8601String(),
         });
+        
+        // Incrémenter le compteur
+        await supabase.rpc('increment_community_members', params: {'community_id': widget.communityId});
       }
 
       setState(() => _isMember = !_isMember);
+      await _loadData(); // Recharger pour mettre à jour le compteur
     } catch (e) {
       debugPrint('Error toggling join: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _isJoining = false);
     }
+  }
+
+  void _shareCommunity() {
+    final link = 'https://thix.app/community/${widget.communityId}';
+    Share.share('Rejoins la communauté "${_community?.name ?? 'cette communauté'}" sur THIX Réseau Pro ! $link');
   }
 
   @override
@@ -124,6 +148,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
         elevation: 0,
         title: Text(_community?.name ?? 'Communauté', style: const TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Color(0xFF0B1B3D)),
+            onPressed: _shareCommunity,
+          ),
           if (_community != null)
             Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -131,7 +159,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
                 onPressed: _isJoining ? null : _toggleJoin,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isMember ? Colors.white : const Color(0xFFD4AF37),
-                  foregroundColor: _isMember ? const Color(0xFF0B1B3D) : const Color(0xFF0B1B3D),
+                  foregroundColor: const Color(0xFF0B1B3D),
                   side: _isMember ? BorderSide(color: const Color(0xFFD4AF37)) : null,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
@@ -182,7 +210,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
                 : null,
           ),
           const SizedBox(height: 16),
-          if (_community?.description != null) ...[
+          if (_community?.description != null && _community!.description!.isNotEmpty) ...[
             const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
             Text(_community!.description!),
@@ -192,7 +220,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
             children: [
               _buildStatItem('${_members.length}', 'membres'),
               const SizedBox(width: 24),
-              _buildStatItem('${_community?.postsCount ?? 0}', 'publications'),
+              _buildStatItem('${_posts.length}', 'publications'),
             ],
           ),
           const SizedBox(height: 24),
@@ -218,7 +246,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
   Widget _buildPostTile(Map<String, dynamic> post) {
     final user = post['profiles'];
     return GestureDetector(
-      onTap: () => context.push('/network/post/${post['id']}'),  // ✅ correction
+      onTap: () => context.push('/network/post/${post['id']}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -231,7 +259,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
           children: [
             Row(
               children: [
-                CircleAvatar(radius: 16, backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null,
+                ),
                 const SizedBox(width: 8),
                 Text(user['display_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
@@ -257,7 +288,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
 
   Widget _buildMemberTile(Map<String, dynamic> member) {
     return GestureDetector(
-      onTap: () => context.push('/network/profile/${member['id']}'),  // ✅ correction
+      onTap: () => context.push('/network/profile/${member['id']}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -278,7 +309,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> with SingleTi
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(member['display_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  if (member['title'] != null) Text(member['title'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  if (member['title'] != null && member['title'].toString().isNotEmpty)
+                    Text(member['title'], style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ),
             ),
