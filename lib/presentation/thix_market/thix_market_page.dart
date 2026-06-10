@@ -110,8 +110,6 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         inStock: true,
         stock: 5,
         createdAt: DateTime.now(),
-        discountPercentage: 30 + (i * 5),
-        originalPrice: _getFlashOriginalPrice(category),
       ));
     }
     
@@ -156,10 +154,6 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
       'Beauté & Santé': 49000.0,
     };
     return basePrices[category] ?? 100000.0;
-  }
-
-  double _getFlashOriginalPrice(String category) {
-    return _getFlashPrice(category) * 1.5;
   }
 
   Future<void> _loadBanners() async {
@@ -573,8 +567,9 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
             itemCount: _carouselProducts.length,
             itemBuilder: (context, index) {
               final product = _carouselProducts[index];
-              final originalPrice = product.originalPrice ?? product.price * 1.3;
-              final discount = ((originalPrice - product.price) / originalPrice * 100).toInt();
+              // Calculer un prix original fictif pour l'affichage (30% de plus)
+              final displayOriginalPrice = product.price * 1.3;
+              final discount = 30; // 30% de réduction
               return Container(
                 width: MediaQuery.of(context).size.width * 0.7,
                 margin: const EdgeInsets.only(right: 12),
@@ -610,7 +605,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                               children: [
                                 Text('${product.price.round()} FCFA', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
                                 const SizedBox(width: 6),
-                                Text('${originalPrice.round()} FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 11, color: Colors.grey)),
+                                Text('${displayOriginalPrice.round()} FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 11, color: Colors.grey)),
                               ],
                             ),
                             const SizedBox(height: 8),
