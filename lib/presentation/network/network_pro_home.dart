@@ -7,8 +7,6 @@ import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/models/network_connection.dart';
 import 'package:thix_id/models/network_community.dart';
-import 'package:thix_id/models/opportunity.dart';
-import 'package:thix_id/models/event.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/stats_row.dart';
 import 'widgets/stories_list.dart';
@@ -41,14 +39,10 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   List<NetworkPost> _posts = [];
   List<NetworkConnection> _suggestions = [];
   List<NetworkCommunity> _communities = [];
-  List<Opportunity> _opportunities = [];
-  List<Event> _events = [];
   
   bool _loadingPosts = true;
   bool _loadingSuggestions = true;
   bool _loadingCommunities = true;
-  bool _loadingOpportunities = true;
-  bool _loadingEvents = true;
   
   int _unreadNotifications = 0;
   bool _isRefreshing = false;
@@ -66,8 +60,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       _loadPosts(),
       _loadSuggestions(),
       _loadCommunities(),
-      _loadOpportunities(),
-      _loadEvents(),
     ]);
   }
 
@@ -104,30 +96,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       debugPrint('Error loading communities: $e');
     } finally {
       setState(() => _loadingCommunities = false);
-    }
-  }
-
-  Future<void> _loadOpportunities() async {
-    setState(() => _loadingOpportunities = true);
-    try {
-      final opportunities = await _networkService.getOpportunities();
-      setState(() => _opportunities = opportunities);
-    } catch (e) {
-      debugPrint('Error loading opportunities: $e');
-    } finally {
-      setState(() => _loadingOpportunities = false);
-    }
-  }
-
-  Future<void> _loadEvents() async {
-    setState(() => _loadingEvents = true);
-    try {
-      final events = await _networkService.getUpcomingEvents();
-      setState(() => _events = events);
-    } catch (e) {
-      debugPrint('Error loading events: $e');
-    } finally {
-      setState(() => _loadingEvents = false);
     }
   }
 
@@ -397,7 +365,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 const SizedBox(height: 20),
               ],
 
-              // Communautés populaires
+              // Communautés populaires (lecture seule)
               if (_loadingCommunities)
                 const Center(child: CircularProgressIndicator())
               else if (_communities.isNotEmpty) ...[
@@ -414,39 +382,19 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 const SizedBox(height: 20),
               ],
 
-              // Opportunités
-              if (_loadingOpportunities)
-                const Center(child: CircularProgressIndicator())
-              else if (_opportunities.isNotEmpty) ...[
-                const Text('Opportunités pour vous', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                OpportunitiesList(
-                  opportunities: _opportunities,
-                  onOpportunityTap: (id) => context.push('/opportunities/$id'),
-                  onApplyTap: (id) => context.push('/opportunities/$id/apply'),
-                ),
-                const SizedBox(height: 20),
-              ],
+              // Opportunités (redirection seulement)
+              OpportunitiesList(
+                onOpportunityTap: (id) => _goToOpportunities(),
+                onApplyTap: (id) => _goToOpportunities(),
+              ),
+              const SizedBox(height: 20),
 
-              // Événements
-              if (_loadingEvents)
-                const Center(child: CircularProgressIndicator())
-              else if (_events.isNotEmpty) ...[
-                const Text('Événements à venir', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                EventsList(
-                  events: _events,
-                  onEventTap: (id) => context.push('/events/$id'),
-                  onInterestedTap: (id) async {
-                    await _networkService.markEventInterest(id);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Inscription confirmée'), backgroundColor: Colors.green),
-                    );
-                    await _loadEvents();
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
+              // Événements (redirection seulement)
+              EventsList(
+                onEventTap: (id) => _goToEvents(),
+                onInterestedTap: (id) => _goToEvents(),
+              ),
+              const SizedBox(height: 20),
 
               // IA Recommendations
               RecommendationsIA(
