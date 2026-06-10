@@ -15,7 +15,7 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
   List<Map<String, dynamic>> _restaurants = [];
 
   final List<String> _categories = [
-    'Tous', 'Africaine', 'Fast Food', 'Italienne', 'Japonaise', 'Française', 'Asiatique'
+    'Tous', 'Africaine', 'Fast Food', 'Italienne', 'Japonaise', 'Francaise', 'Asiatique'
   ];
 
   @override
@@ -26,8 +26,8 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
 
   void _loadRestaurants() {
     _restaurants = [
-      {'id': '1', 'nom': 'Le Goût d\'Ici', 'type': 'Africaine', 'note': '4.6', 'prix': '$$', 'distance': '1.2 km', 'time': '20-30 min', 'image': '🍲'},
-      {'id': '2', 'nom': 'Fast & Good', 'type': 'Fast Food', 'note': '4.8', 'prix': '$$', 'distance': '0.8 km', 'time': '15-25 min', 'image': '🍔'},
+      {'id': '1', 'nom': 'Le Gout d\'Ici', 'type': 'Africaine', 'note': '4.6', 'prix': '$$', 'distance': '1.2 km', 'time': '20-30 min', 'image': '🍲'},
+      {'id': '2', 'nom': 'Fast and Good', 'type': 'Fast Food', 'note': '4.8', 'prix': '$$', 'distance': '0.8 km', 'time': '15-25 min', 'image': '🍔'},
       {'id': '3', 'nom': 'Pizza Time', 'type': 'Italienne', 'note': '4.5', 'prix': '$$', 'distance': '2.1 km', 'time': '20-30 min', 'image': '🍕'},
       {'id': '4', 'nom': 'Sushi House', 'type': 'Japonaise', 'note': '4.7', 'prix': '$$$', 'distance': '3.0 km', 'time': '25-35 min', 'image': '🍣'},
       {'id': '5', 'nom': 'Chez Maman', 'type': 'Africaine', 'note': '4.9', 'prix': '$$', 'distance': '0.5 km', 'time': '10-20 min', 'image': '🍛'},
@@ -39,7 +39,7 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Restaurants à proximité'),
+        title: const Text('Restaurants a proximite'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -184,7 +184,7 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
               foregroundColor: const Color(0xFF0B1B3D),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
-            child: const Text('Réserver'),
+            child: const Text('Reserver'),
           ),
         ],
       ),
@@ -206,7 +206,7 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: ['$', '$$', '$$$', '$$$$'].map((prix) {
+              children: ['\$', '\$\$', '\$\$\$', '\$\$\$\$'].map((prix) {
                 return FilterChip(label: Text(prix), selected: false, onSelected: (_) {});
               }).toList(),
             ),
