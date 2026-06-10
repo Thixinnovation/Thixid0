@@ -24,8 +24,11 @@ class NetworkConnection {
   NetworkConnection.empty()
       : id = '',
         name = '',
+        avatar = null,
         title = '',
-        mutualConnections = 0;
+        mutualConnections = 0,
+        status = null,
+        connectedAt = null;
 
   // Getters
   bool get isConnected => status == 'accepted';
@@ -51,19 +54,27 @@ class NetworkConnection {
   
   String get statusLabel {
     switch (status) {
-      case 'accepted': return 'Connecté';
-      case 'pending': return 'En attente';
-      case 'rejected': return 'Refusé';
-      default: return '';
+      case 'accepted':
+        return 'Connecté';
+      case 'pending':
+        return 'En attente';
+      case 'rejected':
+        return 'Refusé';
+      default:
+        return '';
     }
   }
   
   Color get statusColor {
     switch (status) {
-      case 'accepted': return Colors.green;
-      case 'pending': return Colors.orange;
-      case 'rejected': return Colors.red;
-      default: return Colors.grey;
+      case 'accepted':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -139,6 +150,7 @@ class ConnectionRequest {
       : id = '',
         requesterId = '',
         requesterName = '',
+        requesterAvatar = null,
         requesterTitle = '',
         createdAt = DateTime.now();
 
@@ -214,19 +226,27 @@ extension ConnectionStatusExtension on String? {
   
   String get statusLabel {
     switch (this) {
-      case 'accepted': return 'Connecté';
-      case 'pending': return 'En attente';
-      case 'rejected': return 'Refusé';
-      default: return 'Inconnu';
+      case 'accepted':
+        return 'Connecté';
+      case 'pending':
+        return 'En attente';
+      case 'rejected':
+        return 'Refusé';
+      default:
+        return 'Inconnu';
     }
   }
   
   Color get statusColor {
     switch (this) {
-      case 'accepted': return Colors.green;
-      case 'pending': return Colors.orange;
-      case 'rejected': return Colors.red;
-      default: return Colors.grey;
+      case 'accepted':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 }
