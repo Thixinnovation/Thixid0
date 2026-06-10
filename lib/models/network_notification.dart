@@ -34,9 +34,13 @@ class NetworkNotification {
         type = 'generic',
         title = '',
         body = '',
+        actorId = null,
+        actorName = null,
+        actorAvatar = null,
+        postId = null,
+        data = const {},
         isRead = false,
-        createdAt = DateTime.now(),
-        data = {};
+        createdAt = DateTime.now();
 
   // Getters
   bool get isUnread => !isRead;
