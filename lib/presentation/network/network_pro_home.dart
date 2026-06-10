@@ -45,7 +45,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   int _unreadMessages = 0;
   bool _isRefreshing = false;
   
-  String _selectedSort = 'recent'; // recent, popular, following
+  String _selectedSort = 'recent';
 
   @override
   void initState() {
@@ -57,35 +57,28 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   void _setupRealtimeSubscriptions() {
-    // Écouter les nouveaux posts en temps réel
     _supabase.channel('public:posts')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'posts',
           callback: (payload) {
-            if (mounted) {
-              _loadPosts(); // Recharger pour le nouveau post
-            }
+            if (mounted) _loadPosts();
           },
         )
         .subscribe();
 
-    // Écouter les nouvelles stories
     _supabase.channel('public:stories')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'stories',
           callback: (payload) {
-            if (mounted) {
-              _loadStories();
-            }
+            if (mounted) _loadStories();
           },
         )
         .subscribe();
 
-    // Écouter les nouvelles notifications
     final userId = _supabase.auth.currentUser?.id;
     if (userId != null) {
       _supabase.channel('public:notifications:$userId')
@@ -94,9 +87,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
             schema: 'public',
             table: 'notifications',
             callback: (payload) {
-              if (mounted) {
-                _loadUnreadCount();
-              }
+              if (mounted) _loadUnreadCount();
             },
           )
           .subscribe();
@@ -115,40 +106,9 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadPosts() async {
     setState(() => _loadingPosts = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      String query = '''
-        SELECT 
-          p.*,
-          u.display_name as author_name,
-          u.photo_url as author_avatar,
-          u.profession as author_title,
-          COUNT(DISTINCT pl.id) as likes_count,
-          COUNT(DISTINCT c.id) as comments_count,
-          EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = '$userId') as is_liked,
-          EXISTS(SELECT 1 FROM saved_posts WHERE post_id = p.id AND user_id = '$userId') as is_saved
-        FROM posts p
-        LEFT JOIN users u ON p.user_id = u.id
-        LEFT JOIN post_likes pl ON p.id = pl.post_id
-        LEFT JOIN comments c ON p.id = c.post_id
-        WHERE p.is_public = true 
-           OR p.user_id IN (SELECT connection_id FROM connections WHERE user_id = '$userId' AND status = 'accepted')
-           OR p.user_id = '$userId'
-        GROUP BY p.id, u.display_name, u.photo_url, u.profession
-      ''';
-      
-      // Ajouter le tri
-      if (_selectedSort == 'popular') {
-        query += ' ORDER BY likes_count DESC, p.created_at DESC';
-      } else {
-        query += ' ORDER BY p.created_at DESC';
-      }
-      
-      final response = await _supabase.from('posts').select(query);
-      
+      final posts = await _networkService.getFeedPosts();
       setState(() {
-        _posts = response.map((json) => NetworkPost.fromJsonWithRelations(json)).toList();
+        _posts = posts;
         _loadingPosts = false;
       });
     } catch (e) {
@@ -160,17 +120,9 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadSuggestions() async {
     setState(() => _loadingSuggestions = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      // Suggestions basées sur les compétences, secteur, connexions communes
-      final response = await _supabase.rpc('get_suggested_connections', params: {
-        'user_id': userId,
-        'limit': 5,
-      });
-      
+      final suggestions = await _networkService.getSuggestedConnections(limit: 5);
       setState(() {
-        _suggestions = response.map((json) => NetworkConnection.fromJson(json)).toList();
+        _suggestions = suggestions;
         _loadingSuggestions = false;
       });
     } catch (e) {
@@ -182,20 +134,9 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadCommunities() async {
     setState(() => _loadingCommunities = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      
-      final response = await _supabase
-          .from('communities')
-          .select('''
-            *,
-            COUNT(DISTINCT cm.user_id) as members_count,
-            EXISTS(SELECT 1 FROM community_members WHERE community_id = id AND user_id = '$userId') as is_member
-          ''')
-          .order('members_count', ascending: false)
-          .limit(5);
-      
+      final communities = await _networkService.getSuggestedCommunities(limit: 5);
       setState(() {
-        _communities = response.map((json) => NetworkCommunity.fromJson(json)).toList();
+        _communities = communities;
         _loadingCommunities = false;
       });
     } catch (e) {
@@ -207,26 +148,24 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadStories() async {
     setState(() => _loadingStories = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      
-      // Stories des dernières 24h des connexions
-      final response = await _supabase
-          .from('stories')
-          .select('''
-            *,
-            users!inner (
-              display_name,
-              photo_url,
-              profession
-            )
-          ''')
-          .eq('is_active', true)
-          .gte('created_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String())
-          .inFilter('user_id', await _getConnectedUserIds())
-          .order('created_at', ascending: false);
-      
+      final stories = await _networkService.getActiveStories();
+      // Convert NetworkStory to Story
       setState(() {
-        _stories = response.map((json) => Story.fromJson(json)).toList();
+        _stories = stories.map((networkStory) => Story(
+          id: networkStory.id,
+          userId: networkStory.userId,
+          userName: networkStory.userName,
+          userAvatar: networkStory.userAvatar,
+          userProfession: networkStory.userProfession,
+          mediaUrl: networkStory.mediaUrl,
+          mediaType: networkStory.mediaType,
+          content: null,
+          createdAt: networkStory.createdAt,
+          expiresAt: networkStory.expiresAt,
+          isActive: networkStory.isActive,
+          isViewed: networkStory.isViewed,
+          viewsCount: networkStory.viewsCount,
+        )).toList();
         _loadingStories = false;
       });
     } catch (e) {
@@ -255,25 +194,13 @@ class _NetworkProHomeState extends State<NetworkProHome> {
 
   Future<void> _loadUnreadCount() async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-      
-      final notificationsCount = await _supabase
-          .from('notifications')
-          .select('id', count: CountOption.exact)
-          .eq('user_id', userId)
-          .eq('is_read', false);
-          
-      final messagesCount = await _supabase
-          .from('messages')
-          .select('id', count: CountOption.exact)
-          .eq('receiver_id', userId)
-          .eq('is_read', false);
+      final unreadNotifications = await _networkService.getUnreadNotificationsCount();
+      final unreadMessages = await _networkService.getUnreadMessagesCount();
       
       if (mounted) {
         setState(() {
-          _unreadNotifications = notificationsCount.count ?? 0;
-          _unreadMessages = messagesCount.count ?? 0;
+          _unreadNotifications = unreadNotifications;
+          _unreadMessages = unreadMessages;
         });
       }
     } catch (e) {
@@ -380,51 +307,30 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     
-    // Optimistic update
+    // Optimistic update - créer une copie modifiable
+    final updatedPost = post.copyWith(
+      likesCount: post.isLikedByCurrentUser ? post.likesCount - 1 : post.likesCount + 1,
+      isLikedByCurrentUser: !post.isLikedByCurrentUser,
+    );
+    
     setState(() {
-      if (_posts[index].isLikedByCurrentUser) {
-        _posts[index].likesCount--;
-        _posts[index].isLikedByCurrentUser = false;
-      } else {
-        _posts[index].likesCount++;
-        _posts[index].isLikedByCurrentUser = true;
-      }
+      _posts[index] = updatedPost;
     });
     
     try {
       if (post.isLikedByCurrentUser) {
-        await _supabase
-            .from('post_likes')
-            .delete()
-            .match({'post_id': post.id, 'user_id': userId});
+        await _networkService.unlikePost(post.id);
       } else {
-        await _supabase.from('post_likes').insert({
-          'post_id': post.id,
-          'user_id': userId,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-        
-        // Créer notification si ce n'est pas mon post
-        if (post.userId != userId) {
-          await _supabase.from('notifications').insert({
-            'user_id': post.userId,
-            'type': 'like',
-            'content': 'a aimé votre publication',
-            'post_id': post.id,
-            'created_at': DateTime.now().toIso8601String(),
-          });
-        }
+        await _networkService.likePost(post.id);
       }
     } catch (e) {
       // Revert en cas d'erreur
+      final revertedPost = post.copyWith(
+        likesCount: post.likesCount,
+        isLikedByCurrentUser: post.isLikedByCurrentUser,
+      );
       setState(() {
-        if (_posts[index].isLikedByCurrentUser) {
-          _posts[index].likesCount--;
-          _posts[index].isLikedByCurrentUser = false;
-        } else {
-          _posts[index].likesCount++;
-          _posts[index].isLikedByCurrentUser = true;
-        }
+        _posts[index] = revertedPost;
       });
       debugPrint('Error toggling like: $e');
     }
@@ -466,32 +372,15 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (commentController.text.trim().isNotEmpty) {
-                          final userId = _supabase.auth.currentUser?.id;
-                          if (userId == null) return;
+                          await _networkService.addComment(post.id, commentController.text.trim());
                           
-                          // Ajouter le commentaire
-                          await _supabase.from('comments').insert({
-                            'post_id': post.id,
-                            'user_id': userId,
-                            'content': commentController.text.trim(),
-                            'created_at': DateTime.now().toIso8601String(),
-                          });
-                          
-                          // Incrémenter le compteur
+                          // Incrémenter le compteur - créer une copie modifiable
+                          final updatedPost = post.copyWith(
+                            commentsCount: post.commentsCount + 1,
+                          );
                           setState(() {
-                            _posts[postIndex].commentsCount++;
+                            _posts[postIndex] = updatedPost;
                           });
-                          
-                          // Notification
-                          if (post.userId != userId) {
-                            await _supabase.from('notifications').insert({
-                              'user_id': post.userId,
-                              'type': 'comment',
-                              'content': 'a commenté votre publication',
-                              'post_id': post.id,
-                              'created_at': DateTime.now().toIso8601String(),
-                            });
-                          }
                           
                           if (mounted) {
                             Navigator.pop(context);
@@ -600,7 +489,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         onRefresh: _onRefresh,
         child: CustomScrollView(
           slivers: [
-            // En-tête avec profil
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,7 +515,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
               ),
             ),
             
-            // Section Stories (comme dans ta capture)
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,7 +607,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
               ),
             ),
             
-            // Fil d'actualité
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -751,7 +637,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
             
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             
-            // Liste des posts
             if (_loadingPosts)
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
@@ -790,17 +675,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                         onComment: () => _showCommentDialog(post, index),
                         onTap: () => context.push('/network/post/${post.id}'),
                         onShare: () async {
-                          // Partager le post
-                          final userId = _supabase.auth.currentUser?.id;
-                          if (userId != null && post.userId != userId) {
-                            await _supabase.from('notifications').insert({
-                              'user_id': post.userId,
-                              'type': 'share',
-                              'content': 'a partagé votre publication',
-                              'post_id': post.id,
-                              'created_at': DateTime.now().toIso8601String(),
-                            });
-                          }
+                          await _networkService.sharePost(post.id);
                         },
                       ),
                     );
@@ -809,7 +684,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 ),
               ),
             
-            // Suggestions
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,7 +709,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
               ),
             ),
             
-            // Communautés
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -862,7 +735,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
               ),
             ),
             
-            // IA Recommandations
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
