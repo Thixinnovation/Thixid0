@@ -134,6 +134,8 @@ class Conversation {
       : id = '',
         otherUserId = '',
         otherUserName = '',
+        otherUserAvatar = null,
+        lastMessage = null,
         lastMessageAt = DateTime.now(),
         unreadCount = 0,
         lastMessageIsFromMe = false;
