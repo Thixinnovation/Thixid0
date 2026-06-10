@@ -20,7 +20,15 @@ class NetworkService {
     try {
       final currentUserId = this.currentUserId;
       
-      final response = await _supabase
+      // Récupérer les IDs des posts masqués par l'utilisateur
+      final hiddenPosts = await _supabase
+          .from('hidden_posts')
+          .select('post_id')
+          .eq('user_id', currentUserId);
+      
+      final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
+      
+      var query = _supabase
           .from('network_posts')
           .select('''
             *,
@@ -36,6 +44,13 @@ class NetworkService {
           ''')
           .order('created_at', ascending: false)
           .limit(limit);
+      
+      // Exclure les posts masqués
+      if (hiddenIds.isNotEmpty) {
+        query = query.not('id', 'in', hiddenIds);
+      }
+      
+      final response = await query;
       
       return (response as List).map((e) {
         final userLiked = (e['user_liked'] as List?)?.any((like) => like['user_id'] == currentUserId) ?? false;
@@ -96,6 +111,69 @@ class NetworkService {
       'images': images,
       'created_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  Future<void> updatePost(String postId, String newContent) async {
+    final currentUserId = this.currentUserId;
+    
+    final post = await _supabase
+        .from('network_posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    
+    if (post['user_id'] != currentUserId) {
+      throw Exception('Vous ne pouvez pas modifier cette publication');
+    }
+    
+    await _supabase
+        .from('network_posts')
+        .update({
+          'content': newContent,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', postId);
+  }
+
+  Future<void> deletePost(String postId) async {
+    final currentUserId = this.currentUserId;
+    
+    final post = await _supabase
+        .from('network_posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    
+    if (post['user_id'] != currentUserId) {
+      throw Exception('Vous ne pouvez pas supprimer cette publication');
+    }
+    
+    await _supabase.from('network_posts').delete().eq('id', postId);
+  }
+
+  Future<void> hidePost(String postId) async {
+    final currentUserId = this.currentUserId;
+    
+    await _supabase.from('hidden_posts').insert({
+      'post_id': postId,
+      'user_id': currentUserId,
+      'hidden_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> reportPost(String postId, String reason) async {
+    final currentUserId = this.currentUserId;
+    
+    await _supabase.from('reported_posts').insert({
+      'post_id': postId,
+      'user_id': currentUserId,
+      'reason': reason,
+      'reported_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> sharePost(String postId) async {
+    await _supabase.rpc('increment_post_shares', params: {'post_id': postId});
   }
 
   Future<void> likePost(String postId) async {
@@ -604,7 +682,6 @@ class NetworkService {
   Future<void> markEventInterest(String eventId) async {
     final currentUserId = this.currentUserId;
     
-    // Vérifier si l'utilisateur a déjà manifesté son intérêt
     final existing = await _supabase
         .from('event_interests')
         .select('id')
@@ -619,7 +696,6 @@ class NetworkService {
         'interested_at': DateTime.now().toIso8601String(),
       });
       
-      // Incrémenter le compteur d'intérêts de l'événement
       await _supabase.rpc('increment_event_interest_count', params: {'event_id': eventId});
     }
   }
@@ -640,30 +716,7 @@ class NetworkService {
       return false;
     }
   }
-// ==================== OPPORTUNITÉS ====================
-Future<List<Opportunity>> getOpportunities({int limit = 5}) async {
-  final response = await _supabase
-      .from('opportunities')
-      .select()
-      .eq('is_active', true)
-      .order('created_at', ascending: false)
-      .limit(limit);
-  
-  return (response as List).map((e) => Opportunity.fromJson(e)).toList();
-}
 
-// ==================== ÉVÉNEMENTS ====================
-Future<List<Event>> getUpcomingEvents({int limit = 5}) async {
-  final response = await _supabase
-      .from('events')
-      .select()
-      .gte('date', DateTime.now().toIso8601String())
-      .order('date', ascending: true)
-      .limit(limit);
-  
-  return (response as List).map((e) => Event.fromJson(e)).toList();
-}
-  
   // ==================== RECHERCHE ====================
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
