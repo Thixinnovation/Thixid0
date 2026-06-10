@@ -467,11 +467,11 @@ class _MemberProfileState extends State<MemberProfile> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildActionButton(Icons.favorite_border, '${post.likesCount}'),
+                _buildActionButton(Icons.favorite_border, '${post.likes}'),
                 const SizedBox(width: 16),
-                _buildActionButton(Icons.comment_outlined, '${post.commentsCount}'),
+                _buildActionButton(Icons.comment_outlined, '${post.comments}'),
                 const SizedBox(width: 16),
-                _buildActionButton(Icons.share_outlined, '${post.sharesCount ?? 0}'),
+                _buildActionButton(Icons.share_outlined, '${post.shares}'),
               ],
             ),
           ],
