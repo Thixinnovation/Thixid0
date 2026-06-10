@@ -1137,92 +1137,96 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<NetworkNotification>> getNotifications() async {
     try {
       final currentUserId = this.currentUserId;
-      
-      final response = await _supabase
-          .from('notifications')
-          .select('''
-            *,
-            users!sender_id (
-              display_name,
-              photo_url
-            ),
-            posts!post_id (
-              id, content
-            )
-          ''')
-          .eq('user_id', currentUserId)
-          .order('created_at', ascending: false)
-          .limit(50);
-      
-      return (response as List).map((e) => NetworkNotification.fromJson(e)).toList();
-    } catch (e) {
-      debugPrint('Error getNotifications: $e');
-      return [];
-    }
-  }
+// ==================== MESSAGES ====================
 
-  Future<int> getUnreadNotificationsCount() async {
-    try {
-      final currentUserId = this.currentUserId;
-      final response = await _supabase
-          .from('notifications')
-          .select('id', count: CountOption.exact)
-          .eq('user_id', currentUserId)
-          .eq('is_read', false);
-      
-      return response.count ?? 0;
-    } catch (e) {
-      debugPrint('Error getUnreadNotificationsCount: $e');
-      return 0;
-    }
-  }
-
-  Future<int> getUnreadMessagesCount() async {
-    try {
-      final currentUserId = this.currentUserId;
-      final response = await _supabase
-          .from('messages')
-          .select('id', count: CountOption.exact)
-          .eq('receiver_id', currentUserId)
-          .eq('is_read', false);
-      
-      return response.count ?? 0;
-    } catch (e) {
-      debugPrint('Error getUnreadMessagesCount: $e');
-      return 0;
-    }
-  }
-
-  Future<void> markAllNotificationsAsRead() async {
-    try {
-      final currentUserId = this.currentUserId;
-      await _supabase
-          .from('notifications')
-          .update({'is_read': true})
-          .eq('user_id', currentUserId)
-          .eq('is_read', false);
-    } catch (e) {
-      debugPrint('Error markAllNotificationsAsRead: $e');
-    }
-  }
-
-  Future<void> _createNotification({
-    required String userId,
-    required String type,
-    String? postId,
-  }) async {
+Future<List<Conversation>> getConversations() async {
+  try {
     final currentUserId = this.currentUserId;
-    if (userId == currentUserId) return;
     
-    await _supabase.from('notifications').insert({
-      'user_id': userId,
-      'type': type,
-      'sender_id': currentUserId,
-      'post_id': postId,
-      'is_read': false,
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    final response = await _supabase
+        .from('messages')
+        .select('''
+          sender_id,
+          receiver_id,
+          content,
+          created_at,
+          is_read,
+          sender:users!messages_sender_id (
+            id, display_name, photo_url
+          ),
+          receiver:users!messages_receiver_id (
+            id, display_name, photo_url
+          )
+        ''')
+        .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+        .order('created_at', ascending: false);
+    
+    // Grouper par conversation
+    final Map<String, Conversation> conversations = {};
+    
+    for (var msg in response as List) {
+      final otherId = msg['sender_id'] == currentUserId 
+          ? msg['receiver_id'] 
+          : msg['sender_id'];
+      
+      final otherUser = msg['sender_id'] == currentUserId
+          ? msg['receiver']
+          : msg['sender'];
+      
+      if (!conversations.containsKey(otherId)) {
+        conversations[otherId] = Conversation(
+          id: otherId,
+          otherUserId: otherId,
+          otherUserName: otherUser['display_name'] ?? 'Utilisateur',
+          otherUserAvatar: otherUser['photo_url'],
+          lastMessage: msg['content'],
+          lastMessageAt: DateTime.parse(msg['created_at']),
+          lastMessageIsFromMe: msg['sender_id'] == currentUserId,
+          unreadCount: msg['is_read'] == false && msg['receiver_id'] == currentUserId ? 1 : 0,
+        );
+      }
+    }
+    
+    return conversations.values.toList();
+  } catch (e) {
+    debugPrint('Error getConversations: $e');
+    return [];
   }
+}
+
+// ==================== NOTIFICATIONS ====================
+
+Future<int> getUnreadNotificationsCount() async {
+  try {
+    final currentUserId = this.currentUserId;
+    final response = await _supabase
+        .from('notifications')
+        .select('id', count: CountOption.exact)
+        .eq('user_id', currentUserId)
+        .eq('is_read', false);
+    
+    return response.count ?? 0;
+  } catch (e) {
+    debugPrint('Error getUnreadNotificationsCount: $e');
+    return 0;
+  }
+}
+
+Future<int> getUnreadMessagesCount() async {
+  try {
+    final currentUserId = this.currentUserId;
+    final response = await _supabase
+        .from('messages')
+        .select('id', count: CountOption.exact)
+        .eq('receiver_id', currentUserId)
+        .eq('is_read', false);
+    
+    return response.count ?? 0;
+  } catch (e) {
+    debugPrint('Error getUnreadMessagesCount: $e');
+    return 0;
+  }
+}
 
   // ==================== RECHERCHE ====================
 
