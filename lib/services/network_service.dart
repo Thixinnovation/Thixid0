@@ -8,6 +8,7 @@ import '../models/network_community.dart';
 import '../models/network_message.dart';
 import '../models/network_notification.dart';
 import '../models/network_story.dart';
+import 'dart:io';
 
 class NetworkService {
   final SupabaseClient _supabase;
@@ -289,7 +290,68 @@ class NetworkService {
         .single();
     return response['user_id'];
   }
+// ==================== UPLOAD IMAGES ====================
 
+Future<String?> uploadImage(String filePath, {String bucket = 'post_images'}) async {
+  try {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return null;
+    
+    final file = File(filePath);
+    final bytes = await file.readAsBytes();
+    
+    final extension = filePath.split('.').last;
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final storagePath = '$currentUserId/$fileName';
+    
+    await _supabase.storage
+        .from(bucket)
+        .uploadBinary(storagePath, bytes);
+    
+    return _supabase.storage.from(bucket).getPublicUrl(storagePath);
+  } catch (e) {
+    debugPrint('Error uploading image: $e');
+    return null;
+  }
+}
+
+Future<List<String>> uploadMultipleImages(List<String> filePaths, {String bucket = 'post_images'}) async {
+  final List<String> uploadedUrls = [];
+  for (final path in filePaths) {
+    final url = await uploadImage(path, bucket: bucket);
+    if (url != null) uploadedUrls.add(url);
+  }
+  return uploadedUrls;
+}
+
+Future<String?> uploadAvatar(String filePath) async {
+  return uploadImage(filePath, bucket: 'avatars');
+}
+
+Future<String?> uploadStoryImage(String filePath) async {
+  return uploadImage(filePath, bucket: 'story_images');
+}
+
+Future<void> deleteImage(String imageUrl, {String bucket = 'post_images'}) async {
+  try {
+    final uri = Uri.parse(imageUrl);
+    final segments = uri.pathSegments;
+    final bucketIndex = segments.indexOf(bucket);
+    
+    if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
+      final filePath = segments.sublist(bucketIndex + 1).join('/');
+      await _supabase.storage.from(bucket).remove([filePath]);
+    }
+  } catch (e) {
+    debugPrint('Error deleting image: $e');
+  }
+}
+
+// Méthode utilitaire pour créer un post avec upload d'images
+Future<void> createPostWithImages(String content, List<String> imagePaths) async {
+  final imageUrls = await uploadMultipleImages(imagePaths);
+  await createPost(content, imageUrls);
+}
   // ==================== COMMUNAUTÉS ====================
 
   Future<NetworkCommunity> createCommunity({
