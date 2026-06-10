@@ -26,11 +26,11 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
 
   void _loadRestaurants() {
     _restaurants = [
-      {'id': '1', 'nom': 'Le Gout d\'Ici', 'type': 'Africaine', 'note': '4.6', 'prix': '$$', 'distance': '1.2 km', 'time': '20-30 min', 'image': '🍲'},
-      {'id': '2', 'nom': 'Fast and Good', 'type': 'Fast Food', 'note': '4.8', 'prix': '$$', 'distance': '0.8 km', 'time': '15-25 min', 'image': '🍔'},
-      {'id': '3', 'nom': 'Pizza Time', 'type': 'Italienne', 'note': '4.5', 'prix': '$$', 'distance': '2.1 km', 'time': '20-30 min', 'image': '🍕'},
-      {'id': '4', 'nom': 'Sushi House', 'type': 'Japonaise', 'note': '4.7', 'prix': '$$$', 'distance': '3.0 km', 'time': '25-35 min', 'image': '🍣'},
-      {'id': '5', 'nom': 'Chez Maman', 'type': 'Africaine', 'note': '4.9', 'prix': '$$', 'distance': '0.5 km', 'time': '10-20 min', 'image': '🍛'},
+      {'id': '1', 'nom': 'Le Gout Ici', 'type': 'Africaine', 'note': '4.6', 'prix': 'Moyen', 'distance': '1.2 km', 'time': '20-30 min', 'image': '🍲'},
+      {'id': '2', 'nom': 'Fast Good', 'type': 'Fast Food', 'note': '4.8', 'prix': 'Moyen', 'distance': '0.8 km', 'time': '15-25 min', 'image': '🍔'},
+      {'id': '3', 'nom': 'Pizza Time', 'type': 'Italienne', 'note': '4.5', 'prix': 'Moyen', 'distance': '2.1 km', 'time': '20-30 min', 'image': '🍕'},
+      {'id': '4', 'nom': 'Sushi House', 'type': 'Japonaise', 'note': '4.7', 'prix': 'Eleve', 'distance': '3.0 km', 'time': '25-35 min', 'image': '🍣'},
+      {'id': '5', 'nom': 'Chez Maman', 'type': 'Africaine', 'note': '4.9', 'prix': 'Moyen', 'distance': '0.5 km', 'time': '10-20 min', 'image': '🍛'},
     ];
   }
 
@@ -39,7 +39,7 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Restaurants a proximite'),
+        title: const Text('Restaurants pres de vous'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -206,13 +206,13 @@ class _ReservationRestaurantPageState extends State<ReservationRestaurantPage> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: ['\$', '\$\$', '\$\$\$', '\$\$\$\$'].map((prix) {
+              children: ['Bas', 'Moyen', 'Eleve'].map((prix) {
                 return FilterChip(label: Text(prix), selected: false, onSelected: (_) {});
               }).toList(),
             ),
             const SizedBox(height: 16),
             const Text('Distance', style: TextStyle(fontWeight: FontWeight.bold)),
-            const Slider(value: 5, min: 0, max: 10, onChanged: (_) {}),
+            Slider(value: 5, min: 0, max: 10, onChanged: (_) {}),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
