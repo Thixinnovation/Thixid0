@@ -1,8 +1,6 @@
 // lib/presentation/thix_reservation/pages/vol_recherche.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/vol_service.dart';
-import 'vol_liste.dart';
 
 class VolRecherchePage extends StatefulWidget {
   const VolRecherchePage({super.key});
@@ -12,7 +10,6 @@ class VolRecherchePage extends StatefulWidget {
 }
 
 class _VolRecherchePageState extends State<VolRecherchePage> {
-  final VolService _volService = VolService();
   bool _isLoading = false;
   String _typeVol = 'aller_retour';
   String _origine = 'Kinshasa (FIH)';
@@ -20,20 +17,20 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
   DateTime _depart = DateTime.now().add(const Duration(days: 7));
   DateTime? _retour;
   int _passagers = 1;
-  String _classe = 'Économique';
+  String _classe = 'Economique';
 
   Future<void> _rechercherVols() async {
     setState(() => _isLoading = true);
-    final vols = await _volService.rechercherVols(
-      origine: _origine,
-      destination: _destination,
-      depart: _depart,
-      retour: _typeVol == 'aller_retour' ? _retour : null,
-      passagers: _passagers,
-      classe: _classe,
-    );
+    await Future.delayed(const Duration(seconds: 1));
+    
+    final vols = [
+      {'id': '1', 'compagnie': 'Ethiopian Airlines', 'codeVol': 'ET 914', 'depart': 'Kinshasa (FIH)', 'arrivee': 'Paris (CDG)', 'heureDepart': '23:45', 'heureArrivee': '06:10', 'duree': '10h 25min', 'escales': 0, 'prix': 780.0, 'devise': 'USD', 'bagageCabine': '7kg', 'bagageSoute': '23kg', 'repasInclus': true, 'classe': 'Economique'},
+      {'id': '2', 'compagnie': 'Turkish Airlines', 'codeVol': 'TK 543', 'depart': 'Kinshasa (FIH)', 'arrivee': 'Paris (CDG)', 'heureDepart': '18:30', 'heureArrivee': '09:15', 'duree': '13h 45min', 'escales': 1, 'prix': 650.0, 'devise': 'USD', 'bagageCabine': '8kg', 'bagageSoute': '23kg', 'repasInclus': true, 'classe': 'Economique'},
+      {'id': '3', 'compagnie': 'Air France', 'codeVol': 'AF 771', 'depart': 'Kinshasa (FIH)', 'arrivee': 'Paris (CDG)', 'heureDepart': '10:15', 'heureArrivee': '16:50', 'duree': '8h 35min', 'escales': 0, 'prix': 920.0, 'devise': 'USD', 'bagageCabine': '12kg', 'bagageSoute': '23kg', 'repasInclus': true, 'classe': 'Economique'},
+    ];
+    
     setState(() => _isLoading = false);
-    if (context.mounted) {
+    if (mounted) {
       context.push('/reservation/vols/liste', extra: vols);
     }
   }
@@ -43,7 +40,7 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Réserver un vol'),
+        title: const Text('Reserver un vol'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -58,8 +55,8 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
             _buildAeroportField('De', _origine, (val) => setState(() => _origine = val),
                 ['Kinshasa (FIH)', 'Abidjan (ABJ)', 'Dakar (DSS)', 'Douala (DLA)']),
             const SizedBox(height: 16),
-            _buildAeroportField('À', _destination, (val) => setState(() => _destination = val),
-                ['Paris (CDG)', 'Paris (ORY)', 'Bruxelles (BRU)', 'Genève (GVA)']),
+            _buildAeroportField('A', _destination, (val) => setState(() => _destination = val),
+                ['Paris (CDG)', 'Paris (ORY)', 'Bruxelles (BRU)', 'Geneve (GVA)']),
             const SizedBox(height: 16),
             _buildDateRow(),
             const SizedBox(height: 16),
@@ -124,7 +121,7 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
   Widget _buildDateRow() {
     return Row(
       children: [
-        Expanded(child: _buildDateField('Départ', _depart, (date) => setState(() => _depart = date))),
+        Expanded(child: _buildDateField('Depart', _depart, (date) => setState(() => _depart = date))),
         const SizedBox(width: 12),
         if (_typeVol == 'aller_retour')
           Expanded(child: _buildDateField('Retour', _retour ?? _depart.add(const Duration(days: 7)), (date) => setState(() => _retour = date))),
@@ -208,7 +205,7 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _classe,
-                  items: ['Économique', 'Économique Flex', 'Business']
+                  items: ['Economique', 'Economique Flex', 'Business']
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (val) => setState(() => _classe = val!),
@@ -250,7 +247,7 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Offres spéciales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Offres speciales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         SizedBox(
           height: 110,
@@ -274,7 +271,7 @@ class _VolRecherchePageState extends State<VolRecherchePage> {
                   children: [
                     Text('${offre['depart']} → ${offre['arrivee']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 4),
-                    const Text('À partir de', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    const Text('A partir de', style: TextStyle(fontSize: 10, color: Colors.grey)),
                     Text(offre['prix']!, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37), fontSize: 14)),
                   ],
                 ),
