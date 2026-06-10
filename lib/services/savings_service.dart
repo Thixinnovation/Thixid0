@@ -1,5 +1,6 @@
 // lib/services/savings_service.dart
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:thix_id/services/wallet_service.dart';
 
 class SavingsService {
@@ -118,6 +119,9 @@ class SavingsGoal {
   double get progress => currentAmount / targetAmount;
   double get remaining => targetAmount - currentAmount;
   bool get isCompleted => currentAmount >= targetAmount;
+  int get progressPercent => (progress * 100).toInt();
+  String get formattedTarget => '${targetAmount.toStringAsFixed(0)} FCFA';
+  String get formattedCurrent => '${currentAmount.toStringAsFixed(0)} FCFA';
 }
 
 class SavingsResult {
