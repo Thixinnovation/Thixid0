@@ -38,7 +38,7 @@ class BusListePage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(item['compagnie']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(item['compagnie'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -55,7 +55,7 @@ class BusListePage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         children: [
-                          Text(item['depart']!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(item['depart'] as String, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           const Text('Abidjan', style: TextStyle(fontSize: 10, color: Colors.grey)),
                         ],
                       ),
@@ -71,7 +71,7 @@ class BusListePage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         children: [
-                          Text(item['arrivee']!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(item['arrivee'] as String, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           const Text('Yamoussoukro', style: TextStyle(fontSize: 10, color: Colors.grey)),
                         ],
                       ),
@@ -85,8 +85,8 @@ class BusListePage extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${item['prix']} FCFA', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37), fontSize: 16)),
-                        Text('par passager', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        Text('${item['prix'] as String} FCFA', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37), fontSize: 16)),
+                        const Text('par passager', style: TextStyle(fontSize: 10, color: Colors.grey)),
                       ],
                     ),
                     ElevatedButton(
