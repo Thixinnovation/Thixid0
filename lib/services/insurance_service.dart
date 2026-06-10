@@ -1,5 +1,6 @@
 // lib/services/insurance_service.dart
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:thix_id/services/wallet_service.dart';
 
 class InsuranceService {
