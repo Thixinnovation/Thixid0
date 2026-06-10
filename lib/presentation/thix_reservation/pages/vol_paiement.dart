@@ -1,7 +1,6 @@
 // lib/presentation/thix_reservation/pages/vol_paiement.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../models/vol.dart';
 
 class VolPaiementPage extends StatefulWidget {
   const VolPaiementPage({super.key});
@@ -11,9 +10,9 @@ class VolPaiementPage extends StatefulWidget {
 }
 
 class _VolPaiementPageState extends State<VolPaiementPage> {
-  late Vol _vol;
-  late String _tarif;
-  late double _prix;
+  Map<String, dynamic>? _vol;
+  String _tarif = '';
+  double _prix = 0;
   String _paiementMethod = 'carte';
   final TextEditingController _cardNumberController = TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
@@ -23,27 +22,37 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final data = ModalRoute.of(context)?.settings.arguments as Map;
-    _vol = data['vol'];
-    _tarif = data['tarif'];
-    _prix = data['prix'];
+    final data = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (data != null) {
+      _vol = data['vol'] as Map<String, dynamic>;
+      _tarif = data['tarif'] as String;
+      _prix = data['prix'] as double;
+    }
   }
 
   Future<void> _processPayment() async {
     setState(() => _isProcessing = true);
     await Future.delayed(const Duration(seconds: 2));
     setState(() => _isProcessing = false);
-    if (context.mounted) {
+    if (mounted) {
       context.push('/reservation/vols/confirmation', extra: {'vol': _vol, 'tarif': _tarif, 'prix': _prix});
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_vol == null) {
+      return const Scaffold(
+        body: Center(child: Text('Aucune donnee de paiement')),
+      );
+    }
+
+    final total = (_prix + 120).round();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Paiement sécurisé'),
+        title: const Text('Paiement securise'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -61,7 +70,7 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
             const SizedBox(height: 20),
             _buildSecureBadges(),
             const SizedBox(height: 24),
-            _buildPayButton(),
+            _buildPayButton(total),
           ],
         ),
       ),
@@ -69,7 +78,12 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
   }
 
   Widget _buildFlightSummary() {
+    if (_vol == null) return const SizedBox();
+    
+    final depart = _vol!['depart'] as String;
+    final arrivee = _vol!['arrivee'] as String;
     final total = (_prix + 120).round();
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -81,8 +95,8 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${_vol.depart} → ${_vol.arrivee}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('$_tarif', style: const TextStyle(color: Colors.grey)),
+              Text('$depart → $arrivee', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(_tarif, style: const TextStyle(color: Colors.grey)),
             ],
           ),
           const SizedBox(height: 8),
@@ -173,7 +187,7 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
           TextField(
             controller: _cardNumberController,
             decoration: InputDecoration(
-              labelText: 'Numéro de carte',
+              labelText: 'Numero de carte',
               hintText: '1234 5678 9012 3456',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               prefixIcon: const Icon(Icons.credit_card),
@@ -218,17 +232,16 @@ class _VolPaiementPageState extends State<VolPaiementPage> {
       children: [
         Icon(Icons.lock_outline, size: 14, color: Colors.green),
         const SizedBox(width: 4),
-        const Text('Paiement 100% sécurisé', style: TextStyle(fontSize: 11, color: Colors.green)),
+        const Text('Paiement 100% securise', style: TextStyle(fontSize: 11, color: Colors.green)),
         const SizedBox(width: 16),
         Icon(Icons.verified_user, size: 14, color: Colors.blue),
         const SizedBox(width: 4),
-        const Text('Données cryptées', style: TextStyle(fontSize: 11, color: Colors.blue)),
+        const Text('Donnees cryptees', style: TextStyle(fontSize: 11, color: Colors.blue)),
       ],
     );
   }
 
-  Widget _buildPayButton() {
-    final total = (_prix + 120).round();
+  Widget _buildPayButton(int total) {
     return SizedBox(
       width: double.infinity,
       height: 50,
