@@ -19,54 +19,54 @@ class NetworkService {
   // ==================== POSTS ====================
 
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-    try {
-      final currentUserId = this.currentUserId;
+  try {
+    final currentUserId = this.currentUserId;
+    
+    // Récupérer les IDs des posts masqués
+    final hiddenPosts = await _supabase
+        .from('hidden_posts')
+        .select('post_id')
+        .eq('user_id', currentUserId);
+    
+    final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
+    
+    final response = await _supabase
+        .from('network_posts')
+        .select('''
+          *,
+          profiles!user_id (
+            id,
+            display_name,
+            avatar_url,
+            title
+          ),
+          likes:network_likes!post_id(count),
+          comments:network_comments!post_id(count),
+          user_liked:network_likes!post_id(user_id)
+        ''')
+        .order('created_at', ascending: false)
+        .limit(limit);
+    
+    // ✅ Filtrer côté Dart pour exclure les posts masqués
+    final filteredResponse = (response as List)
+        .where((post) => !hiddenIds.contains(post['id']))
+        .toList();
+    
+    return filteredResponse.map((e) {
+      final userLiked = (e['user_liked'] as List?)?.any((like) => like['user_id'] == currentUserId) ?? false;
       
-      final hiddenPosts = await _supabase
-          .from('hidden_posts')
-          .select('post_id')
-          .eq('user_id', currentUserId);
-      
-      final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
-      
-      var query = _supabase
-          .from('network_posts')
-          .select('''
-            *,
-            profiles!user_id (
-              id,
-              display_name,
-              avatar_url,
-              title
-            ),
-            likes:network_likes!post_id(count),
-            comments:network_comments!post_id(count),
-            user_liked:network_likes!post_id(user_id)
-          ''')
-          .order('created_at', ascending: false)
-          .limit(limit);
-      
-      if (hiddenIds.isNotEmpty) {
-  query = query.filter('id', 'not.in', hiddenIds);
-}
-      
-      final response = await query;
-      
-      return (response as List).map((e) {
-        final userLiked = (e['user_liked'] as List?)?.any((like) => like['user_id'] == currentUserId) ?? false;
-        
-        return NetworkPost.fromJson({
-          ...e,
-          'likes_count': (e['likes'] as List?)?.length ?? 0,
-          'comments_count': (e['comments'] as List?)?.length ?? 0,
-          'is_liked_by_current_user': userLiked,
-        });
-      }).toList();
-    } catch (e) {
-      debugPrint('Error getFeedPosts: $e');
-      return [];
-    }
+      return NetworkPost.fromJson({
+        ...e,
+        'likes_count': (e['likes'] as List?)?.length ?? 0,
+        'comments_count': (e['comments'] as List?)?.length ?? 0,
+        'is_liked_by_current_user': userLiked,
+      });
+    }).toList();
+  } catch (e) {
+    debugPrint('Error getFeedPosts: $e');
+    return [];
   }
+}
 
   Future<NetworkPost?> getPostById(String postId) async {
     try {
