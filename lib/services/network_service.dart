@@ -51,25 +51,34 @@ class NetworkService {
       
       final posts = <NetworkPost>[];
       for (var e in filteredResponse) {
-        final likesCount = await _supabase
+        // Remplacer count() par .length sur la liste
+        final likesData = await _supabase
             .from('post_likes')
-            .select('id', count: CountOption.exact)
+            .select('id')
             .eq('post_id', e['id']);
         
-        final commentsCount = await _supabase
+        final commentsData = await _supabase
             .from('comments')
-            .select('id', count: CountOption.exact)
+            .select('id')
             .eq('post_id', e['id']);
         
-        final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
+        final userLikedData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id'])
+            .eq('user_id', currentUserId);
+        
+        final likesCount = (likesData as List).length;
+        final commentsCount = (commentsData as List).length;
+        final userLiked = (userLikedData as List).isNotEmpty;
         
         posts.add(NetworkPost.fromJson({
           ...e,
           'author_name': e['users']?['display_name'],
           'author_avatar': e['users']?['photo_url'],
           'author_title': e['users']?['profession'],
-          'likes_count': likesCount.count ?? 0,
-          'comments_count': commentsCount.count ?? 0,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
           'is_liked': userLiked,
         }));
       }
@@ -87,9 +96,8 @@ class NetworkService {
           .from('post_likes')
           .select('id')
           .eq('post_id', postId)
-          .eq('user_id', userId)
-          .maybeSingle();
-      return response != null;
+          .eq('user_id', userId);
+      return (response as List).isNotEmpty;
     } catch (e) {
       return false;
     }
@@ -114,25 +122,33 @@ class NetworkService {
           .eq('id', postId)
           .single();
       
-      final likesCount = await _supabase
+      final likesData = await _supabase
           .from('post_likes')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('post_id', postId);
       
-      final commentsCount = await _supabase
+      final commentsData = await _supabase
           .from('comments')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('post_id', postId);
       
-      final userLiked = await _hasUserLikedPost(postId, currentUserId);
+      final userLikedData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId);
+      
+      final likesCount = (likesData as List).length;
+      final commentsCount = (commentsData as List).length;
+      final userLiked = (userLikedData as List).isNotEmpty;
       
       return NetworkPost.fromJson({
         ...response,
         'author_name': response['users']?['display_name'],
         'author_avatar': response['users']?['photo_url'],
         'author_title': response['users']?['profession'],
-        'likes_count': likesCount.count ?? 0,
-        'comments_count': commentsCount.count ?? 0,
+        'likes_count': likesCount,
+        'comments_count': commentsCount,
         'is_liked': userLiked,
       });
     } catch (e) {
@@ -429,22 +445,27 @@ class NetworkService {
       
       final response = await _supabase
           .from('communities')
-          .select('''
-            *,
-            is_member:community_members!community_id(user_id)
-          ''')
+          .select('*')
           .order('members_count', ascending: false)
           .limit(limit);
       
-      return (response as List).map((e) {
-        final isMember = (e['is_member'] as List?)
-            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+      final List<NetworkCommunity> communities = [];
+      for (var e in response as List) {
+        final isMemberData = await _supabase
+            .from('community_members')
+            .select('id')
+            .eq('community_id', e['id'])
+            .eq('user_id', currentUserId);
         
-        return NetworkCommunity.fromJson({
+        final isMember = (isMemberData as List).isNotEmpty;
+        
+        communities.add(NetworkCommunity.fromJson({
           ...e,
           'is_member': isMember,
-        });
-      }).toList();
+        }));
+      }
+      
+      return communities;
     } catch (e) {
       debugPrint('Error getAllCommunities: $e');
       return [];
@@ -457,24 +478,29 @@ class NetworkService {
       
       final response = await _supabase
           .from('communities')
-          .select('''
-            *,
-            is_member:community_members!community_id(user_id)
-          ''')
+          .select('*')
           .order('members_count', ascending: false)
           .limit(limit);
       
-      return (response as List).map((e) {
-        final isMember = (e['is_member'] as List?)
-            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+      final List<NetworkCommunity> communities = [];
+      for (var e in response as List) {
+        final isMemberData = await _supabase
+            .from('community_members')
+            .select('id')
+            .eq('community_id', e['id'])
+            .eq('user_id', currentUserId);
         
-        if (isMember) return null;
+        final isMember = (isMemberData as List).isNotEmpty;
         
-        return NetworkCommunity.fromJson({
-          ...e,
-          'is_member': isMember,
-        });
-      }).where((e) => e != null).cast<NetworkCommunity>().toList();
+        if (!isMember) {
+          communities.add(NetworkCommunity.fromJson({
+            ...e,
+            'is_member': isMember,
+          }));
+        }
+      }
+      
+      return communities;
     } catch (e) {
       debugPrint('Error getSuggestedCommunities: $e');
       return [];
@@ -488,20 +514,24 @@ class NetworkService {
       
       final response = await _supabase
           .from('community_members')
-          .select('''
-            community:communities!community_id (
-              *
-            )
-          ''')
+          .select('community_id')
           .eq('user_id', currentUserId);
       
-      return (response as List).map((e) {
-        final community = e['community'] as Map<String, dynamic>;
-        return NetworkCommunity.fromJson({
-          ...community,
+      final List<NetworkCommunity> communities = [];
+      for (var member in response as List) {
+        final communityData = await _supabase
+            .from('communities')
+            .select('*')
+            .eq('id', member['community_id'])
+            .single();
+        
+        communities.add(NetworkCommunity.fromJson({
+          ...communityData,
           'is_member': true,
-        });
-      }).toList();
+        }));
+      }
+      
+      return communities;
     } catch (e) {
       debugPrint('Error getMyCommunities: $e');
       return [];
@@ -514,15 +544,17 @@ class NetworkService {
       
       final response = await _supabase
           .from('communities')
-          .select('''
-            *,
-            is_member:community_members!community_id(user_id)
-          ''')
+          .select('*')
           .eq('id', communityId)
           .single();
       
-      final isMember = (response['is_member'] as List?)
-          ?.any((member) => member['user_id'] == currentUserId) ?? false;
+      final isMemberData = await _supabase
+          .from('community_members')
+          .select('id')
+          .eq('community_id', communityId)
+          .eq('user_id', currentUserId);
+      
+      final isMember = (isMemberData as List).isNotEmpty;
       
       return NetworkCommunity.fromJson({
         ...response,
@@ -587,10 +619,9 @@ class NetworkService {
         .from('community_members')
         .select('id')
         .eq('community_id', communityId)
-        .eq('user_id', currentUserId)
-        .maybeSingle();
+        .eq('user_id', currentUserId);
     
-    if (existing == null) {
+    if ((existing as List).isEmpty) {
       await _supabase.from('community_members').insert({
         'community_id': communityId,
         'user_id': currentUserId,
@@ -662,10 +693,9 @@ class NetworkService {
         .from('community_members')
         .select('id')
         .eq('community_id', communityId)
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
     
-    if (existing == null) {
+    if ((existing as List).isEmpty) {
       await _supabase.from('community_members').insert({
         'community_id': communityId,
         'user_id': userId,
@@ -725,10 +755,10 @@ class NetworkService {
           .from('community_members')
           .select('role')
           .eq('community_id', communityId)
-          .eq('user_id', userId)
-          .maybeSingle();
+          .eq('user_id', userId);
       
-      return response != null && response['role'] == 'admin';
+      final list = response as List;
+      return list.isNotEmpty && list[0]['role'] == 'admin';
     } catch (e) {
       return false;
     }
@@ -740,10 +770,9 @@ class NetworkService {
           .from('community_members')
           .select('id')
           .eq('community_id', communityId)
-          .eq('user_id', userId)
-          .maybeSingle();
+          .eq('user_id', userId);
       
-      return response != null;
+      return (response as List).isNotEmpty;
     } catch (e) {
       return false;
     }
@@ -798,25 +827,33 @@ class NetworkService {
       
       final posts = <NetworkPost>[];
       for (var e in response as List) {
-        final likesCount = await _supabase
+        final likesData = await _supabase
             .from('post_likes')
-            .select('id', count: CountOption.exact)
+            .select('id')
             .eq('post_id', e['id']);
         
-        final commentsCount = await _supabase
+        final commentsData = await _supabase
             .from('comments')
-            .select('id', count: CountOption.exact)
+            .select('id')
             .eq('post_id', e['id']);
         
-        final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
+        final userLikedData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id'])
+            .eq('user_id', currentUserId);
+        
+        final likesCount = (likesData as List).length;
+        final commentsCount = (commentsData as List).length;
+        final userLiked = (userLikedData as List).isNotEmpty;
         
         posts.add(NetworkPost.fromJson({
           ...e,
           'author_name': e['users']?['display_name'],
           'author_avatar': e['users']?['photo_url'],
           'author_title': e['users']?['profession'],
-          'likes_count': likesCount.count ?? 0,
-          'comments_count': commentsCount.count ?? 0,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
           'is_liked': userLiked,
         }));
       }
@@ -848,19 +885,33 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       if (currentUserId.isEmpty) return [];
       
+      // Version simplifiée sans RPC
       final response = await _supabase
-          .rpc('get_suggested_connections', params: {
-            'p_user_id': currentUserId,
-            'limit_val': limit,
-          });
+          .from('users')
+          .select('id, display_name, photo_url, profession')
+          .neq('id', currentUserId)
+          .limit(limit);
       
-      return (response as List).map((e) => NetworkConnection(
-        id: e['id'],
-        name: e['display_name'] ?? 'Utilisateur',
-        avatar: e['photo_url'],
-        title: e['profession'] ?? 'Membre THIX',
-        mutualConnections: e['mutual_connections'] ?? 0,
-      )).toList();
+      final List<NetworkConnection> suggestions = [];
+      for (var user in response as List) {
+        final mutualData = await _supabase
+            .from('connections')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .eq('connection_id', user['id']);
+        
+        final mutualCount = (mutualData as List).length;
+        
+        suggestions.add(NetworkConnection(
+          id: user['id'],
+          name: user['display_name'] ?? 'Utilisateur',
+          avatar: user['photo_url'],
+          title: user['profession'] ?? 'Membre THIX',
+          mutualConnections: mutualCount,
+        ));
+      }
+      
+      return suggestions;
     } catch (e) {
       debugPrint('Error getSuggestedConnections: $e');
       return [];
@@ -913,10 +964,13 @@ class NetworkService {
           .from('connection_requests')
           .select('status')
           .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
-          .or('sender_id.eq.$userId,receiver_id.eq.$userId')
-          .maybeSingle();
+          .or('sender_id.eq.$userId,receiver_id.eq.$userId');
       
-      return response?['status'];
+      final list = response as List;
+      if (list.isNotEmpty) {
+        return list[0]['status'];
+      }
+      return null;
     } catch (e) {
       debugPrint('Error getConnectionStatus: $e');
       return null;
@@ -933,10 +987,9 @@ class NetworkService {
         .from('blocked_users')
         .select('id')
         .eq('user_id', currentUserId)
-        .eq('blocked_user_id', userIdToBlock)
-        .maybeSingle();
+        .eq('blocked_user_id', userIdToBlock);
     
-    if (existing == null) {
+    if ((existing as List).isEmpty) {
       await _supabase.from('blocked_users').insert({
         'user_id': currentUserId,
         'blocked_user_id': userIdToBlock,
@@ -1031,10 +1084,9 @@ class NetworkService {
         .from('story_views')
         .select('id')
         .eq('story_id', storyId)
-        .eq('user_id', currentUserId)
-        .maybeSingle();
+        .eq('user_id', currentUserId);
     
-    if (existing == null) {
+    if ((existing as List).isEmpty) {
       await _supabase.from('story_views').insert({
         'story_id': storyId,
         'user_id': currentUserId,
@@ -1062,23 +1114,20 @@ class NetworkService {
       
       if (response == null) return null;
       
-      // Compter les posts
-      final postsCount = await _supabase
+      final postsData = await _supabase
           .from('posts')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId);
       
-      // Compter les followers
-      final followersCount = await _supabase
+      final followersData = await _supabase
           .from('connections')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('connection_id', userId)
           .eq('status', 'accepted');
       
-      // Compter les following
-      final followingCount = await _supabase
+      final followingData = await _supabase
           .from('connections')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', userId)
           .eq('status', 'accepted');
       
@@ -1089,9 +1138,9 @@ class NetworkService {
         'profession': response['profession'],
         'bio': response['bio'],
         'skills': response['skills'] ?? [],
-        'posts_count': postsCount.count ?? 0,
-        'followers_count': followersCount.count ?? 0,
-        'following_count': followingCount.count ?? 0,
+        'posts_count': (postsData as List).length,
+        'followers_count': (followersData as List).length,
+        'following_count': (followingData as List).length,
       };
     } catch (e) {
       debugPrint('Error getUserProfile: $e');
@@ -1291,11 +1340,11 @@ class NetworkService {
       
       final response = await _supabase
           .from('notifications')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('user_id', currentUserId)
           .eq('is_read', false);
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       debugPrint('Error getUnreadNotificationsCount: $e');
       return 0;
@@ -1309,11 +1358,11 @@ class NetworkService {
       
       final response = await _supabase
           .from('messages')
-          .select('id', count: CountOption.exact)
+          .select('id')
           .eq('receiver_id', currentUserId)
           .eq('is_read', false);
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       debugPrint('Error getUnreadMessagesCount: $e');
       return 0;
@@ -1361,23 +1410,28 @@ class NetworkService {
       
       final response = await _supabase
           .from('communities')
-          .select('''
-            *,
-            is_member:community_members!community_id(user_id)
-          ''')
+          .select('*')
           .ilike('name', '%$query%')
           .order('members_count', ascending: false)
           .limit(20);
       
-      return (response as List).map((e) {
-        final isMember = (e['is_member'] as List?)
-            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+      final List<NetworkCommunity> communities = [];
+      for (var e in response as List) {
+        final isMemberData = await _supabase
+            .from('community_members')
+            .select('id')
+            .eq('community_id', e['id'])
+            .eq('user_id', currentUserId);
         
-        return NetworkCommunity.fromJson({
+        final isMember = (isMemberData as List).isNotEmpty;
+        
+        communities.add(NetworkCommunity.fromJson({
           ...e,
           'is_member': isMember,
-        });
-      }).toList();
+        }));
+      }
+      
+      return communities;
     } catch (e) {
       debugPrint('Error searchCommunities: $e');
       return [];
@@ -1452,10 +1506,9 @@ class NetworkService {
         .from('event_interests')
         .select('id')
         .eq('event_id', eventId)
-        .eq('user_id', currentUserId)
-        .maybeSingle();
+        .eq('user_id', currentUserId);
     
-    if (existing == null) {
+    if ((existing as List).isEmpty) {
       await _supabase.from('event_interests').insert({
         'event_id': eventId,
         'user_id': currentUserId,
@@ -1479,10 +1532,9 @@ class NetworkService {
           .from('event_interests')
           .select('id')
           .eq('event_id', eventId)
-          .eq('user_id', currentUserId)
-          .maybeSingle();
+          .eq('user_id', currentUserId);
       
-      return response != null;
+      return (response as List).isNotEmpty;
     } catch (e) {
       debugPrint('Error hasEventInterest: $e');
       return false;
