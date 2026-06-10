@@ -391,25 +391,25 @@ class _PostDetailPageState extends State<PostDetailPage> {
           
           const SizedBox(height: 12),
           
-          // Actions
+          // Actions - CORRECTION : utilisation de likes, comments, shares
           Row(
             children: [
               _buildActionButton(
                 icon: _post!.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                label: '${_post!.likesCount}',
+                label: '${_post!.likes}',
                 color: _post!.isLikedByCurrentUser ? Colors.red : null,
                 onTap: _toggleLike,
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.comment_outlined,
-                label: '${_post!.commentsCount}',
+                label: '${_post!.comments}',
                 onTap: () {},
               ),
               const SizedBox(width: 24),
               _buildActionButton(
                 icon: Icons.share_outlined,
-                label: '${_post!.sharesCount ?? 0}',
+                label: '${_post!.shares}',
                 onTap: () {},
               ),
             ],
