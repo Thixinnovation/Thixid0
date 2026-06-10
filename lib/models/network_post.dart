@@ -35,6 +35,7 @@ class NetworkPost {
       : id = '',
         userId = '',
         userName = '',
+        userAvatar = null,
         userTitle = '',
         content = '',
         images = const [],
