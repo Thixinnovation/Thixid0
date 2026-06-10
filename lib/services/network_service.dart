@@ -7,6 +7,7 @@ import '../models/network_community.dart';
 import '../models/network_message.dart';
 import '../models/network_notification.dart';
 import '../models/network_story.dart';
+import 'package:flutter/material.dart';
 
 class NetworkService {
   final SupabaseClient _supabase;
@@ -46,8 +47,8 @@ class NetworkService {
           .limit(limit);
       
       if (hiddenIds.isNotEmpty) {
-        query = query.filter('id', 'not.in', hiddenIds);
-      }
+  query = query.filter('id', 'not.in', hiddenIds);
+}
       
       final response = await query;
       
