@@ -128,4 +128,122 @@ class InvestmentService {
 
       return InvestmentResult(
         success: true,
-        message: 'Investissement de ${amount.toString
+        message: 'Investissement de ${amount.toStringAsFixed(0)} FCFA effectué',
+        investmentId: investmentId,
+        amount: amount,
+        projectedReturn: projectedReturn,
+        returnRate: investment.returnRate,
+      );
+    } catch (e) {
+      return InvestmentResult(
+        success: false,
+        message: 'Erreur lors de l\'investissement',
+        errorCode: 'INVESTMENT_ERROR',
+        details: e.toString(),
+      );
+    }
+  }
+
+  Future<Investment?> _getInvestmentById(String id) async {
+    final investments = await getAvailableInvestments();
+    try {
+      return investments.firstWhere((i) => i.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _submitInvestment(String id, double amount) async {
+    await Future.delayed(const Duration(seconds: 1));
+    // Appel API
+  }
+}
+
+enum RiskLevel { veryLow, low, medium, high }
+
+extension RiskLevelExtension on RiskLevel {
+  String get label {
+    switch (this) {
+      case RiskLevel.veryLow:
+        return 'Très faible';
+      case RiskLevel.low:
+        return 'Faible';
+      case RiskLevel.medium:
+        return 'Moyen';
+      case RiskLevel.high:
+        return 'Élevé';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case RiskLevel.veryLow:
+        return Colors.green;
+      case RiskLevel.low:
+        return Colors.lightGreen;
+      case RiskLevel.medium:
+        return Colors.orange;
+      case RiskLevel.high:
+        return Colors.red;
+    }
+  }
+}
+
+class Investment {
+  final String id;
+  final String name;
+  final String description;
+  final double returnRate;
+  final RiskLevel risk;
+  final double minAmount;
+  final double maxAmount;
+  final int durationDays;
+  final IconData icon;
+  final int color;
+  final double? investedAmount;
+  final double? currentValue;
+  final DateTime? startDate;
+
+  Investment({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.returnRate,
+    required this.risk,
+    required this.minAmount,
+    required this.maxAmount,
+    required this.durationDays,
+    required this.icon,
+    required this.color,
+    this.investedAmount,
+    this.currentValue,
+    this.startDate,
+  });
+
+  double get profit => (currentValue ?? 0) - (investedAmount ?? 0);
+  double get profitPercentage => investedAmount != null && investedAmount! > 0 
+      ? (profit / investedAmount!) * 100 
+      : 0;
+}
+
+class InvestmentResult {
+  final bool success;
+  final String message;
+  final String? errorCode;
+  final String? investmentId;
+  final double? amount;
+  final double? projectedReturn;
+  final double? returnRate;
+  final String? details;
+
+  InvestmentResult({
+    required this.success,
+    required this.message,
+    this.errorCode,
+    this.investmentId,
+    this.amount,
+    this.projectedReturn,
+    this.returnRate,
+    this.details,
+  });
+}
