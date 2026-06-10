@@ -16,6 +16,7 @@ class TransactionItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = transaction.type == TransactionType.cashback || 
                        transaction.type == TransactionType.credit ||
+                       transaction.type == TransactionType.deposit ||
                        transaction.amount > 0;
     
     return Card(
@@ -25,15 +26,15 @@ class TransactionItem extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
-          backgroundColor: transaction.type.iconColor.withOpacity(0.1),
-          child: Icon(transaction.type.icon, color: transaction.type.iconColor, size: 22),
+          backgroundColor: _getIconColor(transaction.type).withOpacity(0.1),
+          child: Icon(_getIcon(transaction.type), color: _getIconColor(transaction.type), size: 22),
         ),
         title: Text(
           transaction.merchant,
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         subtitle: Text(
-          _formatDate(transaction.date),
+          transaction.formattedDate,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
         trailing: Column(
@@ -59,26 +60,33 @@ class TransactionItem extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    if (difference.inDays == 0) {
-      return "Aujourd'hui";
-    } else if (difference.inDays == 1) {
-      return 'Hier';
-    } else if (difference.inDays < 7) {
-      return 'Il y a ${difference.inDays} jours';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
+  IconData _getIcon(TransactionType type) {
+    switch (type) {
+      case TransactionType.payment:
+        return Icons.shopping_cart;
+      case TransactionType.transfer:
+        return Icons.swap_horiz;
+      case TransactionType.cashback:
+        return Icons.percent;
+      case TransactionType.credit:
+        return Icons.bolt;
+      case TransactionType.savings:
+        return Icons.savings;
+      case TransactionType.investment:
+        return Icons.trending_up;
+      case TransactionType.insurance:
+        return Icons.shield;
+      case TransactionType.tontine:
+        return Icons.group;
+      case TransactionType.withdrawal:
+        return Icons.account_balance_wallet;
+      case TransactionType.deposit:
+        return Icons.add_card;
     }
   }
-}
 
-// Extension pour les couleurs des types de transaction
-extension TransactionTypeColor on TransactionType {
-  Color get iconColor {
-    switch (this) {
+  Color _getIconColor(TransactionType type) {
+    switch (type) {
       case TransactionType.payment:
         return Colors.red;
       case TransactionType.transfer:
@@ -89,6 +97,16 @@ extension TransactionTypeColor on TransactionType {
         return const Color(0xFFD4AF37);
       case TransactionType.savings:
         return Colors.green;
+      case TransactionType.investment:
+        return Colors.purple;
+      case TransactionType.insurance:
+        return Colors.teal;
+      case TransactionType.tontine:
+        return Colors.indigo;
+      case TransactionType.withdrawal:
+        return Colors.deepOrange;
+      case TransactionType.deposit:
+        return Colors.lightGreen;
     }
   }
 }
