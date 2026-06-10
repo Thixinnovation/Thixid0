@@ -1,10 +1,10 @@
 // lib/services/qr_payment_service.dart
 import 'dart:async';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:thix_id/services/payment_service.dart';
+import 'paiement_service.dart';  // ← Correction : paiement_service.dart (pas payment_service.dart)
 
 class QrPaymentService {
-  final PaymentService _paymentService = PaymentService();
+  final PaiementService _paymentService = PaiementService();  // ← Correction : PaiementService
 
   Future<QrScanResult> scanQrCode(BarcodeCapture capture) async {
     try {
@@ -62,14 +62,6 @@ class QrPaymentService {
           'reference': parts.length > 4 ? parts[4] : null,
         };
       }
-    }
-    
-    // Format 2: JSON
-    try {
-      // Si c'était du JSON, on parserait ici
-      // final json = jsonDecode(qrData);
-    } catch (e) {
-      // Pas du JSON
     }
     
     return null;
