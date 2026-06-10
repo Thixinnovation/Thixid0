@@ -6,6 +6,7 @@ import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PostCard extends StatefulWidget {
   final NetworkPost post;
@@ -13,6 +14,7 @@ class PostCard extends StatefulWidget {
   final VoidCallback onComment;
   final VoidCallback onTap;
   final VoidCallback onShare;
+  final VoidCallback? onRefresh;
 
   const PostCard({
     super.key,
@@ -21,6 +23,7 @@ class PostCard extends StatefulWidget {
     required this.onComment,
     required this.onTap,
     required this.onShare,
+    this.onRefresh,
   });
 
   @override
@@ -29,12 +32,13 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   late NetworkService _networkService;
-  bool _isMenuOpen = false;
+  late NetworkPost _post;
 
   @override
   void initState() {
     super.initState();
     _networkService = NetworkService(Supabase.instance.client);
+    _post = widget.post;
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -73,11 +77,12 @@ class _PostCardState extends State<PostCard> {
     
     if (confirm == true) {
       try {
-        await _networkService.deletePost(widget.post.id);
+        await _networkService.deletePost(_post.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publication supprimée'), backgroundColor: Colors.green),
           );
+          widget.onRefresh?.call();
           widget.onLike();
         }
       } catch (e) {
@@ -92,12 +97,12 @@ class _PostCardState extends State<PostCard> {
 
   Future<void> _hidePost() async {
     try {
-      await _networkService.hidePost(widget.post.id);
+      await _networkService.hidePost(_post.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
         );
-        widget.onLike();
+        widget.onRefresh?.call();
       }
     } catch (e) {
       if (mounted) {
@@ -127,7 +132,7 @@ class _PostCardState extends State<PostCard> {
     
     if (reason != null) {
       try {
-        await _networkService.reportPost(widget.post.id, reason);
+        await _networkService.reportPost(_post.id, reason);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
@@ -144,7 +149,7 @@ class _PostCardState extends State<PostCard> {
   }
 
   Future<void> _editPost() async {
-    final controller = TextEditingController(text: widget.post.content);
+    final controller = TextEditingController(text: _post.content);
     final newContent = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -168,14 +173,17 @@ class _PostCardState extends State<PostCard> {
       ),
     );
     
-    if (newContent != null && newContent != widget.post.content) {
+    if (newContent != null && newContent != _post.content) {
       try {
-        await _networkService.updatePost(widget.post.id, newContent);
+        await _networkService.updatePost(_post.id, newContent);
+        setState(() {
+          _post = _post.copyWith(content: newContent);
+        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publication modifiée'), backgroundColor: Colors.green),
           );
-          widget.onLike();
+          widget.onRefresh?.call();
         }
       } catch (e) {
         if (mounted) {
@@ -187,81 +195,15 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  void _showMenu(BuildContext context) {
-    final auth = Provider.of<AuthController>(context, listen: false);
-    final isOwner = auth.currentUser?.id == widget.post.userId;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isOwner) ...[
-              ListTile(
-                leading: const Icon(Icons.edit, color: Colors.blue),
-                title: const Text('Modifier'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _editPost();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deletePost();
-                },
-              ),
-              const Divider(),
-            ],
-            ListTile(
-              leading: const Icon(Icons.visibility_off, color: Colors.orange),
-              title: const Text('Masquer'),
-              onTap: () {
-                Navigator.pop(context);
-                _hidePost();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.flag, color: Colors.red),
-              title: const Text('Signaler', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _reportPost();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share, color: Colors.green),
-              title: const Text('Partager'),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onShare();
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.close, color: Colors.grey),
-              title: const Text('Annuler'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
-    final isOwner = auth.currentUser?.id == widget.post.userId;
-    final hasUserTitle = widget.post.userTitle != null && widget.post.userTitle!.isNotEmpty;
-    final hasImages = widget.post.images.isNotEmpty;
+    final isOwner = auth.currentUser?.id == _post.userId;
+    final hasUserTitle = _post.authorTitle != null && _post.authorTitle!.isNotEmpty;
+    final hasImage = _post.mediaUrl != null && _post.mediaUrl!.isNotEmpty;
 
     return Card(
-      margin: EdgeInsets.zero,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
@@ -277,11 +219,11 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundImage: widget.post.userAvatar != null && widget.post.userAvatar!.isNotEmpty
-                        ? NetworkImage(widget.post.userAvatar!)
+                    backgroundImage: _post.authorAvatar != null && _post.authorAvatar!.isNotEmpty
+                        ? CachedNetworkImageProvider(_post.authorAvatar!)
                         : null,
-                    child: widget.post.userAvatar == null || widget.post.userAvatar!.isEmpty
-                        ? const Icon(Icons.person)
+                    child: _post.authorAvatar == null || _post.authorAvatar!.isEmpty
+                        ? const Icon(Icons.person, size: 20)
                         : null,
                   ),
                   const SizedBox(width: 10),
@@ -290,14 +232,14 @@ class _PostCardState extends State<PostCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.post.userName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          _post.authorName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (hasUserTitle)
                           Text(
-                            widget.post.userTitle!,
+                            _post.authorTitle!,
                             style: const TextStyle(fontSize: 11, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -306,7 +248,7 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   Text(
-                    _getTimeAgo(widget.post.createdAt),
+                    _getTimeAgo(_post.createdAt),
                     style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                   const SizedBox(width: 8),
@@ -323,7 +265,7 @@ class _PostCardState extends State<PostCard> {
                     },
                     itemBuilder: (context) => [
                       if (isOwner) const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Modifier')])),
-                      if (isOwner) const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer')])),
+                      if (isOwner) const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: Colors.red))])),
                       const PopupMenuItem(value: 'hide', child: Row(children: [Icon(Icons.visibility_off, size: 18), SizedBox(width: 8), Text('Masquer')])),
                       const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, size: 18), SizedBox(width: 8), Text('Signaler')])),
                       const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, size: 18), SizedBox(width: 8), Text('Partager')])),
@@ -334,69 +276,67 @@ class _PostCardState extends State<PostCard> {
               const SizedBox(height: 12),
 
               // Contenu
-              if (widget.post.content.isNotEmpty)
+              if (_post.content != null && _post.content!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    widget.post.content,
-                    style: const TextStyle(fontSize: 14),
+                    _post.content!,
+                    style: const TextStyle(fontSize: 14, height: 1.4),
                   ),
                 ),
               
-              // Images
-              if (hasImages)
-                SizedBox(
-                  height: 200,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: widget.post.images.length,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          widget.post.images[index],
-                          width: 150,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              width: 150,
-                              height: 200,
-                              color: Colors.grey.shade200,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 150,
-                            height: 200,
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.broken_image, color: Colors.grey),
-                          ),
-                        ),
-                      ),
+              // Image unique
+              if (hasImage)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: _post.mediaUrl!,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      height: 200,
+                      color: Colors.grey.shade200,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      height: 200,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                     ),
                   ),
                 ),
-              const SizedBox(height: 12),
+              
+              if (hasImage) const SizedBox(height: 12),
 
               // Actions
               Row(
                 children: [
                   InkWell(
-                    onTap: widget.onLike,
+                    onTap: () {
+                      widget.onLike();
+                      setState(() {
+                        if (_post.isLikedByCurrentUser) {
+                          _post = _post.copyWith(
+                            likesCount: _post.likesCount - 1,
+                            isLikedByCurrentUser: false,
+                          );
+                        } else {
+                          _post = _post.copyWith(
+                            likesCount: _post.likesCount + 1,
+                            isLikedByCurrentUser: true,
+                          );
+                        }
+                      });
+                    },
                     child: Row(
                       children: [
                         Icon(
-                          widget.post.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                          color: widget.post.isLikedByCurrentUser ? Colors.red : Colors.grey,
+                          _post.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
+                          color: _post.isLikedByCurrentUser ? Colors.red : Colors.grey,
                           size: 20,
                         ),
                         const SizedBox(width: 4),
-                        Text('${widget.post.likes}', style: const TextStyle(fontSize: 12)),
+                        Text(_formatCount(_post.likesCount), style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -407,7 +347,7 @@ class _PostCardState extends State<PostCard> {
                       children: [
                         const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
                         const SizedBox(width: 4),
-                        Text('${widget.post.comments}', style: const TextStyle(fontSize: 12)),
+                        Text(_formatCount(_post.commentsCount), style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -429,5 +369,14 @@ class _PostCardState extends State<PostCard> {
         ),
       ),
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return count.toString();
   }
 }
