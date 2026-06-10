@@ -1,8 +1,6 @@
 // lib/presentation/thix_reservation/pages/hotel_recherche.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/hotel_service.dart';
-import 'hotel_liste.dart';
 
 class HotelRecherchePage extends StatefulWidget {
   const HotelRecherchePage({super.key});
@@ -12,9 +10,8 @@ class HotelRecherchePage extends StatefulWidget {
 }
 
 class _HotelRecherchePageState extends State<HotelRecherchePage> {
-  final HotelService _hotelService = HotelService();
   bool _isLoading = false;
-  String _destination = 'Abidjan, Côte d\'Ivoire';
+  String _destination = 'Abidjan, Cote d\'Ivoire';
   DateTime _arrivee = DateTime.now().add(const Duration(days: 7));
   DateTime _depart = DateTime.now().add(const Duration(days: 9));
   int _chambres = 1;
@@ -22,15 +19,16 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
 
   Future<void> _rechercherHotels() async {
     setState(() => _isLoading = true);
-    final hotels = await _hotelService.rechercherHotels(
-      destination: _destination,
-      arrivee: _arrivee,
-      depart: _depart,
-      chambres: _chambres,
-      adultes: _adultes,
-    );
+    await Future.delayed(const Duration(seconds: 1));
+    
+    final hotels = [
+      {'id': '1', 'nom': 'Azalai Hotel Abidjan', 'ville': 'Abidjan', 'prix': 68000, 'prixOriginal': 85600, 'note': 4.5, 'promo': '-20%'},
+      {'id': '2', 'nom': 'Onomo Hotel Dakar', 'ville': 'Dakar', 'prix': 63750, 'prixOriginal': 75000, 'note': 4.2, 'promo': '-15%'},
+      {'id': '3', 'nom': 'Pullman Hotel Paris', 'ville': 'Paris', 'prix': 198, 'prixOriginal': 220, 'note': 4.6, 'promo': '-10%', 'devise': 'EUR'},
+    ];
+    
     setState(() => _isLoading = false);
-    if (context.mounted) {
+    if (mounted) {
       context.push('/reservation/hotels/liste', extra: hotels);
     }
   }
@@ -40,7 +38,7 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Réserver un hôtel'),
+        title: const Text('Reserver un hotel'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -83,7 +81,7 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
           DropdownButtonFormField<String>(
             value: _destination,
             decoration: const InputDecoration(border: InputBorder.none),
-            items: ['Abidjan, Côte d\'Ivoire', 'Dakar, Sénégal', 'Paris, France', 'Dubai, UAE']
+            items: ['Abidjan, Cote d\'Ivoire', 'Dakar, Senegal', 'Paris, France', 'Dubai, UAE']
                 .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                 .toList(),
             onChanged: (val) => setState(() => _destination = val!),
@@ -96,9 +94,9 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
   Widget _buildDateRow() {
     return Row(
       children: [
-        Expanded(child: _buildDateField('Arrivée', _arrivee, (date) => setState(() => _arrivee = date))),
+        Expanded(child: _buildDateField('Arrivee', _arrivee, (date) => setState(() => _arrivee = date))),
         const SizedBox(width: 12),
-        Expanded(child: _buildDateField('Départ', _depart, (date) => setState(() => _depart = date))),
+        Expanded(child: _buildDateField('Depart', _depart, (date) => setState(() => _depart = date))),
       ],
     );
   }
@@ -206,16 +204,16 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
 
   Widget _buildCategoriesPopulaires() {
     final categories = [
-      {'icon': '🏨', 'label': 'Hôtels de luxe'},
-      {'icon': '💰', 'label': 'Hôtels pas chers'},
+      {'icon': '🏨', 'label': 'Hotels de luxe'},
+      {'icon': '💰', 'label': 'Hotels pas chers'},
       {'icon': '🏖️', 'label': 'Bord de mer'},
-      {'icon': '💼', 'label': 'Hôtels d\'affaires'},
-      {'icon': '❤️', 'label': 'Hôtels romantiques'},
+      {'icon': '💼', 'label': 'Hotels d\'affaires'},
+      {'icon': '❤️', 'label': 'Hotels romantiques'},
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Catégories populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Categories populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         SizedBox(
           height: 80,
@@ -249,9 +247,9 @@ class _HotelRecherchePageState extends State<HotelRecherchePage> {
 
   Widget _buildOffresMoment() {
     final offres = [
-      {'nom': 'Azalai Hôtel Abidjan', 'prixOriginal': '85.600', 'prixPromo': '68.000', 'note': '4.5', 'ville': 'Abidjan'},
-      {'nom': 'Onomo Hôtel Dakar', 'prixOriginal': '75.000', 'prixPromo': '63.750', 'note': '4.2', 'ville': 'Dakar'},
-      {'nom': 'Pullman Hôtel Paris', 'prixOriginal': '220', 'prixPromo': '198', 'note': '4.6', 'ville': 'Paris', 'devise': '€'},
+      {'nom': 'Azalai Hotel Abidjan', 'prixOriginal': '85.600', 'prixPromo': '68.000', 'note': '4.5', 'ville': 'Abidjan'},
+      {'nom': 'Onomo Hotel Dakar', 'prixOriginal': '75.000', 'prixPromo': '63.750', 'note': '4.2', 'ville': 'Dakar'},
+      {'nom': 'Pullman Hotel Paris', 'prixOriginal': '220', 'prixPromo': '198', 'note': '4.6', 'ville': 'Paris', 'devise': '€'},
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
