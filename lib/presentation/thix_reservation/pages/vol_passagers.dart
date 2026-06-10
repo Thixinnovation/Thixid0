@@ -1,7 +1,6 @@
 // lib/presentation/thix_reservation/pages/vol_passagers.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../models/vol.dart';
 
 class VolPassagersPage extends StatefulWidget {
   const VolPassagersPage({super.key});
@@ -11,7 +10,7 @@ class VolPassagersPage extends StatefulWidget {
 }
 
 class _VolPassagersPageState extends State<VolPassagersPage> {
-  late Vol _vol;
+  late Map<String, dynamic> _vol;
   late String _tarif;
   late double _prix;
   final Map<String, TextEditingController> _controllers = {};
@@ -19,10 +18,12 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final data = ModalRoute.of(context)?.settings.arguments as Map;
-    _vol = data['vol'];
-    _tarif = data['tarif'];
-    _prix = data['prix'];
+    final data = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (data != null) {
+      _vol = data['vol'] as Map<String, dynamic>;
+      _tarif = data['tarif'] as String;
+      _prix = data['prix'] as double;
+    }
     _initControllers();
   }
 
@@ -46,6 +47,17 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_vol == null) {
+      return const Scaffold(
+        body: Center(child: Text('Aucune donnee de vol')),
+      );
+    }
+
+    final compagnie = _vol['compagnie'] as String;
+    final codeVol = _vol['codeVol'] as String;
+    final depart = _vol['depart'] as String;
+    final arrivee = _vol['arrivee'] as String;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -59,7 +71,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildFlightSummary(),
+            _buildFlightSummary(compagnie, codeVol, depart, arrivee),
             const SizedBox(height: 20),
             const Text('Passager 1 (Adulte)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
@@ -78,7 +90,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
     );
   }
 
-  Widget _buildFlightSummary() {
+  Widget _buildFlightSummary(String compagnie, String codeVol, String depart, String arrivee) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -101,8 +113,8 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${_vol.depart} → ${_vol.arrivee}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${_vol.compagnie} • ${_vol.codeVol} • $_tarif', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('$depart → $arrivee', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('$compagnie • $codeVol • $_tarif', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
@@ -123,9 +135,9 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
         children: [
           Row(
             children: [
-              Expanded(child: _buildTextField('Civilité', 'M.', _controllers['civilite']!, isEnabled: false)),
+              Expanded(child: _buildTextField('Civilite', 'M.', _controllers['civilite']!, isEnabled: false)),
               const SizedBox(width: 12),
-              Expanded(child: _buildTextField('Prénom', 'Jean', _controllers['prenom']!)),
+              Expanded(child: _buildTextField('Prenom', 'Jean', _controllers['prenom']!)),
             ],
           ),
           const SizedBox(height: 12),
@@ -133,9 +145,9 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
           const SizedBox(height: 12),
           _buildTextField('Date de naissance', '12/05/1990', _controllers['dateNaissance']!, isDate: true),
           const SizedBox(height: 12),
-          _buildTextField('Nationalité', 'Congolaise', _controllers['nationalite']!),
+          _buildTextField('Nationalite', 'Congolaise', _controllers['nationalite']!),
           const SizedBox(height: 12),
-          _buildTextField('Numéro de passeport', 'A1234567', _controllers['passeport']!),
+          _buildTextField('Numero de passeport', 'A1234567', _controllers['passeport']!),
           const SizedBox(height: 12),
           TextButton.icon(
             onPressed: () {},
@@ -147,7 +159,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
     );
   }
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool isDate = false, bool isEnabled = true}) {
+  Widget _buildTextField(String label, String hint, TextEditingController? controller, {bool isDate = false, bool isEnabled = true}) {
     return TextField(
       controller: controller,
       enabled: isEnabled,
@@ -173,8 +185,8 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
           const Text('Services additionnels', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           ListTile(
-            title: const Text('Bagage supplémentaire'),
-            subtitle: const Text('À partir de 30 USD'),
+            title: const Text('Bagage supplementaire'),
+            subtitle: const Text('A partir de 30 USD'),
             trailing: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
@@ -183,8 +195,8 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
           ),
           const Divider(),
           ListTile(
-            title: const Text('Choix du siège'),
-            subtitle: const Text('À partir de 15 USD'),
+            title: const Text('Choix du siege'),
+            subtitle: const Text('A partir de 15 USD'),
             trailing: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
@@ -206,11 +218,11 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Coordonnées', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Coordonnees', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _buildTextField('Email', 'jean.kabasele@email.com', _controllers['email']!),
           const SizedBox(height: 12),
-          _buildTextField('Téléphone', '+243 97 123 45 67', _controllers['telephone']!),
+          _buildTextField('Telephone', '+243 97 123 45 67', _controllers['telephone']!),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -224,6 +236,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
   }
 
   Widget _buildSummary() {
+    final total = (_prix + 120).round();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -251,8 +264,8 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total à payer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('${(_prix + 120).round()} USD', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
+              const Text('Total a payer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('$total USD', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
             ],
           ),
         ],
@@ -261,6 +274,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
   }
 
   Widget _buildContinueButton() {
+    final total = (_prix + 120).round();
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -271,7 +285,7 @@ class _VolPassagersPageState extends State<VolPassagersPage> {
           foregroundColor: const Color(0xFF0B1B3D),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         ),
-        child: const Text('Continuer vers le paiement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        child: Text('Continuer vers le paiement - $total USD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }
