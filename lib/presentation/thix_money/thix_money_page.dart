@@ -1,12 +1,31 @@
+// lib/presentation/thix_money/thix_money_page.dart
 import 'package:flutter/material.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_scanner.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_credit.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_transactions.dart';
-import 'package:thix_id/presentation/thix_money/widgets/service_card.dart';
-import 'package:thix_id/presentation/thix_money/widgets/transaction_tile.dart';
-import 'package:thix_id/presentation/thix_money/widgets/investment_tile.dart';
-import 'package:thix_id/presentation/thix_money/widgets/tontine_card.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_services.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_profile.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_transfer.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_deposit.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_withdraw.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_notifications.dart';
+import 'package:thix_id/presentation/thix_money/widgets/money_header.dart';
+import 'package:thix_id/presentation/thix_money/widgets/money_balance_card.dart';
+import 'package:thix_id/presentation/thix_money/widgets/quick_actions.dart';
+import 'package:thix_id/presentation/thix_money/widgets/services_grid.dart';
+import 'package:thix_id/presentation/thix_money/widgets/credit_card.dart';
+import 'package:thix_id/presentation/thix_money/widgets/ai_advice_card.dart';
+import 'package:thix_id/presentation/thix_money/widgets/cashback_card.dart';
+import 'package:thix_id/presentation/thix_money/widgets/tontine_list.dart';
+import 'package:thix_id/presentation/thix_money/widgets/recent_transactions.dart';
+import 'package:thix_id/presentation/thix_money/widgets/virtual_card_widget.dart';
+import 'package:thix_id/presentation/thix_money/widgets/promo_banner.dart';
+import 'package:thix_id/presentation/thix_money/widgets/section_title.dart';
+import 'package:thix_id/presentation/thix_money/widgets/bottom_nav_bar.dart';
 import 'package:thix_id/services/wallet_service.dart';
+import 'package:thix_id/services/notification_service.dart';
+import 'package:thix_id/models/transaction.dart';
+import 'package:thix_id/models/tontine.dart';
 
 class ThixMoneyPage extends StatefulWidget {
   const ThixMoneyPage({super.key});
@@ -18,45 +37,99 @@ class ThixMoneyPage extends StatefulWidget {
 class _ThixMoneyPageState extends State<ThixMoneyPage> {
   int _selectedIndex = 0;
   final WalletService _walletService = WalletService();
+  final NotificationService _notificationService = NotificationService();
+  
   double _balance = 0;
+  double _savingsBalance = 0;
+  double _investmentBalance = 0;
+  String _aiAdvice = '';
+  List<Tontine> _tontines = [];
+  List<Transaction> _recentTransactions = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadBalance();
+    _loadAllData();
+  }
+
+  Future<void> _loadAllData() async {
+    setState(() => _isLoading = true);
+    
+    await Future.wait([
+      _loadBalance(),
+      _loadAiAdvice(),
+      _loadTontines(),
+      _loadRecentTransactions(),
+    ]);
+    
+    setState(() => _isLoading = false);
   }
 
   Future<void> _loadBalance() async {
-    final balance = await _walletService.getBalance();
+    final balances = await _walletService.getAllBalances();
     setState(() {
-      _balance = balance;
+      _balance = balances['balance'] ?? 0;
+      _savingsBalance = balances['savings'] ?? 0;
+      _investmentBalance = balances['investments'] ?? 0;
     });
   }
 
+  Future<void> _loadAiAdvice() async {
+    final advice = await _walletService.getAiAdvice();
+    setState(() => _aiAdvice = advice);
+  }
+
+  Future<void> _loadTontines() async {
+    final tontines = await _walletService.getTontines();
+    setState(() => _tontines = tontines);
+  }
+
+  Future<void> _loadRecentTransactions() async {
+    final transactions = await _walletService.getRecentTransactions(limit: 3);
+    setState(() => _recentTransactions = transactions);
+  }
+
   void _onBottomNavTap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
 
     switch (index) {
-      case 0: // Accueil
+      case 0:
         break;
-      case 1: // Transactions
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ThixMoneyTransactions()),
-        ).then((_) => _loadBalance());
+      case 1:
+        _navigateToTransactions();
         break;
-      case 2: // Scanner
+      case 2:
         _openScanner();
         break;
-      case 3: // Services
-        _showServicesBottomSheet();
+      case 3:
+        _navigateToServices();
         break;
-      case 4: // Profil
-        _showProfileSheet();
+      case 4:
+        _navigateToProfile();
         break;
     }
+  }
+
+  void _navigateToTransactions() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyTransactions()),
+    ).then((_) => _loadRecentTransactions());
+  }
+
+  void _navigateToServices() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyServices()),
+    );
+  }
+
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyProfile()),
+    );
   }
 
   void _openScanner() {
@@ -64,7 +137,10 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ThixMoneyScanner(
-          onPaymentComplete: () => _loadBalance(),
+          onPaymentComplete: () {
+            _loadBalance();
+            _loadRecentTransactions();
+          },
         ),
       ),
     );
@@ -75,57 +151,243 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ThixMoneyCredit(
-          onCreditComplete: () => _loadBalance(),
+          onCreditComplete: () {
+            _loadBalance();
+            _loadRecentTransactions();
+          },
         ),
       ),
     );
   }
 
-  void _showServicesBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  void _openTransfer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ThixMoneyTransfer(
+          onTransferComplete: () {
+            _loadBalance();
+            _loadRecentTransactions();
+          },
+        ),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        height: MediaQuery.of(context).size.height * 0.7,
+    );
+  }
+
+  void _openDeposit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ThixMoneyDeposit(
+          onDepositComplete: () {
+            _loadBalance();
+            _loadRecentTransactions();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openWithdraw() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ThixMoneyWithdraw(
+          onWithdrawComplete: () {
+            _loadBalance();
+            _loadRecentTransactions();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyNotifications()),
+    );
+  }
+
+  void _openMenu() {
+    // Ouvrir le menu latéral
+    Scaffold.of(context).openDrawer();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      drawer: _buildDrawer(),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadAllData,
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header avec notifications
+                      MoneyHeader(
+                        onMenuTap: _openMenu,
+                        onNotificationsTap: _openNotifications,
+                        userName: 'Jean Dupont',
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Solde
+                      MoneyBalanceCard(
+                        balance: _balance,
+                        savingsBalance: _savingsBalance,
+                        investmentBalance: _investmentBalance,
+                      ),
+                      const SizedBox(height: 22),
+
+                      // Actions rapides
+                      QuickActions(
+                        onSendTap: _openTransfer,
+                        onDepositTap: _openDeposit,
+                        onScannerTap: _openScanner,
+                        onWithdrawTap: _openWithdraw,
+                      ),
+                      const SizedBox(height: 25),
+
+                      // Services
+                      const SectionTitle(title: 'Services financiers'),
+                      const SizedBox(height: 12),
+                      const ServicesGrid(),
+                      const SizedBox(height: 24),
+
+                      // Crédit
+                      CreditCard(
+                        onTap: _openCredit,
+                        maxAmount: 5000000,
+                      ),
+                      const SizedBox(height: 18),
+
+                      // AI Advice
+                      AiAdviceCard(
+                        advice: _aiAdvice,
+                        onSeeMore: () {
+                          // Voir plus de conseils AI
+                        },
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Cashback
+                      const CashbackCard(
+                        onUse: null,
+                        cashbackPercentage: 10,
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Tontines
+                      if (_tontines.isNotEmpty) ...[
+                        const SectionTitle(
+                          title: 'Mes tontines',
+                          seeAllText: 'Voir tout',
+                        ),
+                        const SizedBox(height: 12),
+                        TontineList(
+                          tontines: _tontines.take(3).toList(),
+                          onTontineTap: (id) {
+                            // Naviguer vers détails tontine
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Carte virtuelle
+                      const VirtualCardWidget(),
+                      const SizedBox(height: 20),
+
+                      // Promo banner
+                      const PromoBanner(
+                        title: 'Envoyez de l\'argent',
+                        subtitle: 'dans plus de 120 pays',
+                        buttonText: 'Commencer',
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Transactions récentes
+                      if (_recentTransactions.isNotEmpty) ...[
+                        const SectionTitle(
+                          title: 'Transactions récentes',
+                          seeAllText: 'Voir tout',
+                        ),
+                        const SizedBox(height: 12),
+                        RecentTransactions(limit: 3),
+                      ],
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+        ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onBottomNavTap,
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: SafeArea(
         child: Column(
           children: [
+            // Profil header
             Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              color: const Color(0xFF0B1B3D),
+              child: Column(
+                children: [
+                  const CircleAvatar(
+                    radius: 40,
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150'),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Jean Dupont',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatBalance(_balance)} FCFA',
+                    style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Tous les services',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
+            // Menu items
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.9,
-                children: const [
-                  ServiceCard(icon: Icons.flash_on, title: 'Crédit', color: Color(0xFFD4AF37)),
-                  ServiceCard(icon: Icons.shield, title: 'Assurance', color: Colors.blue),
-                  ServiceCard(icon: Icons.savings, title: 'Épargne', color: Colors.green),
-                  ServiceCard(icon: Icons.currency_exchange, title: 'Change', color: Colors.orange),
-                  ServiceCard(icon: Icons.store, title: 'Marchand', color: Colors.purple),
-                  ServiceCard(icon: Icons.favorite, title: 'Don', color: Colors.red),
-                  ServiceCard(icon: Icons.groups, title: 'Tontine', color: Colors.teal),
-                  ServiceCard(icon: Icons.school, title: 'Éducation', color: Colors.indigo),
-                  ServiceCard(icon: Icons.public, title: 'Virement', color: Colors.cyan),
-                  ServiceCard(icon: Icons.account_balance, title: 'Microfinance', color: Colors.brown),
-                  ServiceCard(icon: Icons.show_chart, title: 'Investir', color: Colors.lime),
-                  ServiceCard(icon: Icons.analytics, title: 'Planifier', color: Colors.deepPurple),
+              child: ListView(
+                children: [
+                  _buildDrawerItem(Icons.home_outlined, 'Accueil', () => Navigator.pop(context)),
+                  _buildDrawerItem(Icons.receipt_long_outlined, 'Transactions', () {
+                    Navigator.pop(context);
+                    _navigateToTransactions();
+                  }),
+                  _buildDrawerItem(Icons.qr_code_scanner, 'Scanner', () {
+                    Navigator.pop(context);
+                    _openScanner();
+                  }),
+                  _buildDrawerItem(Icons.credit_card, 'Mes cartes', () {
+                    Navigator.pop(context);
+                    // Naviguer vers cartes
+                  }),
+                  _buildDrawerItem(Icons.help_outline, 'Aide', () {
+                    Navigator.pop(context);
+                  }),
+                  const Divider(),
+                  _buildDrawerItem(Icons.logout, 'Déconnexion', () {
+                    Navigator.pop(context);
+                    _showLogoutDialog();
+                  }),
                 ],
               ),
             ),
@@ -135,42 +397,34 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
     );
   }
 
-  void _showProfileSheet() {
-    showModalBottomSheet(
+  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF0B1B3D)),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircleAvatar(
-              radius: 40,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150'),
-            ),
-            const SizedBox(height: 12),
-            const Text('Jean Dupont', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const Text('jean.dupont@email.com', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Mon profil'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Mes cartes'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Déconnexion'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        title: const Text('Déconnexion'),
+        content: const Text('Voulez-vous vraiment vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Logique de déconnexion
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Déconnecter'),
+          ),
+        ],
       ),
     );
   }
@@ -179,490 +433,6 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
     return balance.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]} ',
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 20),
-              _buildBalanceCard(),
-              const SizedBox(height: 22),
-              _buildQuickActions(),
-              const SizedBox(height: 25),
-              _buildServicesSection(),
-              const SizedBox(height: 24),
-              _buildCreditBanner(),
-              const SizedBox(height: 18),
-              _buildThixAiCard(),
-              const SizedBox(height: 18),
-              _buildTontinesSection(),
-              const SizedBox(height: 24),
-              _buildVirtualCard(),
-              const SizedBox(height: 20),
-              _buildInternationalTransfer(),
-              const SizedBox(height: 24),
-              _buildInvestmentsSection(),
-              const SizedBox(height: 24),
-              _buildRecentTransactions(),
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  // ==================== HEADER ====================
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(Icons.menu, color: Color(0xFF0B1B3D)),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'THIX MONEY',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-              ),
-              Text('Votre argent, votre liberté', style: TextStyle(color: Colors.grey, fontSize: 12)),
-            ],
-          ),
-        ),
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(Icons.notifications_none, color: Color(0xFF0B1B3D)),
-        ),
-        const SizedBox(width: 10),
-        const CircleAvatar(
-          radius: 22,
-          backgroundImage: NetworkImage('https://i.pravatar.cc/150'),
-        ),
-      ],
-    );
-  }
-
-  // ==================== BALANCE CARD ====================
-  Widget _buildBalanceCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0B1B3D), Color(0xFF1A3A6B)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Solde disponible', style: TextStyle(color: Colors.white70, fontSize: 14)),
-          const SizedBox(height: 12),
-          Text(
-            '${_formatBalance(_balance)} FCFA',
-            style: const TextStyle(fontSize: 34, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '≈ ${_formatBalance(_balance / 610)} USD',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              _buildInfoChip(Icons.savings, 'Épargne', '2.5M'),
-              const SizedBox(width: 10),
-              _buildInfoChip(Icons.trending_up, 'Invest.', '750K'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String title, String value) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white24,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== QUICK ACTIONS ====================
-  Widget _buildQuickActions() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildQuickAction(Icons.send, 'Envoyer', Colors.blue, _openScanner),
-        _buildQuickAction(Icons.add_card, 'Recharger', Colors.green, () {}),
-        _buildQuickAction(Icons.qr_code_scanner, 'Scanner', Colors.deepPurple, _openScanner),
-        _buildQuickAction(Icons.account_balance_wallet, 'Retrait', Colors.orange, () {}),
-      ],
-    );
-  }
-
-  Widget _buildQuickAction(IconData icon, String title, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  // ==================== SERVICES SECTION ====================
-  Widget _buildServicesSection() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Services financiers',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-            ),
-            TextButton(
-              onPressed: _showServicesBottomSheet,
-              child: const Text('Voir tout', style: TextStyle(color: Color(0xFFD4AF37))),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.92,
-          children: const [
-            ServiceCard(icon: Icons.flash_on, title: 'Crédit', color: Color(0xFFD4AF37)),
-            ServiceCard(icon: Icons.shield, title: 'Assurance', color: Colors.blue),
-            ServiceCard(icon: Icons.savings, title: 'Épargne', color: Colors.green),
-            ServiceCard(icon: Icons.currency_exchange, title: 'Change', color: Colors.orange),
-            ServiceCard(icon: Icons.store, title: 'Marchand', color: Colors.purple),
-            ServiceCard(icon: Icons.favorite, title: 'Don', color: Colors.red),
-            ServiceCard(icon: Icons.groups, title: 'Tontine', color: Colors.teal),
-            ServiceCard(icon: Icons.school, title: 'Éducation', color: Colors.indigo),
-            ServiceCard(icon: Icons.public, title: 'Virement', color: Colors.cyan),
-            ServiceCard(icon: Icons.account_balance, title: 'Microfinance', color: Colors.brown),
-            ServiceCard(icon: Icons.show_chart, title: 'Investir', color: Colors.lime),
-            ServiceCard(icon: Icons.analytics, title: 'Planifier', color: Colors.deepPurple),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ==================== CREDIT BANNER ====================
-  Widget _buildCreditBanner() {
-    return GestureDetector(
-      onTap: _openCredit,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0B1B3D),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.flash_on, color: Color(0xFFD4AF37), size: 40),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Text(
-                'Crédit instantané jusqu\'à 5 000 000 FCFA',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: Color(0xFFD4AF37), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_forward, color: Color(0xFF0B1B3D), size: 18),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== THIX AI ====================
-  Widget _buildThixAiCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFD4AF37).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.auto_awesome, size: 42, color: Color(0xFFD4AF37)),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'THIX AI : Vous pouvez économiser 150 000 FCFA ce mois.',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== TONTINES ====================
-  Widget _buildTontinesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Mes tontines',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF0B1B3D)),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 140,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: const [
-              TontineCard(title: 'Tontine Business', progress: 78, currentMembers: 7, maxMembers: 10),
-              SizedBox(width: 12),
-              TontineCard(title: 'Projet Maison', progress: 52, currentMembers: 5, maxMembers: 10),
-              SizedBox(width: 12),
-              TontineCard(title: 'Tontine Famille', progress: 33, currentMembers: 4, maxMembers: 10),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== VIRTUAL CARD ====================
-  Widget _buildVirtualCard() {
-    return Container(
-      height: 200,
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF111827), Color(0xFF1F2937)],
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('THIX VIRTUAL CARD', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, letterSpacing: 1)),
-          Spacer(),
-          Text(
-            '**** **** **** 4587',
-            style: TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 3, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('VALID THRU 12/29', style: TextStyle(color: Colors.white70, fontSize: 12)),
-              Icon(Icons.credit_card, color: Color(0xFFD4AF37)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== INTERNATIONAL TRANSFER ====================
-  Widget _buildInternationalTransfer() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E3A8A),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.public, color: Colors.white, size: 40),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Envoyez de l\'argent dans plus de 120 pays.',
-              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
-            ),
-          ),
-          Icon(Icons.arrow_forward, color: Colors.white),
-        ],
-      ),
-    );
-  }
-
-  // ==================== INVESTMENTS ====================
-  Widget _buildInvestmentsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'Investissements',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-          ),
-          SizedBox(height: 16),
-          InvestmentTile(icon: Icons.home_work, title: 'Immobilier', returnRate: '+9%'),
-          Divider(),
-          InvestmentTile(icon: Icons.agriculture, title: 'Agriculture', returnRate: '+12%'),
-          Divider(),
-          InvestmentTile(icon: Icons.rocket_launch, title: 'Startup', returnRate: '+17%'),
-        ],
-      ),
-    );
-  }
-
-  // ==================== RECENT TRANSACTIONS ====================
-  Widget _buildRecentTransactions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Transactions récentes',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ThixMoneyTransactions()),
-                );
-              },
-              child: const Text('Voir tout', style: TextStyle(color: Color(0xFFD4AF37))),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
-            ],
-          ),
-          child: const Column(
-            children: [
-              TransactionTile(
-                icon: Icons.arrow_downward,
-                iconColor: Colors.green,
-                title: 'Orange Money',
-                subtitle: "Aujourd'hui",
-                amount: '+250 000 FCFA',
-                isPositive: true,
-              ),
-              Divider(),
-              TransactionTile(
-                icon: Icons.shopping_bag,
-                iconColor: Colors.red,
-                title: 'Paiement marchand',
-                subtitle: 'Hier',
-                amount: '-35 000 FCFA',
-                isPositive: false,
-              ),
-              Divider(),
-              TransactionTile(
-                icon: Icons.bolt,
-                iconColor: Color(0xFFD4AF37),
-                title: 'Crédit reçu',
-                subtitle: 'Il y a 3 jours',
-                amount: '+500 000 FCFA',
-                isPositive: true,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== BOTTOM NAVIGATION ====================
-  Widget _buildBottomNavBar() {
-    return NavigationBar(
-      elevation: 0,
-      backgroundColor: Colors.white,
-      selectedIndex: _selectedIndex,
-      onDestinationSelected: _onBottomNavTap,
-      indicatorColor: const Color(0xFFD4AF37).withOpacity(0.2),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Accueil'),
-        NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Transactions'),
-        NavigationDestination(icon: Icon(Icons.qr_code_scanner), label: 'Scanner'),
-        NavigationDestination(icon: Icon(Icons.grid_view), label: 'Services'),
-        NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profil'),
-      ],
     );
   }
 }
