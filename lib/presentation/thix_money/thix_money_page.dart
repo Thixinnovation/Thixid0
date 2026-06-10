@@ -1,5 +1,6 @@
 // lib/presentation/thix_money/thix_money_page.dart
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_scanner.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_credit.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_transactions.dart';
@@ -9,6 +10,12 @@ import 'package:thix_id/presentation/thix_money/thix_money_transfer.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_deposit.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_withdraw.dart';
 import 'package:thix_id/presentation/thix_money/thix_money_notifications.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_savings.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_tontine.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_investment.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_insurance.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_cards.dart';
+import 'package:thix_id/presentation/thix_money/thix_money_international_transfer.dart';
 import 'package:thix_id/presentation/thix_money/widgets/money_header.dart';
 import 'package:thix_id/presentation/thix_money/widgets/money_balance_card.dart';
 import 'package:thix_id/presentation/thix_money/widgets/quick_actions.dart';
@@ -102,6 +109,8 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
     }
   }
 
+  // ==================== NAVIGATIONS ====================
+  
   void _navigateToTransactions() {
     Navigator.push(
       context,
@@ -185,6 +194,69 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
     );
   }
 
+  void _openSavings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneySavings()),
+    );
+  }
+
+  void _openTontine() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyTontine()),
+    );
+  }
+
+  void _openInvestment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyInvestment()),
+    );
+  }
+
+  void _openInsurance() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyInsurance()),
+    );
+  }
+
+  void _openCards() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyCards()),
+    );
+  }
+
+  void _openInternationalTransfer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThixMoneyInternationalTransfer()),
+    );
+  }
+
+  void _openAiAdviceDetails() {
+    // Naviguer vers les détails des conseils AI
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Plus de conseils AI bientôt disponible')),
+    );
+  }
+
+  void _openCashback() {
+    // Naviguer vers les offres cashback
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Offres cashback bientôt disponibles')),
+    );
+  }
+
+  void _openPromo() {
+    // Naviguer vers les promotions
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Promotions bientôt disponibles')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -196,77 +268,103 @@ class _ThixMoneyPageState extends State<ThixMoneyPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Container(
-                height: screenHeight - 50, // Ajustement pour éviter le scroll
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header (compact)
-                    MoneyHeader(
-                      onMenuTap: () {},
-                      onNotificationsTap: _openNotifications,
-                      userName: 'Jean Dupont',
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Balance Card (compact)
-                    MoneyBalanceCard(
-                      balance: _balance,
-                      savingsBalance: _savingsBalance,
-                      investmentBalance: _investmentBalance,
-                    ),
-                    const SizedBox(height: 10),
-                    
-                    // Quick Actions (compact)
-                    QuickActions(
-                      onSendTap: _openTransfer,
-                      onDepositTap: _openDeposit,
-                      onScannerTap: _openScanner,
-                      onWithdrawTap: _openWithdraw,
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Services Grid (compact)
-                    const ServicesGrid(),
-                    const SizedBox(height: 12),
-                    
-                    // Credit Card (compact)
-                    CreditCard(
-                      onTap: _openCredit,
-                      maxAmount: 5000000,
-                    ),
-                    const SizedBox(height: 10),
-                    
-                    // AI Advice (compact)
-                    AiAdviceCard(advice: _aiAdvice),
-                    const SizedBox(height: 10),
-                    
-                    // Cashback (compact)
-                    const CashbackCard(),
-                    const SizedBox(height: 10),
-                    
-                    // Tontines (si disponibles)
-                    if (_tontines.isNotEmpty) ...[
-                      const SectionTitle(title: 'Mes tontines'),
-                      const SizedBox(height: 6),
-                      TontineList(
-                        tontines: _tontines.take(2).toList(),
-                        onTontineTap: (id) {},
+                height: screenHeight - 50,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      MoneyHeader(
+                        onMenuTap: () {},
+                        onNotificationsTap: _openNotifications,
+                        userName: 'Jean Dupont',
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      
+                      // Balance Card
+                      MoneyBalanceCard(
+                        balance: _balance,
+                        savingsBalance: _savingsBalance,
+                        investmentBalance: _investmentBalance,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Quick Actions
+                      QuickActions(
+                        onSendTap: _openTransfer,
+                        onDepositTap: _openDeposit,
+                        onScannerTap: _openScanner,
+                        onWithdrawTap: _openWithdraw,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Services Grid (connecté)
+                      ServicesGrid(
+                        onCreditTap: _openCredit,
+                        onSavingsTap: _openSavings,
+                        onTontineTap: _openTontine,
+                        onInvestmentTap: _openInvestment,
+                        onInsuranceTap: _openInsurance,
+                        onCardsTap: _openCards,
+                        onInternationalTap: _openInternationalTransfer,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Credit Card
+                      CreditCard(
+                        onTap: _openCredit,
+                        maxAmount: 5000000,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // AI Advice (connecté)
+                      AiAdviceCard(
+                        advice: _aiAdvice,
+                        onSeeMore: _openAiAdviceDetails,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Cashback (connecté)
+                      GestureDetector(
+                        onTap: _openCashback,
+                        child: const CashbackCard(),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Tontines (connecté)
+                      if (_tontines.isNotEmpty) ...[
+                        const SectionTitle(title: 'Mes tontines'),
+                        const SizedBox(height: 8),
+                        TontineList(
+                          tontines: _tontines.take(2).toList(),
+                          onTontineTap: (id) => _openTontine(),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      
+                      // Virtual Card (connecté)
+                      GestureDetector(
+                        onTap: _openCards,
+                        child: const VirtualCardWidget(),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Promo Banner (connecté)
+                      GestureDetector(
+                        onTap: _openPromo,
+                        child: const PromoBanner(),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Recent Transactions
+                      const SectionTitle(title: 'Transactions récentes'),
+                      const SizedBox(height: 8),
+                      const RecentTransactions(limit: 2),
+                      const SizedBox(height: 30),
                     ],
-                    
-                    // Virtual Card et Promo (compact)
-                    const VirtualCardWidget(),
-                    const SizedBox(height: 10),
-                    const PromoBanner(),
-                    const SizedBox(height: 10),
-                    
-                    // Recent Transactions (compact)
-                    const SectionTitle(title: 'Transactions récentes'),
-                    const SizedBox(height: 6),
-                    const RecentTransactions(limit: 2),
-                    const SizedBox(height: 10),
-                  ],
+                  ),
                 ),
               ),
       ),
