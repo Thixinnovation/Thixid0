@@ -1,5 +1,6 @@
 // lib/services/investment_service.dart
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:thix_id/services/wallet_service.dart';
 
 class InvestmentService {
@@ -78,6 +79,7 @@ class InvestmentService {
         investedAmount: 500000,
         currentValue: 545000,
         startDate: DateTime.now().subtract(const Duration(days: 90)),
+        status: InvestmentStatus.active,
       ),
     ];
   }
@@ -189,6 +191,25 @@ extension RiskLevelExtension on RiskLevel {
   }
 }
 
+enum InvestmentStatus {
+  active,
+  matured,
+  cancelled,
+}
+
+extension InvestmentStatusExtension on InvestmentStatus {
+  String get label {
+    switch (this) {
+      case InvestmentStatus.active:
+        return 'Actif';
+      case InvestmentStatus.matured:
+        return 'Arrivé à échéance';
+      case InvestmentStatus.cancelled:
+        return 'Annulé';
+    }
+  }
+}
+
 class Investment {
   final String id;
   final String name;
@@ -203,6 +224,7 @@ class Investment {
   final double? investedAmount;
   final double? currentValue;
   final DateTime? startDate;
+  final InvestmentStatus? status;
 
   Investment({
     required this.id,
@@ -218,12 +240,30 @@ class Investment {
     this.investedAmount,
     this.currentValue,
     this.startDate,
+    this.status,
   });
 
   double get profit => (currentValue ?? 0) - (investedAmount ?? 0);
-  double get profitPercentage => investedAmount != null && investedAmount! > 0 
-      ? (profit / investedAmount!) * 100 
-      : 0;
+  
+  double get profitPercentage {
+    if (investedAmount == null || investedAmount == 0) return 0;
+    return (profit / investedAmount!) * 100;
+  }
+
+  DateTime get maturityDate {
+    if (startDate == null) return DateTime.now();
+    return startDate!.add(Duration(days: durationDays));
+  }
+
+  int get daysRemaining {
+    final remaining = maturityDate.difference(DateTime.now());
+    return remaining.inDays.clamp(0, remaining.inDays);
+  }
+
+  String get formattedReturnRate => '+${(returnRate * 100).toInt()}%';
+  String get formattedMinAmount => '${minAmount.toStringAsFixed(0)} FCFA';
+  String get formattedInvested => investedAmount != null ? '${investedAmount!.toStringAsFixed(0)} FCFA' : '-';
+  String get formattedCurrent => currentValue != null ? '${currentValue!.toStringAsFixed(0)} FCFA' : '-';
 }
 
 class InvestmentResult {
