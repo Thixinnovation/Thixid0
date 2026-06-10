@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:thix_id/presentation/thix_money/widgets/contact_tile.dart';
 import 'package:thix_id/presentation/thix_money/widgets/amount_picker.dart';
 import 'package:thix_id/presentation/thix_money/widgets/custom_text_field.dart';
-import 'package:thix_id/presentation/thix_money/widgets/payment_dialog.dart';
 import 'package:thix_id/services/wallet_service.dart';
 
 class ThixMoneyTransfer extends StatefulWidget {
-  const ThixMoneyTransfer({super.key, this.contactName, this.contactPhone});
   final String? contactName;
   final String? contactPhone;
+  final VoidCallback? onTransferComplete;
+
+  const ThixMoneyTransfer({
+    super.key,
+    this.contactName,
+    this.contactPhone,
+    this.onTransferComplete,
+  });
 
   @override
   State<ThixMoneyTransfer> createState() => _ThixMoneyTransferState();
@@ -22,20 +28,12 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
   final TextEditingController _noteController = TextEditingController();
   
   double _selectedAmount = 0;
-  String _selectedContact = '';
   bool _isLoading = false;
-
-  final List<Map<String, String>> _recentContacts = [
-    {'name': 'Marie Claire', 'phone': '6XXXXXXXX', 'avatar': 'MC'},
-    {'name': 'Paul Biya', 'phone': '6XXXXXXXX', 'avatar': 'PB'},
-    {'name': 'Sandra N.', 'phone': '6XXXXXXXX', 'avatar': 'SN'},
-  ];
 
   @override
   void initState() {
     super.initState();
     if (widget.contactName != null && widget.contactPhone != null) {
-      _selectedContact = widget.contactName!;
       _phoneController.text = widget.contactPhone!;
     }
   }
@@ -59,10 +57,11 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
 
     try {
       await _walletService.debit(_selectedAmount);
+      widget.onTransferComplete?.call();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${_selectedAmount.toStringAsFixed(0)} FCFA envoyés à ${_phoneController.text}'),
+            content: Text('${_selectedAmount.toStringAsFixed(0)} FCFA envoyés'),
             backgroundColor: Colors.green,
           ),
         );
@@ -92,11 +91,7 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Destinataire
-            const Text(
-              'Destinataire',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
+            const Text('Destinataire', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             const SizedBox(height: 12),
             CustomTextField(
               controller: _phoneController,
@@ -104,43 +99,8 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
               prefixIcon: Icons.phone,
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 16),
-            
-            // Contacts récents
-            if (_recentContacts.isNotEmpty) ...[
-              const Text(
-                'Contacts récents',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 70,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _recentContacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = _recentContacts[index];
-                    return ContactTile(
-                      name: contact['name']!,
-                      avatar: contact['avatar']!,
-                      onTap: () {
-                        setState(() {
-                          _selectedContact = contact['name']!;
-                          _phoneController.text = contact['phone']!;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-            
-            // Montant
-            const Text(
-              'Montant',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
+            const SizedBox(height: 24),
+            const Text('Montant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             const SizedBox(height: 12),
             AmountPicker(
               amount: _selectedAmount,
@@ -157,23 +117,7 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
                 setState(() => _selectedAmount = amount);
               },
             ),
-            const SizedBox(height: 24),
-            
-            // Note (optionnel)
-            const Text(
-              'Note (optionnelle)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            CustomTextField(
-              controller: _noteController,
-              hintText: 'Ajouter une note',
-              prefixIcon: Icons.edit_note,
-              maxLines: 2,
-            ),
             const SizedBox(height: 32),
-            
-            // Bouton envoyer
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -182,9 +126,7 @@ class _ThixMoneyTransferState extends State<ThixMoneyTransfer> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD4AF37),
                   foregroundColor: const Color(0xFF0B1B3D),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
                 child: _isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
