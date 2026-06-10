@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/upload_service.dart';
@@ -44,7 +45,6 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     _titleController = TextEditingController(text: widget.currentTitle ?? '');
     _bioController = TextEditingController(text: widget.currentBio ?? '');
     
-    // Initialiser les compétences
     for (var skill in widget.currentSkills) {
       final controller = TextEditingController(text: skill);
       _skillControllers.add(controller);
@@ -66,6 +66,12 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   }
 
   void _addSkillField() {
+    if (_skillControllers.length >= 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vous ne pouvez pas ajouter plus de 10 compétences')),
+      );
+      return;
+    }
     setState(() {
       _skillControllers.add(TextEditingController());
     });
@@ -78,14 +84,30 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     });
   }
 
+  void _removeAvatar() {
+    setState(() {
+      _selectedAvatar = null;
+    });
+  }
+
   Future<void> _pickAvatar() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
     );
     
     if (result != null && result.files.isNotEmpty) {
+      final file = File(result.files.first.path!);
+      final size = await file.length();
+      
+      if (size > 5 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('L\'image ne doit pas dépasser 5MB')),
+        );
+        return;
+      }
+      
       setState(() {
-        _selectedAvatar = File(result.files.first.path!);
+        _selectedAvatar = file;
       });
     }
   }
@@ -99,25 +121,31 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       return;
     }
 
+    final skills = _skillControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (skills.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ajoutez au moins une compétence')),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
       String? avatarUrl = widget.currentAvatarUrl;
       
-      // Upload du nouvel avatar si sélectionné
       if (_selectedAvatar != null) {
         setState(() => _isUploading = true);
         avatarUrl = await _uploadService.uploadAvatar(_selectedAvatar!, widget.userId);
         setState(() => _isUploading = false);
+      } else if (widget.currentAvatarUrl != null && _selectedAvatar == null) {
+        // Avatar non modifié
       }
 
-      // Récupérer les compétences
-      final skills = _skillControllers
-          .map((c) => c.text.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-
-      // Mettre à jour le profil
       await Supabase.instance.client
           .from('profiles')
           .update({
@@ -143,6 +171,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         );
       }
     } catch (e) {
+      debugPrint('Error saving profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
@@ -153,8 +182,41 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     }
   }
 
+  Widget _buildAvatarPreview() {
+    if (_selectedAvatar != null) {
+      return ClipOval(
+        child: Image.file(
+          _selectedAvatar!,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    if (widget.currentAvatarUrl != null && widget.currentAvatarUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          widget.currentAvatarUrl!,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: Colors.grey.shade200,
+            child: const Icon(Icons.person, size: 50, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.person, size: 50, color: Colors.grey),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasAvatar = widget.currentAvatarUrl != null || _selectedAvatar != null;
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
@@ -194,16 +256,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                               shape: BoxShape.circle,
                               border: Border.all(color: const Color(0xFFD4AF37), width: 2),
                             ),
-                            child: ClipOval(
-                              child: _selectedAvatar != null
-                                  ? Image.file(_selectedAvatar!, fit: BoxFit.cover)
-                                  : widget.currentAvatarUrl != null
-                                      ? Image.network(widget.currentAvatarUrl!, fit: BoxFit.cover)
-                                      : Container(
-                                          color: Colors.grey.shade200,
-                                          child: const Icon(Icons.person, size: 50, color: Colors.grey),
-                                        ),
-                            ),
+                            child: _buildAvatarPreview(),
                           ),
                           Positioned(
                             bottom: 0,
@@ -226,6 +279,22 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                               ),
                             ),
                           ),
+                          if (hasAvatar && !_isUploading)
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              child: GestureDetector(
+                                onTap: _removeAvatar,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.delete, size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -241,7 +310,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Titre professionnel
+                    // Titre
                     TextField(
                       controller: _titleController,
                       decoration: const InputDecoration(
