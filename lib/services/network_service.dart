@@ -22,6 +22,7 @@ class NetworkService {
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
       final hiddenPosts = await _supabase
           .from('hidden_posts')
@@ -39,9 +40,7 @@ class NetworkService {
               display_name,
               photo_url,
               profession
-            ),
-            post_likes!post_id(count),
-            comments:comments!post_id(count)
+            )
           ''')
           .order('created_at', ascending: false)
           .limit(limit);
@@ -52,6 +51,16 @@ class NetworkService {
       
       final posts = <NetworkPost>[];
       for (var e in filteredResponse) {
+        final likesCount = await _supabase
+            .from('post_likes')
+            .select('id', count: CountOption.exact)
+            .eq('post_id', e['id']);
+        
+        final commentsCount = await _supabase
+            .from('comments')
+            .select('id', count: CountOption.exact)
+            .eq('post_id', e['id']);
+        
         final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
         
         posts.add(NetworkPost.fromJson({
@@ -59,8 +68,8 @@ class NetworkService {
           'author_name': e['users']?['display_name'],
           'author_avatar': e['users']?['photo_url'],
           'author_title': e['users']?['profession'],
-          'likes_count': (e['post_likes'] as List?)?.length ?? 0,
-          'comments_count': (e['comments'] as List?)?.length ?? 0,
+          'likes_count': likesCount.count ?? 0,
+          'comments_count': commentsCount.count ?? 0,
           'is_liked': userLiked,
         }));
       }
@@ -89,6 +98,7 @@ class NetworkService {
   Future<NetworkPost?> getPostById(String postId) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
       
       final response = await _supabase
           .from('posts')
@@ -99,12 +109,20 @@ class NetworkService {
               display_name,
               photo_url,
               profession
-            ),
-            post_likes!post_id(count),
-            comments:comments!post_id(count)
+            )
           ''')
           .eq('id', postId)
           .single();
+      
+      final likesCount = await _supabase
+          .from('post_likes')
+          .select('id', count: CountOption.exact)
+          .eq('post_id', postId);
+      
+      final commentsCount = await _supabase
+          .from('comments')
+          .select('id', count: CountOption.exact)
+          .eq('post_id', postId);
       
       final userLiked = await _hasUserLikedPost(postId, currentUserId);
       
@@ -113,8 +131,8 @@ class NetworkService {
         'author_name': response['users']?['display_name'],
         'author_avatar': response['users']?['photo_url'],
         'author_title': response['users']?['profession'],
-        'likes_count': (response['post_likes'] as List?)?.length ?? 0,
-        'comments_count': (response['comments'] as List?)?.length ?? 0,
+        'likes_count': likesCount.count ?? 0,
+        'comments_count': commentsCount.count ?? 0,
         'is_liked': userLiked,
       });
     } catch (e) {
@@ -125,17 +143,21 @@ class NetworkService {
 
   Future<void> createPost(String content, List<String> images) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
+    
     await _supabase.from('posts').insert({
       'user_id': currentUserId,
       'content': content,
       'media_url': images.isNotEmpty ? images[0] : null,
       'media_type': images.isNotEmpty ? 'image' : 'none',
+      'is_public': true,
       'created_at': DateTime.now().toIso8601String(),
     });
   }
 
   Future<void> updatePost(String postId, String newContent) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final post = await _supabase
         .from('posts')
@@ -158,6 +180,7 @@ class NetworkService {
 
   Future<void> deletePost(String postId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final post = await _supabase
         .from('posts')
@@ -174,6 +197,7 @@ class NetworkService {
 
   Future<void> hidePost(String postId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     await _supabase.from('hidden_posts').insert({
       'post_id': postId,
@@ -184,6 +208,7 @@ class NetworkService {
 
   Future<void> reportPost(String postId, String reason) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     await _supabase.from('reported_posts').insert({
       'post_id': postId,
@@ -194,11 +219,17 @@ class NetworkService {
   }
 
   Future<void> sharePost(String postId) async {
-    await _supabase.rpc('increment_post_shares', params: {'post_id': postId});
+    try {
+      await _supabase.rpc('increment_post_shares', params: {'post_id': postId});
+    } catch (e) {
+      debugPrint('Error increment_post_shares: $e');
+    }
   }
 
   Future<void> likePost(String postId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase.from('post_likes').insert({
       'post_id': postId,
       'user_id': currentUserId,
@@ -214,6 +245,8 @@ class NetworkService {
 
   Future<void> unlikePost(String postId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase
         .from('post_likes')
         .delete()
@@ -223,6 +256,8 @@ class NetworkService {
 
   Future<void> addComment(String postId, String content) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase.from('comments').insert({
       'post_id': postId,
       'user_id': currentUserId,
@@ -268,6 +303,7 @@ class NetworkService {
 
   Future<void> deleteComment(String commentId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final comment = await _supabase
         .from('comments')
@@ -290,68 +326,69 @@ class NetworkService {
         .single();
     return response['user_id'];
   }
-// ==================== UPLOAD IMAGES ====================
 
-Future<String?> uploadImage(String filePath, {String bucket = 'post_images'}) async {
-  try {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return null;
-    
-    final file = File(filePath);
-    final bytes = await file.readAsBytes();
-    
-    final extension = filePath.split('.').last;
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
-    final storagePath = '$currentUserId/$fileName';
-    
-    await _supabase.storage
-        .from(bucket)
-        .uploadBinary(storagePath, bytes);
-    
-    return _supabase.storage.from(bucket).getPublicUrl(storagePath);
-  } catch (e) {
-    debugPrint('Error uploading image: $e');
-    return null;
-  }
-}
+  // ==================== UPLOAD IMAGES ====================
 
-Future<List<String>> uploadMultipleImages(List<String> filePaths, {String bucket = 'post_images'}) async {
-  final List<String> uploadedUrls = [];
-  for (final path in filePaths) {
-    final url = await uploadImage(path, bucket: bucket);
-    if (url != null) uploadedUrls.add(url);
-  }
-  return uploadedUrls;
-}
-
-Future<String?> uploadAvatar(String filePath) async {
-  return uploadImage(filePath, bucket: 'avatars');
-}
-
-Future<String?> uploadStoryImage(String filePath) async {
-  return uploadImage(filePath, bucket: 'story_images');
-}
-
-Future<void> deleteImage(String imageUrl, {String bucket = 'post_images'}) async {
-  try {
-    final uri = Uri.parse(imageUrl);
-    final segments = uri.pathSegments;
-    final bucketIndex = segments.indexOf(bucket);
-    
-    if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
-      final filePath = segments.sublist(bucketIndex + 1).join('/');
-      await _supabase.storage.from(bucket).remove([filePath]);
+  Future<String?> uploadImage(String filePath, {String bucket = 'post_images'}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+      
+      final file = File(filePath);
+      final bytes = await file.readAsBytes();
+      
+      final extension = filePath.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final storagePath = '$currentUserId/$fileName';
+      
+      await _supabase.storage
+          .from(bucket)
+          .uploadBinary(storagePath, bytes);
+      
+      return _supabase.storage.from(bucket).getPublicUrl(storagePath);
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      return null;
     }
-  } catch (e) {
-    debugPrint('Error deleting image: $e');
   }
-}
 
-// Méthode utilitaire pour créer un post avec upload d'images
-Future<void> createPostWithImages(String content, List<String> imagePaths) async {
-  final imageUrls = await uploadMultipleImages(imagePaths);
-  await createPost(content, imageUrls);
-}
+  Future<List<String>> uploadMultipleImages(List<String> filePaths, {String bucket = 'post_images'}) async {
+    final List<String> uploadedUrls = [];
+    for (final path in filePaths) {
+      final url = await uploadImage(path, bucket: bucket);
+      if (url != null) uploadedUrls.add(url);
+    }
+    return uploadedUrls;
+  }
+
+  Future<String?> uploadAvatar(String filePath) async {
+    return uploadImage(filePath, bucket: 'avatars');
+  }
+
+  Future<String?> uploadStoryImage(String filePath) async {
+    return uploadImage(filePath, bucket: 'story_images');
+  }
+
+  Future<void> deleteImage(String imageUrl, {String bucket = 'post_images'}) async {
+    try {
+      final uri = Uri.parse(imageUrl);
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf(bucket);
+      
+      if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
+        final filePath = segments.sublist(bucketIndex + 1).join('/');
+        await _supabase.storage.from(bucket).remove([filePath]);
+      }
+    } catch (e) {
+      debugPrint('Error deleting image: $e');
+    }
+  }
+
+  Future<void> createPostWithImages(String content, List<String> imagePaths) async {
+    final imageUrls = await uploadMultipleImages(imagePaths);
+    await createPost(content, imageUrls);
+  }
+
   // ==================== COMMUNAUTÉS ====================
 
   Future<NetworkCommunity> createCommunity({
@@ -360,6 +397,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
     String? bannerUrl,
   }) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final response = await _supabase
         .from('communities')
@@ -446,6 +484,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<NetworkCommunity>> getMyCommunities() async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
       final response = await _supabase
           .from('community_members')
@@ -502,6 +541,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
     String? bannerUrl,
   }) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
     if (!isAdmin) {
@@ -522,6 +562,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> deleteCommunity(String communityId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final community = await _supabase
         .from('communities')
@@ -540,6 +581,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> joinCommunity(String communityId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final existing = await _supabase
         .from('community_members')
@@ -556,12 +598,17 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         'joined_at': DateTime.now().toIso8601String(),
       });
       
-      await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+      try {
+        await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+      } catch (e) {
+        debugPrint('Error increment_community_members: $e');
+      }
     }
   }
 
   Future<void> leaveCommunity(String communityId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
     if (isAdmin) {
@@ -574,7 +621,11 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         .eq('community_id', communityId)
         .eq('user_id', currentUserId);
     
-    await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+    try {
+      await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+    } catch (e) {
+      debugPrint('Error decrement_community_members: $e');
+    }
   }
 
   Future<List<CommunityMember>> getCommunityMembers(String communityId, {int limit = 50}) async {
@@ -600,6 +651,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> addMember(String communityId, String userId, {String role = 'member'}) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
     if (!isAdmin) {
@@ -621,12 +673,17 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         'joined_at': DateTime.now().toIso8601String(),
       });
       
-      await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+      try {
+        await _supabase.rpc('increment_community_members', params: {'community_id': communityId});
+      } catch (e) {
+        debugPrint('Error increment_community_members: $e');
+      }
     }
   }
 
   Future<void> removeMember(String communityId, String userId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
     if (!isAdmin) {
@@ -639,11 +696,16 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         .eq('community_id', communityId)
         .eq('user_id', userId);
     
-    await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+    try {
+      await _supabase.rpc('decrement_community_members', params: {'community_id': communityId});
+    } catch (e) {
+      debugPrint('Error decrement_community_members: $e');
+    }
   }
 
   Future<void> changeMemberRole(String communityId, String userId, String newRole) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
     if (!isAdmin) {
@@ -695,6 +757,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
     List<String> images = const [],
   }) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final isMember = await _isCommunityMember(communityId, currentUserId);
     if (!isMember) {
@@ -710,7 +773,11 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
       'created_at': DateTime.now().toIso8601String(),
     });
     
-    await _supabase.rpc('increment_community_posts', params: {'community_id': communityId});
+    try {
+      await _supabase.rpc('increment_community_posts', params: {'community_id': communityId});
+    } catch (e) {
+      debugPrint('Error increment_community_posts: $e');
+    }
   }
 
   Future<List<NetworkPost>> getCommunityPosts(String communityId, {int limit = 20}) async {
@@ -731,6 +798,16 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
       
       final posts = <NetworkPost>[];
       for (var e in response as List) {
+        final likesCount = await _supabase
+            .from('post_likes')
+            .select('id', count: CountOption.exact)
+            .eq('post_id', e['id']);
+        
+        final commentsCount = await _supabase
+            .from('comments')
+            .select('id', count: CountOption.exact)
+            .eq('post_id', e['id']);
+        
         final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
         
         posts.add(NetworkPost.fromJson({
@@ -738,8 +815,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
           'author_name': e['users']?['display_name'],
           'author_avatar': e['users']?['photo_url'],
           'author_title': e['users']?['profession'],
-          'likes_count': 0,
-          'comments_count': 0,
+          'likes_count': likesCount.count ?? 0,
+          'comments_count': commentsCount.count ?? 0,
           'is_liked': userLiked,
         }));
       }
@@ -769,6 +846,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
       final response = await _supabase
           .rpc('get_suggested_connections', params: {
@@ -791,6 +869,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> sendConnectionRequest(String targetUserId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase.from('connection_requests').insert({
       'sender_id': currentUserId,
       'receiver_id': targetUserId,
@@ -810,7 +890,6 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         .update({'status': 'accepted', 'updated_at': DateTime.now().toIso8601String()})
         .eq('id', requestId);
     
-    // Créer aussi une connexion dans la table connections
     final request = await _supabase
         .from('connection_requests')
         .select('sender_id, receiver_id')
@@ -828,6 +907,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<String?> getConnectionStatus(String userId) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+      
       final response = await _supabase
           .from('connection_requests')
           .select('status')
@@ -846,6 +927,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> blockUser(String userIdToBlock) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final existing = await _supabase
         .from('blocked_users')
@@ -865,6 +947,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> unblockUser(String userIdToUnblock) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase
         .from('blocked_users')
         .delete()
@@ -874,6 +958,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<List<String>> getBlockedUsers() async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return [];
+    
     final response = await _supabase
         .from('blocked_users')
         .select('blocked_user_id')
@@ -887,6 +973,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<NetworkStory>> getActiveStories() async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
+      
       NetworkStory.setCurrentUserId(currentUserId);
       
       final response = await _supabase
@@ -912,6 +1000,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> createStory(String mediaUrl, {String mediaType = 'image', int duration = 24}) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase.from('stories').insert({
       'user_id': currentUserId,
       'media_url': mediaUrl,
@@ -924,6 +1014,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> deleteStory(String storyId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase
         .from('stories')
         .delete()
@@ -933,6 +1025,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<void> markStoryAsViewed(String storyId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final existing = await _supabase
         .from('story_views')
@@ -962,15 +1055,32 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
             photo_url,
             profession,
             bio,
-            skills,
-            posts_count:posts(count),
-            followers_count:connections!connection_id(count),
-            following_count:connections!user_id(count)
+            skills
           ''')
           .eq('id', userId)
           .maybeSingle();
       
       if (response == null) return null;
+      
+      // Compter les posts
+      final postsCount = await _supabase
+          .from('posts')
+          .select('id', count: CountOption.exact)
+          .eq('user_id', userId);
+      
+      // Compter les followers
+      final followersCount = await _supabase
+          .from('connections')
+          .select('id', count: CountOption.exact)
+          .eq('connection_id', userId)
+          .eq('status', 'accepted');
+      
+      // Compter les following
+      final followingCount = await _supabase
+          .from('connections')
+          .select('id', count: CountOption.exact)
+          .eq('user_id', userId)
+          .eq('status', 'accepted');
       
       return {
         'id': response['id'],
@@ -979,9 +1089,9 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
         'profession': response['profession'],
         'bio': response['bio'],
         'skills': response['skills'] ?? [],
-        'posts_count': (response['posts_count'] as List?)?.length ?? 0,
-        'followers_count': (response['followers_count'] as List?)?.length ?? 0,
-        'following_count': (response['following_count'] as List?)?.length ?? 0,
+        'posts_count': postsCount.count ?? 0,
+        'followers_count': followersCount.count ?? 0,
+        'following_count': followingCount.count ?? 0,
       };
     } catch (e) {
       debugPrint('Error getUserProfile: $e');
@@ -1022,6 +1132,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<Conversation>> getConversations() async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
       final response = await _supabase
           .from('messages')
@@ -1041,7 +1152,6 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
           .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
           .order('created_at', ascending: false);
       
-      // Grouper par conversation
       final Map<String, Conversation> conversations = {};
       
       for (var msg in response as List) {
@@ -1057,12 +1167,20 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
           conversations[otherId] = Conversation(
             id: otherId,
             otherUserId: otherId,
-            otherUserName: otherUser['display_name'] ?? 'Utilisateur',
-            otherUserAvatar: otherUser['photo_url'],
+            otherUserName: otherUser?['display_name'] ?? 'Utilisateur',
+            otherUserAvatar: otherUser?['photo_url'],
             lastMessage: msg['content'],
-            lastMessageTime: DateTime.parse(msg['created_at']),
-            unreadCount: msg['is_read'] == false && msg['receiver_id'] == currentUserId ? 1 : 0,
+            lastMessageAt: DateTime.parse(msg['created_at']),
+            lastMessageIsFromMe: msg['sender_id'] == currentUserId,
+            unreadCount: (msg['is_read'] == false && msg['receiver_id'] == currentUserId) ? 1 : 0,
           );
+        } else {
+          final currentConv = conversations[otherId]!;
+          if (msg['is_read'] == false && msg['receiver_id'] == currentUserId) {
+            conversations[otherId] = currentConv.copyWith(
+              unreadCount: currentConv.unreadCount + 1,
+            );
+          }
         }
       }
       
@@ -1075,6 +1193,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
 
   Future<Map<String, dynamic>> sendMessage(String receiverId, String content) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
     final response = await _supabase
         .from('messages')
@@ -1099,6 +1218,7 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<Map<String, dynamic>>> getMessages(String otherUserId) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
       final response = await _supabase
           .from('messages')
@@ -1122,6 +1242,8 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<void> markMessagesAsRead(String otherUserId) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return;
+      
       await _supabase
           .from('messages')
           .update({'is_read': true})
@@ -1137,96 +1259,99 @@ Future<void> createPostWithImages(String content, List<String> imagePaths) async
   Future<List<NetworkNotification>> getNotifications() async {
     try {
       final currentUserId = this.currentUserId;
-// ==================== MESSAGES ====================
-
-Future<List<Conversation>> getConversations() async {
-  try {
-    final currentUserId = this.currentUserId;
-    
-    final response = await _supabase
-        .from('messages')
-        .select('''
-          sender_id,
-          receiver_id,
-          content,
-          created_at,
-          is_read,
-          sender:users!messages_sender_id (
-            id, display_name, photo_url
-          ),
-          receiver:users!messages_receiver_id (
-            id, display_name, photo_url
-          )
-        ''')
-        .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
-        .order('created_at', ascending: false);
-    
-    // Grouper par conversation
-    final Map<String, Conversation> conversations = {};
-    
-    for (var msg in response as List) {
-      final otherId = msg['sender_id'] == currentUserId 
-          ? msg['receiver_id'] 
-          : msg['sender_id'];
+      if (currentUserId.isEmpty) return [];
       
-      final otherUser = msg['sender_id'] == currentUserId
-          ? msg['receiver']
-          : msg['sender'];
+      final response = await _supabase
+          .from('notifications')
+          .select('''
+            *,
+            users!sender_id (
+              display_name,
+              photo_url
+            ),
+            posts!post_id (
+              id, content
+            )
+          ''')
+          .eq('user_id', currentUserId)
+          .order('created_at', ascending: false)
+          .limit(50);
       
-      if (!conversations.containsKey(otherId)) {
-        conversations[otherId] = Conversation(
-          id: otherId,
-          otherUserId: otherId,
-          otherUserName: otherUser['display_name'] ?? 'Utilisateur',
-          otherUserAvatar: otherUser['photo_url'],
-          lastMessage: msg['content'],
-          lastMessageAt: DateTime.parse(msg['created_at']),
-          lastMessageIsFromMe: msg['sender_id'] == currentUserId,
-          unreadCount: msg['is_read'] == false && msg['receiver_id'] == currentUserId ? 1 : 0,
-        );
-      }
+      return (response as List).map((e) => NetworkNotification.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error getNotifications: $e');
+      return [];
     }
-    
-    return conversations.values.toList();
-  } catch (e) {
-    debugPrint('Error getConversations: $e');
-    return [];
   }
-}
 
-// ==================== NOTIFICATIONS ====================
+  Future<int> getUnreadNotificationsCount() async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return 0;
+      
+      final response = await _supabase
+          .from('notifications')
+          .select('id', count: CountOption.exact)
+          .eq('user_id', currentUserId)
+          .eq('is_read', false);
+      
+      return response.count ?? 0;
+    } catch (e) {
+      debugPrint('Error getUnreadNotificationsCount: $e');
+      return 0;
+    }
+  }
 
-Future<int> getUnreadNotificationsCount() async {
-  try {
+  Future<int> getUnreadMessagesCount() async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return 0;
+      
+      final response = await _supabase
+          .from('messages')
+          .select('id', count: CountOption.exact)
+          .eq('receiver_id', currentUserId)
+          .eq('is_read', false);
+      
+      return response.count ?? 0;
+    } catch (e) {
+      debugPrint('Error getUnreadMessagesCount: $e');
+      return 0;
+    }
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return;
+      
+      await _supabase
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('user_id', currentUserId)
+          .eq('is_read', false);
+    } catch (e) {
+      debugPrint('Error markAllNotificationsAsRead: $e');
+    }
+  }
+
+  Future<void> _createNotification({
+    required String userId,
+    required String type,
+    String? postId,
+  }) async {
     final currentUserId = this.currentUserId;
-    final response = await _supabase
-        .from('notifications')
-        .select('id', count: CountOption.exact)
-        .eq('user_id', currentUserId)
-        .eq('is_read', false);
+    if (userId == currentUserId) return;
     
-    return response.count ?? 0;
-  } catch (e) {
-    debugPrint('Error getUnreadNotificationsCount: $e');
-    return 0;
+    await _supabase.from('notifications').insert({
+      'user_id': userId,
+      'type': type,
+      'sender_id': currentUserId,
+      'post_id': postId,
+      'is_read': false,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
-}
-
-Future<int> getUnreadMessagesCount() async {
-  try {
-    final currentUserId = this.currentUserId;
-    final response = await _supabase
-        .from('messages')
-        .select('id', count: CountOption.exact)
-        .eq('receiver_id', currentUserId)
-        .eq('is_read', false);
-    
-    return response.count ?? 0;
-  } catch (e) {
-    debugPrint('Error getUnreadMessagesCount: $e');
-    return 0;
-  }
-}
 
   // ==================== RECHERCHE ====================
 
@@ -1295,6 +1420,9 @@ Future<int> getUnreadMessagesCount() async {
 
   Future<Map<String, int>> getRecommendationsCount() async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) {
+      return {'people': 0, 'opportunities': 0, 'communities': 0};
+    }
     
     final people = await _supabase
         .from('users')
@@ -1309,7 +1437,7 @@ Future<int> getUnreadMessagesCount() async {
     
     return {
       'people': (people as List).length,
-      'opportunities': 0, // À implémenter avec une table opportunities
+      'opportunities': 0,
       'communities': (communities as List).length,
     };
   }
@@ -1318,6 +1446,7 @@ Future<int> getUnreadMessagesCount() async {
 
   Future<void> markEventInterest(String eventId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
     
     final existing = await _supabase
         .from('event_interests')
@@ -1333,13 +1462,19 @@ Future<int> getUnreadMessagesCount() async {
         'interested_at': DateTime.now().toIso8601String(),
       });
       
-      await _supabase.rpc('increment_event_interest_count', params: {'event_id': eventId});
+      try {
+        await _supabase.rpc('increment_event_interest_count', params: {'event_id': eventId});
+      } catch (e) {
+        debugPrint('Error increment_event_interest_count: $e');
+      }
     }
   }
 
   Future<bool> hasEventInterest(String eventId) async {
     try {
       final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return false;
+      
       final response = await _supabase
           .from('event_interests')
           .select('id')
