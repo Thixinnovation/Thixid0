@@ -271,7 +271,7 @@ class NetworkService {
     await _supabase.from('network_comments').delete().eq('id', commentId);
   }
 
-  // ==================== COMMUNAUTÉS (COMPLET) ====================
+  // ==================== COMMUNAUTÉS ====================
 
   Future<NetworkCommunity> createCommunity({
     required String name,
@@ -758,6 +758,33 @@ class NetworkService {
     }
   }
 
+  Future<Map<String, int>> getRecommendationsCount() async {
+    final currentUserId = this.currentUserId;
+    
+    final people = await _supabase
+        .from('profiles')
+        .select('id')
+        .neq('id', currentUserId)
+        .limit(10);
+    
+    final opportunities = await _supabase
+        .from('opportunities')
+        .select('id')
+        .eq('is_active', true)
+        .limit(10);
+    
+    final communities = await _supabase
+        .from('network_communities')
+        .select('id')
+        .limit(10);
+    
+    return {
+      'people': (people as List).length,
+      'opportunities': (opportunities as List).length,
+      'communities': (communities as List).length,
+    };
+  }
+
   // ==================== CONNECTIONS ====================
 
   Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
@@ -830,6 +857,46 @@ class NetworkService {
     }
   }
 
+  // ==================== BLOCAGE UTILISATEURS ====================
+
+  Future<void> blockUser(String userIdToBlock) async {
+    final currentUserId = this.currentUserId;
+    
+    final existing = await _supabase
+        .from('blocked_users')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('blocked_user_id', userIdToBlock)
+        .maybeSingle();
+    
+    if (existing == null) {
+      await _supabase.from('blocked_users').insert({
+        'user_id': currentUserId,
+        'blocked_user_id': userIdToBlock,
+        'blocked_at': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
+  Future<void> unblockUser(String userIdToUnblock) async {
+    final currentUserId = this.currentUserId;
+    await _supabase
+        .from('blocked_users')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('blocked_user_id', userIdToUnblock);
+  }
+
+  Future<List<String>> getBlockedUsers() async {
+    final currentUserId = this.currentUserId;
+    final response = await _supabase
+        .from('blocked_users')
+        .select('blocked_user_id')
+        .eq('user_id', currentUserId);
+    
+    return (response as List).map((e) => e['blocked_user_id'] as String).toList();
+  }
+
   // ==================== STORIES ====================
 
   Future<List<NetworkStory>> getActiveStories() async {
@@ -876,6 +943,25 @@ class NetworkService {
         .delete()
         .eq('id', storyId)
         .eq('user_id', currentUserId);
+  }
+
+  Future<void> markStoryAsViewed(String storyId) async {
+    final currentUserId = this.currentUserId;
+    
+    final existing = await _supabase
+        .from('story_views')
+        .select('id')
+        .eq('story_id', storyId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+    
+    if (existing == null) {
+      await _supabase.from('story_views').insert({
+        'story_id': storyId,
+        'user_id': currentUserId,
+        'viewed_at': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   // ==================== PROFIL UTILISATEUR ====================
