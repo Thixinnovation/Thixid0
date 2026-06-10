@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MemberProfile extends StatefulWidget {
   final String userId;
@@ -241,9 +242,9 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildHeader() {
-    final avatarUrl = _user?['avatar_url']?.toString();
+    final avatarUrl = _user?['photo_url']?.toString(); // Changé: avatar_url -> photo_url
     final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
-    final title = _user?['title']?.toString() ?? 'Membre THIX';
+    final title = _user?['profession']?.toString() ?? 'Membre THIX'; // Changé: title -> profession
     final bio = _user?['bio']?.toString();
 
     return Container(
@@ -397,6 +398,9 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildPostCard(NetworkPost post) {
+    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final hasContent = post.content != null && post.content!.isNotEmpty;
+
     return GestureDetector(
       onTap: () => context.push('/network/post/${post.id}'),
       child: Container(
@@ -414,17 +418,17 @@ class _MemberProfileState extends State<MemberProfile> {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.grey.shade200,
-                  backgroundImage: post.userAvatar != null && post.userAvatar!.isNotEmpty
-                      ? NetworkImage(post.userAvatar!)
+                  backgroundImage: post.authorAvatar != null && post.authorAvatar!.isNotEmpty
+                      ? CachedNetworkImageProvider(post.authorAvatar!)
                       : null,
-                  child: post.userAvatar == null || post.userAvatar!.isEmpty
+                  child: post.authorAvatar == null || post.authorAvatar!.isEmpty
                       ? const Icon(Icons.person, size: 16)
                       : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    post.userName,
+                    post.authorName,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
@@ -434,32 +438,28 @@ class _MemberProfileState extends State<MemberProfile> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            if (post.content.isNotEmpty)
-              Text(post.content, style: const TextStyle(fontSize: 13)),
-            if (post.images.isNotEmpty) ...[
+            if (hasContent) ...[
               const SizedBox(height: 8),
-              SizedBox(
-                height: 150,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: post.images.length,
-                  itemBuilder: (context, imgIndex) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        post.images[imgIndex],
-                        width: 120,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 120,
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.broken_image),
-                        ),
-                      ),
-                    ),
+              Text(post.content!, style: const TextStyle(fontSize: 13)),
+            ],
+            if (hasImage) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: post.mediaUrl!,
+                  width: double.infinity,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    height: 150,
+                    color: Colors.grey.shade200,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 150,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image, size: 40),
                   ),
                 ),
               ),
@@ -467,11 +467,11 @@ class _MemberProfileState extends State<MemberProfile> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildActionButton(Icons.favorite_border, '${post.likes}'),
+                _buildActionButton(Icons.favorite_border, _formatCount(post.likesCount)),
                 const SizedBox(width: 16),
-                _buildActionButton(Icons.comment_outlined, '${post.comments}'),
+                _buildActionButton(Icons.comment_outlined, _formatCount(post.commentsCount)),
                 const SizedBox(width: 16),
-                _buildActionButton(Icons.share_outlined, '${post.shares}'),
+                _buildActionButton(Icons.share_outlined, _formatCount(post.sharesCount)),
               ],
             ),
           ],
@@ -488,5 +488,14 @@ class _MemberProfileState extends State<MemberProfile> {
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
       ],
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return count.toString();
   }
 }
