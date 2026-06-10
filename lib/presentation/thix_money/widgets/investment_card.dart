@@ -87,7 +87,7 @@ class InvestmentCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.risk, size: 16, color: Colors.grey),
+                  Icon(Icons.warning_amber_rounded, size: 16, color: Colors.grey),
                   const SizedBox(width: 4),
                   Text(
                     'Risque $risk',
