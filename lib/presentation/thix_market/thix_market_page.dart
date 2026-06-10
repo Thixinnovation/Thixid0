@@ -27,22 +27,24 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
   List<BannerAd> _banners = [];
+  List<Product> _carouselProducts = [];
   bool _loading = true;
   String _selectedCategory = 'Tous';
   final TextEditingController _searchController = TextEditingController();
 
-  // Filtres avancés
   String _sortBy = 'newest';
   RangeValues _priceRange = const RangeValues(0, 5000000);
   double _minRating = 0;
   String _selectedCity = 'Toutes';
 
   final List<String> _categories = [
-    'Tous', 'Électronique', 'Mode & Fashion', 'Maison & Déco', 'Beauté & Santé', 'Sports & Loisirs'
+    'Tous', 'Électronique', 'Mode & Fashion', 'Maison & Déco', 
+    'Beauté & Santé', 'Sports & Loisirs', 'Alimentation', 'Automobile'
   ];
 
   final List<String> _cities = [
-    'Toutes', 'Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kisangani', 'Bukavu', 'Goma', 'Kananga'
+    'Toutes', 'Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kisangani', 
+    'Bukavu', 'Goma', 'Kananga', 'Matadi', 'Kikwit'
   ];
 
   @override
@@ -52,12 +54,116 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
     _bannerService = BannerService(Supabase.instance.client);
     _loadData();
     _loadBanners();
+    _generateMockData();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _generateMockData() {
+    // Génération des produits mockés par ville et catégorie
+    _allProducts = [];
+    
+    for (final city in _cities.where((c) => c != 'Toutes')) {
+      for (final category in _categories.where((c) => c != 'Tous')) {
+        for (int i = 1; i <= 4; i++) {
+          _allProducts.add(Product(
+            id: '${city}_${category}_$i',
+            title: _getProductName(category, i),
+            description: 'Description du produit $i dans la catégorie $category à $city',
+            price: _getRandomPrice(category),
+            originalPrice: _getRandomOriginalPrice(category),
+            category: category,
+            city: city,
+            rating: 3.5 + (i * 0.3),
+            reviewsCount: 50 + (i * 10),
+            imageUrls: ['https://picsum.photos/400/400?random=${city.hashCode + i}'],
+            sellerId: 'seller_$city',
+            sellerName: 'Vendeur de $city',
+            stock: 10 + i,
+            isFlashSale: false,
+            discountPercentage: i % 3 == 0 ? 15 : 0,
+            createdAt: DateTime.now().subtract(Duration(days: i)),
+          ));
+        }
+      }
+    }
+    
+    // Produits flash avec countdown 72h
+    _flashSales = [];
+    final flashCities = ['Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kisangani'];
+    final flashCategories = ['Électronique', 'Mode & Fashion', 'Maison & Déco', 'Beauté & Santé'];
+    
+    for (int i = 0; i < 8; i++) {
+      final city = flashCities[i % flashCities.length];
+      final category = flashCategories[i % flashCategories.length];
+      _flashSales.add(Product(
+        id: 'flash_$i',
+        title: 'Flash ${_getProductName(category, i + 1)}',
+        description: 'Offre flash - 72h seulement !',
+        price: _getFlashPrice(category),
+        originalPrice: _getFlashOriginalPrice(category),
+        category: category,
+        city: city,
+        rating: 4.5 + (i * 0.1),
+        reviewsCount: 200 + (i * 15),
+        imageUrls: ['https://picsum.photos/400/400?random=flash$i'],
+        sellerId: 'flash_seller_$i',
+        sellerName: 'Flash Vendeur',
+        stock: 5,
+        isFlashSale: true,
+        discountPercentage: 30 + (i * 5),
+        flashEndTime: DateTime.now().add(const Duration(hours: 72)),
+        createdAt: DateTime.now(),
+      ));
+    }
+    
+    // Produits pour le carrousel défilant
+    _carouselProducts = _flashSales.take(4).toList();
+    
+    _filteredProducts = List.from(_allProducts);
+  }
+
+  String _getProductName(String category, int index) {
+    final names = {
+      'Électronique': ['Smartphone Pro', 'Tablette Ultra', 'Ordinateur Portable', 'Casque Audio'],
+      'Mode & Fashion': ['T-shirt Premium', 'Jean Slim', 'Robe Élégante', 'Chaussures Sport'],
+      'Maison & Déco': ['Canapé Moderne', 'Table à Manger', 'Lampe Design', 'Tapis Art'],
+      'Beauté & Santé': ['Crème Hydratante', 'Parfum Luxe', 'Masque Visage', 'Huile Essentielle'],
+      'Sports & Loisirs': ['Vélo Montagne', 'Tapis Course', 'Ballon Football', 'Raquette Tennis'],
+      'Alimentation': ['Café Premium', 'Chocolat Belge', 'Miel Bio', 'Thé Vert'],
+      'Automobile': ['Huile Moteur', 'Pneus Hiver', 'Accessoires Auto', 'Batterie Voiture'],
+    };
+    final list = names[category] ?? ['Produit $index'];
+    return list[index % list.length];
+  }
+
+  double _getRandomPrice(String category) {
+    final basePrices = {
+      'Électronique': 500000,
+      'Mode & Fashion': 150000,
+      'Maison & Déco': 300000,
+      'Beauté & Santé': 75000,
+      'Sports & Loisirs': 200000,
+      'Alimentation': 25000,
+      'Automobile': 450000,
+    };
+    return basePrices[category] ?? 100000;
+  }
+
+  double _getRandomOriginalPrice(String category) {
+    return _getRandomPrice(category) * 1.3;
+  }
+
+  double _getFlashPrice(String category) {
+    final basePrices = {
+      'Électronique': 350000,
+      'Mode & Fashion': 99000,
+      'Maison & Déco': 199000,
+      'Beauté & Santé': 49000,
+    };
+    return basePrices[category] ?? 100000;
+  }
+
+  double _getFlashOriginalPrice(String category) {
+    return _getFlashPrice(category) * 1.5;
   }
 
   Future<void> _loadBanners() async {
@@ -73,17 +179,13 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
     setState(() => _loading = true);
     try {
       final flash = await _marketService.getFlashSales();
+      if (flash.isNotEmpty) setState(() => _flashSales = flash);
       final all = await _marketService.getFeaturedProducts();
-      setState(() {
-        _flashSales = flash;
-        _allProducts = all;
-        _filteredProducts = all;
-      });
+      if (all.isNotEmpty) setState(() => _allProducts = all);
+      _applyFiltersAndSort();
     } catch (e) {
       debugPrint('Error loading market data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur de chargement: $e'), backgroundColor: Colors.red),
-      );
+      _generateMockData();
     } finally {
       setState(() => _loading = false);
     }
@@ -100,22 +202,11 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
       }).toList();
       
       switch (_sortBy) {
-        case 'price_asc':
-          filtered.sort((a, b) => a.price.compareTo(b.price));
-          break;
-        case 'price_desc':
-          filtered.sort((a, b) => b.price.compareTo(a.price));
-          break;
-        case 'rating':
-          filtered.sort((a, b) => b.rating.compareTo(a.rating));
-          break;
-        case 'popularity':
-          filtered.sort((a, b) => b.reviewsCount.compareTo(a.reviewsCount));
-          break;
-        case 'newest':
-        default:
-          filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          break;
+        case 'price_asc': filtered.sort((a, b) => a.price.compareTo(b.price)); break;
+        case 'price_desc': filtered.sort((a, b) => b.price.compareTo(a.price)); break;
+        case 'rating': filtered.sort((a, b) => b.rating.compareTo(a.rating)); break;
+        case 'popularity': filtered.sort((a, b) => b.reviewsCount.compareTo(a.reviewsCount)); break;
+        default: filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       
       _filteredProducts = filtered;
@@ -145,9 +236,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return Container(
@@ -157,40 +246,20 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
               children: [
                 const Text('Filtres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                
                 const Text('Prix (CDF)', style: TextStyle(fontWeight: FontWeight.bold)),
                 RangeSlider(
-                  values: _priceRange,
-                  min: 0,
-                  max: 5000000,
-                  divisions: 10,
-                  labels: RangeLabels(
-                    '${_priceRange.start.round()} CDF',
-                    '${_priceRange.end.round()} CDF',
-                  ),
-                  onChanged: (values) {
-                    setModalState(() {
-                      _priceRange = values;
-                    });
-                  },
+                  values: _priceRange, min: 0, max: 5000000, divisions: 10,
+                  labels: RangeLabels('${_priceRange.start.round()} CDF', '${_priceRange.end.round()} CDF'),
+                  onChanged: (values) => setModalState(() => _priceRange = values),
                 ),
                 const SizedBox(height: 16),
-                
                 const Text('Note minimum', style: TextStyle(fontWeight: FontWeight.bold)),
                 Slider(
-                  value: _minRating,
-                  min: 0,
-                  max: 5,
-                  divisions: 10,
+                  value: _minRating, min: 0, max: 5, divisions: 10,
                   label: _minRating.toStringAsFixed(1),
-                  onChanged: (v) {
-                    setModalState(() {
-                      _minRating = v;
-                    });
-                  },
+                  onChanged: (v) => setModalState(() => _minRating = v),
                 ),
                 const SizedBox(height: 16),
-                
                 const Text('Ville', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
@@ -198,16 +267,11 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                   children: _cities.map((city) => FilterChip(
                     label: Text(city),
                     selected: _selectedCity == city,
-                    onSelected: (_) {
-                      setModalState(() {
-                        _selectedCity = city;
-                      });
-                    },
+                    onSelected: (_) => setModalState(() => _selectedCity = city),
                     selectedColor: const Color(0xFFD4AF37),
                   )).toList(),
                 ),
                 const SizedBox(height: 16),
-                
                 const Text('Trier par', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
@@ -223,33 +287,20 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setModalState(() {
-                            _priceRange = const RangeValues(0, 5000000);
-                            _minRating = 0;
-                            _selectedCity = 'Toutes';
-                            _sortBy = 'newest';
-                          });
-                        },
-                        child: const Text('Tout effacer'),
-                      ),
-                    ),
+                    Expanded(child: OutlinedButton(onPressed: () {
+                      setModalState(() {
+                        _priceRange = const RangeValues(0, 5000000);
+                        _minRating = 0;
+                        _selectedCity = 'Toutes';
+                        _sortBy = 'newest';
+                      });
+                    }, child: const Text('Tout effacer'))),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _applyFiltersAndSort();
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD4AF37),
-                          foregroundColor: const Color(0xFF0B1B3D),
-                        ),
-                        child: const Text('Appliquer'),
-                      ),
-                    ),
+                    Expanded(child: ElevatedButton(
+                      onPressed: () { _applyFiltersAndSort(); Navigator.pop(context); },
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: const Color(0xFF0B1B3D)),
+                      child: const Text('Appliquer'),
+                    )),
                   ],
                 ),
               ],
@@ -264,11 +315,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
     return FilterChip(
       label: Text(label),
       selected: _sortBy == value,
-      onSelected: (_) {
-        setModalState(() {
-          _sortBy = value;
-        });
-      },
+      onSelected: (_) => setModalState(() => _sortBy = value),
       selectedColor: const Color(0xFFD4AF37),
     );
   }
@@ -286,16 +333,10 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         elevation: 0,
         title: const Text('THIX MARKET', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: _showFilters,
-          ),
+          IconButton(icon: const Icon(Icons.filter_list, color: Colors.white), onPressed: _showFilters),
           Stack(
             children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                onPressed: () => context.push('/market/cart'),
-              ),
+              IconButton(icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white), onPressed: () => context.push('/market/cart')),
               if (cartService.itemCount > 0)
                 Positioned(
                   right: 4, top: 4,
@@ -303,8 +344,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    child: Text('${cartService.itemCount}', textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    child: Text('${cartService.itemCount}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10)),
                   ),
                 ),
             ],
@@ -315,39 +355,34 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         onRefresh: _loadData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(userName),
-              const SizedBox(height: 20),
-              
+              const SizedBox(height: 16),
               if (_banners.isNotEmpty) ...[
                 BannerCarousel(banners: _banners),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               ],
-              
               _buildFeatures(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildSearchBar(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildCategories(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildCityFilter(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               if (_flashSales.isNotEmpty) _buildFlashSales(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              _buildCarouselProducts(),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _selectedCategory == 'Tous' ? 'Tous les produits' : 'Produits - $_selectedCategory',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${_filteredProducts.length} produits',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
+                  Text(_selectedCategory == 'Tous' ? 'Tous les produits' : 'Produits - $_selectedCategory',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('${_filteredProducts.length} produits', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -369,22 +404,16 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
 
   Widget _buildHeader(String userName) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [Color(0xFF0B1B3D), Color(0xFF1A2D56)]),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          Text(
-            'Bonjour, $userName 🎉',
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          Text('Bonjour, $userName 🎉', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text(
-            'Votre marketplace premium et sécurisée',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
-          ),
+          const Text('Votre marketplace premium et sécurisée', style: TextStyle(color: Colors.white70, fontSize: 12)),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -430,20 +459,24 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
       controller: _searchController,
       onChanged: _searchProducts,
       decoration: InputDecoration(
-        hintText: 'Rechercher un produit, une marque...',
-        prefixIcon: const Icon(Icons.search),
+        hintText: 'Rechercher...',
+        hintStyle: const TextStyle(fontSize: 13),
+        prefixIcon: const Icon(Icons.search, size: 18),
         suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); _searchProducts(''); })
+            ? IconButton(icon: const Icon(Icons.clear, size: 16), onPressed: () { _searchController.clear(); _searchProducts(''); })
             : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-        filled: true, fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       ),
+      style: const TextStyle(fontSize: 14),
     );
   }
 
   Widget _buildCategories() {
     return SizedBox(
-      height: 45,
+      height: 38,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
@@ -452,15 +485,12 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(cat),
+              label: Text(cat, style: const TextStyle(fontSize: 12)),
               selected: _selectedCategory == cat,
               onSelected: (_) => _filterByCategory(cat),
               backgroundColor: Colors.white,
               selectedColor: const Color(0xFFD4AF37),
-              labelStyle: TextStyle(
-                color: _selectedCategory == cat ? const Color(0xFF0B1B3D) : Colors.grey.shade700,
-                fontWeight: FontWeight.w500,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
           );
         },
@@ -470,7 +500,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
 
   Widget _buildCityFilter() {
     return SizedBox(
-      height: 45,
+      height: 36,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _cities.length,
@@ -479,7 +509,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(city),
+              label: Text(city, style: const TextStyle(fontSize: 11)),
               selected: _selectedCity == city,
               onSelected: (_) {
                 setState(() => _selectedCity = city);
@@ -487,9 +517,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
               },
               backgroundColor: Colors.white,
               selectedColor: const Color(0xFFD4AF37),
-              labelStyle: TextStyle(
-                color: _selectedCity == city ? const Color(0xFF0B1B3D) : Colors.grey.shade700,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             ),
           );
         },
@@ -503,18 +531,18 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('⚡ Offres flash', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('⚡ Offres flash - 72h', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             TextButton(onPressed: () {}, child: const Text('Voir tout >')),
           ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 240,
+          height: 260,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: _flashSales.length,
             itemBuilder: (context, index) => SizedBox(
-              width: 150,
+              width: 160,
               child: Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: ProductCard(
@@ -522,6 +550,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
                   onTap: () => _showProductDetail(context, _flashSales[index]),
                   showLocation: true,
                   showStock: true,
+                  showCountdown: true,
                 ),
               ),
             ),
@@ -531,9 +560,85 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
     );
   }
 
+  Widget _buildCarouselProducts() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('📢 À ne pas manquer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            TextButton(onPressed: () {}, child: const Text('Voir tout >')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _carouselProducts.length,
+            itemBuilder: (context, index) {
+              final product = _carouselProducts[index];
+              return Container(
+                width: MediaQuery.of(context).size.width * 0.7,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                      child: Image.network(
+                        product.imageUrls.first,
+                        width: 120,
+                        height: 220,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(width: 120, color: Colors.grey.shade200, child: const Icon(Icons.image)),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(product.title, maxLines: 2, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(product.city, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text('${product.price.round()} FCFA', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
+                                const SizedBox(width: 6),
+                                Text('${product.originalPrice?.round()} FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 11, color: Colors.grey)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
+                              child: Text('-${product.discountPercentage}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBottomNavBar(BuildContext context) {
     return Container(
-      height: 60,
+      height: 55,
       decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -553,7 +658,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: active ? const Color(0xFFD4AF37) : Colors.grey, size: 22),
+          Icon(icon, color: active ? const Color(0xFFD4AF37) : Colors.grey, size: 20),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(color: active ? const Color(0xFFD4AF37) : Colors.grey, fontSize: 10)),
         ],
