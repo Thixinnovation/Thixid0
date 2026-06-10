@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_story.dart';
+import 'widgets/create_story_dialog.dart';
 
 class StoriesList extends StatefulWidget {
-  final Function(String)? onStoryTap;  // ← AJOUTER
+  final Function(String)? onStoryTap;
 
   const StoriesList({
     super.key,
-    this.onStoryTap,  // ← AJOUTER
+    this.onStoryTap,
   });
 
   @override
@@ -39,6 +41,36 @@ class _StoriesListState extends State<StoriesList> {
     }
   }
 
+  void _showCreateStoryDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => const CreateStoryDialog(),
+    ).then((refresh) {
+      if (refresh == true) _loadStories();
+    });
+  }
+
+  Future<void> _markAsViewed(String storyId) async {
+    try {
+      await _networkService.markStoryAsViewed(storyId);
+      setState(() {
+        final index = _stories.indexWhere((s) => s.id == storyId);
+        if (index != -1) {
+          _stories[index] = _stories[index].copyWith(isViewed: true);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error marking story as viewed: $e');
+    }
+  }
+
+  String _getTimeRemaining(DateTime expiresAt) {
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.inHours > 0) return '${remaining.inHours}h';
+    if (remaining.inMinutes > 0) return '${remaining.inMinutes}min';
+    return 'bientôt';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -61,15 +93,22 @@ class _StoriesListState extends State<StoriesList> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 100,
+          height: 120,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: _stories.length,
             itemBuilder: (context, index) {
               final story = _stories[index];
+              final hasValidAvatar = story.userAvatar != null && story.userAvatar!.isNotEmpty;
+              final timeRemaining = _getTimeRemaining(story.expiresAt);
               
-              return GestureDetector(  // ← AJOUTER
-                onTap: () => widget.onStoryTap?.call(story.id),
+              return GestureDetector(
+                onTap: story.isCurrentUser
+                    ? _showCreateStoryDialog
+                    : () {
+                        _markAsViewed(story.id);
+                        widget.onStoryTap?.call(story.id);
+                      },
                 child: Container(
                   width: 80,
                   margin: const EdgeInsets.only(right: 12),
@@ -82,7 +121,7 @@ class _StoriesListState extends State<StoriesList> {
                             height: 64,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: story.isCurrentUser
+                              gradient: story.isViewed || story.isCurrentUser
                                   ? null
                                   : const LinearGradient(
                                       colors: [Color(0xFFD4AF37), Colors.orange],
@@ -94,11 +133,14 @@ class _StoriesListState extends State<StoriesList> {
                             child: CircleAvatar(
                               radius: 30,
                               backgroundColor: Colors.grey.shade200,
-                              backgroundImage: story.userAvatar != null
+                              backgroundImage: hasValidAvatar
                                   ? NetworkImage(story.userAvatar!)
                                   : null,
-                              child: story.userAvatar == null
-                                  ? const Icon(Icons.person, color: Colors.grey)
+                              child: !hasValidAvatar
+                                  ? Text(
+                                      story.userName.isNotEmpty ? story.userName[0].toUpperCase() : '?',
+                                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                    )
                                   : null,
                             ),
                           ),
@@ -112,6 +154,22 @@ class _StoriesListState extends State<StoriesList> {
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.add, size: 16, color: Colors.white),
+                              ),
+                            ),
+                          if (!story.isViewed && !story.isCurrentUser)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Nouveau',
+                                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
                           if (story.isViewed && !story.isCurrentUser)
@@ -132,10 +190,15 @@ class _StoriesListState extends State<StoriesList> {
                       const SizedBox(height: 4),
                       Text(
                         story.userName,
-                        style: const TextStyle(fontSize: 11),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (!story.isCurrentUser)
+                        Text(
+                          timeRemaining,
+                          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                        ),
                     ],
                   ),
                 ),
