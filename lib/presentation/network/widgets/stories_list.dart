@@ -1,235 +1,181 @@
-// lib/presentation/network/widgets/create_story_dialog.dart
-import 'dart:io';
+// lib/presentation/network/widgets/stories_list.dart
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
-import 'package:thix_id/services/upload_service.dart';
+import 'package:thix_id/models/network_story.dart';
 
-class CreateStoryDialog extends StatefulWidget {
-  const CreateStoryDialog({super.key});
+class StoriesList extends StatefulWidget {
+  final Function(String)? onStoryTap;
+
+  const StoriesList({
+    super.key,
+    this.onStoryTap,
+  });
 
   @override
-  State<CreateStoryDialog> createState() => _CreateStoryDialogState();
+  State<StoriesList> createState() => _StoriesListState();
 }
 
-class _CreateStoryDialogState extends State<CreateStoryDialog> {
-  File? _selectedImage;
-  bool _isUploading = false;
+class _StoriesListState extends State<StoriesList> {
   late NetworkService _networkService;
-  late UploadService _uploadService;
-  int _duration = 24;
+  List<NetworkStory> _stories = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _networkService = NetworkService(Supabase.instance.client);
-    _uploadService = UploadService();
+    _loadStories();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _loadStories() async {
+    setState(() => _loading = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-      
-      if (result != null && result.files.isNotEmpty) {
-        final file = File(result.files.first.path!);
-        final size = await file.length();
-        
-        if (size > 10 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('L\'image ne doit pas dépasser 10MB')),
-          );
-          return;
-        }
-        
-        setState(() {
-          _selectedImage = file;
-        });
-      }
+      final stories = await _networkService.getActiveStories();
+      setState(() => _stories = stories);
     } catch (e) {
-      debugPrint('Error picking image: $e');
-    }
-  }
-
-  Future<void> _createStory() async {
-    if (_selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une image')),
-      );
-      return;
-    }
-
-    setState(() => _isUploading = true);
-
-    try {
-      final imageUrl = await _uploadService.uploadStoryImage(_selectedImage!);
-      await _networkService.createStory(imageUrl, duration: _duration);
-      
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Story publiée !'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error creating story: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-        );
-      }
+      debugPrint('Error loading stories: $e');
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      setState(() => _loading = false);
     }
   }
 
-  void _removeImage() {
-    setState(() {
-      _selectedImage = null;
-    });
+  String _getTimeRemaining(DateTime expiresAt) {
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.inHours > 0) return '${remaining.inHours}h';
+    if (remaining.inMinutes > 0) return '${remaining.inMinutes}min';
+    return 'bientôt';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        constraints: const BoxConstraints(maxWidth: 400),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Ajouter une story',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: double.infinity,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                  image: _selectedImage != null
-                      ? DecorationImage(
-                          image: FileImage(_selectedImage!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: _selectedImage == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tapez pour sélectionner',
-                            style: TextStyle(color: Colors.grey.shade600),
+    if (_loading) {
+      return const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_stories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Stories professionnelles',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _stories.length,
+            itemBuilder: (context, index) {
+              final story = _stories[index];
+              final hasValidAvatar = story.userAvatar != null && story.userAvatar!.isNotEmpty;
+              final timeRemaining = _getTimeRemaining(story.expiresAt);
+              
+              return Container(
+                width: 80,
+                margin: const EdgeInsets.only(right: 12),
+                child: Column(
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: story.isViewed || story.isCurrentUser
+                                ? null
+                                : const LinearGradient(
+                                    colors: [Color(0xFFD4AF37), Colors.orange],
+                                  ),
+                            border: story.isCurrentUser
+                                ? Border.all(color: Colors.grey.shade300, width: 2)
+                                : null,
                           ),
-                        ],
-                      )
-                    : Stack(
-                        children: [
+                          child: CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: hasValidAvatar
+                                ? NetworkImage(story.userAvatar!)
+                                : null,
+                            child: !hasValidAvatar
+                                ? Text(
+                                    story.userName.isNotEmpty ? story.userName[0].toUpperCase() : '?',
+                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        if (story.isCurrentUser)
                           Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: _removeImage,
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.close, size: 24, color: Colors.white),
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFD4AF37),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.add, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        if (!story.isViewed && !story.isCurrentUser)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'Nouveau',
+                                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
-                        ],
+                        if (story.isViewed && !story.isCurrentUser)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      story.userName,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (!story.isCurrentUser)
+                      Text(
+                        timeRemaining,
+                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
                       ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.timer, size: 20, color: Color(0xFFD4AF37)),
-                  const SizedBox(width: 12),
-                  const Text('Durée de la story:'),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Slider(
-                      value: _duration.toDouble(),
-                      min: 6,
-                      max: 48,
-                      divisions: 42,
-                      label: '$_duration heures',
-                      activeColor: const Color(0xFFD4AF37),
-                      onChanged: (value) {
-                        setState(() => _duration = value.toInt());
-                      },
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$_duration h',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isUploading ? null : _createStory,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: const Color(0xFF0B1B3D),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
+                  ],
                 ),
-                child: _isUploading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'PUBLIER LA STORY',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 }
