@@ -45,8 +45,8 @@ class _FavorisPageState extends State<FavorisPage> {
       color: Colors.white,
       child: Row(
         children: tabs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final label = entry.value;
+          final int index = entry.key;
+          final String label = entry.value;
           return Expanded(
             child: GestureDetector(
               onTap: () => setState(() => _selectedTab = index),
@@ -92,6 +92,10 @@ class _DestinationsFav extends StatelessWidget {
       itemCount: destinations.length,
       itemBuilder: (context, index) {
         final dest = destinations[index];
+        final String ville = dest['ville'] as String;
+        final String pays = dest['pays'] as String;
+        final String prix = dest['prix'] as String;
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -115,12 +119,12 @@ class _DestinationsFav extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(dest['ville']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(dest['pays']!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(ville, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(pays, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
-              Text(dest['prix']!, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
+              Text(prix, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
               IconButton(
                 icon: const Icon(Icons.favorite, color: Colors.red),
                 onPressed: () {},
@@ -148,6 +152,11 @@ class _ChauffeursFav extends StatelessWidget {
       itemCount: chauffeurs.length,
       itemBuilder: (context, index) {
         final chauffeur = chauffeurs[index];
+        final String nom = chauffeur['nom'] as String;
+        final String note = chauffeur['note'] as String;
+        final int trajets = chauffeur['trajets'] as int;
+        final String photo = chauffeur['photo'] as String;
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -159,18 +168,18 @@ class _ChauffeursFav extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: const Color(0xFFD4AF37).withOpacity(0.1),
-                child: Text(chauffeur['photo']!),
+                child: Text(photo),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(chauffeur['nom']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(nom, style: const TextStyle(fontWeight: FontWeight.bold)),
                     Row(
                       children: [
                         const Icon(Icons.star, size: 12, color: Colors.amber),
-                        Text(' ${chauffeur['note']} • ${chauffeur['trajets']} trajets', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(' $note • $trajets trajets', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ],
@@ -196,13 +205,17 @@ class _AdressesFav extends StatelessWidget {
     final adresses = [
       {'label': 'Maison', 'adresse': 'Abidjan, Cocody', 'icon': Icons.home},
       {'label': 'Travail', 'adresse': 'Abidjan, Plateau', 'icon': Icons.work},
-      {'label': 'Aéroport', 'adresse': 'Abidjan, Aéroport FHB', 'icon': Icons.flight},
+      {'label': 'Aeroport', 'adresse': 'Abidjan, Aeroport FHB', 'icon': Icons.flight},
     ];
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: adresses.length,
       itemBuilder: (context, index) {
         final adresse = adresses[index];
+        final String label = adresse['label'] as String;
+        final String adr = adresse['adresse'] as String;
+        final IconData icon = adresse['icon'] as IconData;
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -218,15 +231,15 @@ class _AdressesFav extends StatelessWidget {
                   color: const Color(0xFFD4AF37).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(adresse['icon'] as IconData, color: const Color(0xFFD4AF37)),
+                child: Icon(icon, color: const Color(0xFFD4AF37)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(adresse['label']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(adresse['adresse']!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(adr, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
