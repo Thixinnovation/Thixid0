@@ -1,13 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/material.dart';
 import '../models/network_post.dart';
 import '../models/network_connection.dart';
 import '../models/network_community.dart';
 import '../models/network_message.dart';
 import '../models/network_notification.dart';
 import '../models/network_story.dart';
-import 'package:flutter/material.dart';
 
 class NetworkService {
   final SupabaseClient _supabase;
@@ -19,83 +19,102 @@ class NetworkService {
   // ==================== POSTS ====================
 
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-  try {
-    final currentUserId = this.currentUserId;
-    
-    // Récupérer les IDs des posts masqués
-    final hiddenPosts = await _supabase
-        .from('hidden_posts')
-        .select('post_id')
-        .eq('user_id', currentUserId);
-    
-    final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
-    
-    final response = await _supabase
-        .from('network_posts')
-        .select('''
-          *,
-          profiles!user_id (
-            id,
-            display_name,
-            avatar_url,
-            title
-          ),
-          likes:network_likes!post_id(count),
-          comments:network_comments!post_id(count),
-          user_liked:network_likes!post_id(user_id)
-        ''')
-        .order('created_at', ascending: false)
-        .limit(limit);
-    
-    // ✅ Filtrer côté Dart pour exclure les posts masqués
-    final filteredResponse = (response as List)
-        .where((post) => !hiddenIds.contains(post['id']))
-        .toList();
-    
-    return filteredResponse.map((e) {
-      final userLiked = (e['user_liked'] as List?)?.any((like) => like['user_id'] == currentUserId) ?? false;
+    try {
+      final currentUserId = this.currentUserId;
       
-      return NetworkPost.fromJson({
-        ...e,
-        'likes_count': (e['likes'] as List?)?.length ?? 0,
-        'comments_count': (e['comments'] as List?)?.length ?? 0,
-        'is_liked_by_current_user': userLiked,
-      });
-    }).toList();
-  } catch (e) {
-    debugPrint('Error getFeedPosts: $e');
-    return [];
+      final hiddenPosts = await _supabase
+          .from('hidden_posts')
+          .select('post_id')
+          .eq('user_id', currentUserId);
+      
+      final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
+      
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            *,
+            users!user_id (
+              id,
+              display_name,
+              photo_url,
+              profession
+            ),
+            post_likes!post_id(count),
+            comments:comments!post_id(count)
+          ''')
+          .order('created_at', ascending: false)
+          .limit(limit);
+      
+      final filteredResponse = (response as List)
+          .where((post) => !hiddenIds.contains(post['id']))
+          .toList();
+      
+      final posts = <NetworkPost>[];
+      for (var e in filteredResponse) {
+        final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
+        
+        posts.add(NetworkPost.fromJson({
+          ...e,
+          'author_name': e['users']?['display_name'],
+          'author_avatar': e['users']?['photo_url'],
+          'author_title': e['users']?['profession'],
+          'likes_count': (e['post_likes'] as List?)?.length ?? 0,
+          'comments_count': (e['comments'] as List?)?.length ?? 0,
+          'is_liked': userLiked,
+        }));
+      }
+      
+      return posts;
+    } catch (e) {
+      debugPrint('Error getFeedPosts: $e');
+      return [];
+    }
   }
-}
+
+  Future<bool> _hasUserLikedPost(String postId, String userId) async {
+    try {
+      final response = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      return response != null;
+    } catch (e) {
+      return false;
+    }
+  }
 
   Future<NetworkPost?> getPostById(String postId) async {
     try {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_posts')
+          .from('posts')
           .select('''
             *,
-            profiles!user_id (
+            users!user_id (
               id,
               display_name,
-              avatar_url,
-              title
+              photo_url,
+              profession
             ),
-            likes:network_likes!post_id(count),
-            comments:network_comments!post_id(count),
-            user_liked:network_likes!post_id(user_id)
+            post_likes!post_id(count),
+            comments:comments!post_id(count)
           ''')
           .eq('id', postId)
           .single();
       
-      final userLiked = (response['user_liked'] as List?)?.any((like) => like['user_id'] == currentUserId) ?? false;
+      final userLiked = await _hasUserLikedPost(postId, currentUserId);
       
       return NetworkPost.fromJson({
         ...response,
-        'likes_count': (response['likes'] as List?)?.length ?? 0,
+        'author_name': response['users']?['display_name'],
+        'author_avatar': response['users']?['photo_url'],
+        'author_title': response['users']?['profession'],
+        'likes_count': (response['post_likes'] as List?)?.length ?? 0,
         'comments_count': (response['comments'] as List?)?.length ?? 0,
-        'is_liked_by_current_user': userLiked,
+        'is_liked': userLiked,
       });
     } catch (e) {
       debugPrint('Error getPostById: $e');
@@ -105,10 +124,11 @@ class NetworkService {
 
   Future<void> createPost(String content, List<String> images) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('network_posts').insert({
+    await _supabase.from('posts').insert({
       'user_id': currentUserId,
       'content': content,
-      'images': images,
+      'media_url': images.isNotEmpty ? images[0] : null,
+      'media_type': images.isNotEmpty ? 'image' : 'none',
       'created_at': DateTime.now().toIso8601String(),
     });
   }
@@ -117,7 +137,7 @@ class NetworkService {
     final currentUserId = this.currentUserId;
     
     final post = await _supabase
-        .from('network_posts')
+        .from('posts')
         .select('user_id')
         .eq('id', postId)
         .single();
@@ -127,7 +147,7 @@ class NetworkService {
     }
     
     await _supabase
-        .from('network_posts')
+        .from('posts')
         .update({
           'content': newContent,
           'updated_at': DateTime.now().toIso8601String(),
@@ -139,7 +159,7 @@ class NetworkService {
     final currentUserId = this.currentUserId;
     
     final post = await _supabase
-        .from('network_posts')
+        .from('posts')
         .select('user_id')
         .eq('id', postId)
         .single();
@@ -148,7 +168,7 @@ class NetworkService {
       throw Exception('Vous ne pouvez pas supprimer cette publication');
     }
     
-    await _supabase.from('network_posts').delete().eq('id', postId);
+    await _supabase.from('posts').delete().eq('id', postId);
   }
 
   Future<void> hidePost(String postId) async {
@@ -178,7 +198,7 @@ class NetworkService {
 
   Future<void> likePost(String postId) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('network_likes').insert({
+    await _supabase.from('post_likes').insert({
       'post_id': postId,
       'user_id': currentUserId,
       'created_at': DateTime.now().toIso8601String(),
@@ -194,7 +214,7 @@ class NetworkService {
   Future<void> unlikePost(String postId) async {
     final currentUserId = this.currentUserId;
     await _supabase
-        .from('network_likes')
+        .from('post_likes')
         .delete()
         .eq('post_id', postId)
         .eq('user_id', currentUserId);
@@ -202,7 +222,7 @@ class NetworkService {
 
   Future<void> addComment(String postId, String content) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('network_comments').insert({
+    await _supabase.from('comments').insert({
       'post_id': postId,
       'user_id': currentUserId,
       'content': content,
@@ -219,13 +239,13 @@ class NetworkService {
   Future<List<Map<String, dynamic>>> getComments(String postId) async {
     try {
       final response = await _supabase
-          .from('network_comments')
+          .from('comments')
           .select('''
             *,
-            profiles!user_id (
+            users!user_id (
               id,
               display_name,
-              avatar_url
+              photo_url
             )
           ''')
           .eq('post_id', postId)
@@ -234,8 +254,8 @@ class NetworkService {
       return (response as List).map((e) => {
         'id': e['id'],
         'user_id': e['user_id'],
-        'user_name': e['profiles']['display_name'],
-        'user_avatar': e['profiles']['avatar_url'],
+        'user_name': e['users']['display_name'],
+        'user_avatar': e['users']['photo_url'],
         'content': e['content'],
         'created_at': e['created_at'],
       }).toList();
@@ -245,22 +265,11 @@ class NetworkService {
     }
   }
 
-  Future<String> _getPostOwnerId(String postId) async {
-    final response = await _supabase
-        .from('network_posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-    return response['user_id'];
-  }
-
-  // ==================== GESTION DES COMMENTAIRES ====================
-
   Future<void> deleteComment(String commentId) async {
     final currentUserId = this.currentUserId;
     
     final comment = await _supabase
-        .from('network_comments')
+        .from('comments')
         .select('user_id')
         .eq('id', commentId)
         .single();
@@ -269,7 +278,16 @@ class NetworkService {
       throw Exception('Vous ne pouvez pas supprimer ce commentaire');
     }
     
-    await _supabase.from('network_comments').delete().eq('id', commentId);
+    await _supabase.from('comments').delete().eq('id', commentId);
+  }
+
+  Future<String> _getPostOwnerId(String postId) async {
+    final response = await _supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    return response['user_id'];
   }
 
   // ==================== COMMUNAUTÉS ====================
@@ -282,11 +300,11 @@ class NetworkService {
     final currentUserId = this.currentUserId;
     
     final response = await _supabase
-        .from('network_communities')
+        .from('communities')
         .insert({
           'name': name,
           'description': description,
-          'banner_url': bannerUrl,
+          'logo_url': bannerUrl,
           'created_by': currentUserId,
           'created_at': DateTime.now().toIso8601String(),
           'members_count': 1,
@@ -310,12 +328,9 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_communities')
+          .from('communities')
           .select('''
             *,
-            creator:profiles!created_by (
-              id, display_name, avatar_url
-            ),
             is_member:community_members!community_id(user_id)
           ''')
           .order('members_count', ascending: false)
@@ -341,12 +356,9 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_communities')
+          .from('communities')
           .select('''
             *,
-            creator:profiles!created_by (
-              id, display_name, avatar_url
-            ),
             is_member:community_members!community_id(user_id)
           ''')
           .order('members_count', ascending: false)
@@ -377,10 +389,7 @@ class NetworkService {
           .from('community_members')
           .select('''
             community:communities!community_id (
-              *,
-              creator:profiles!created_by (
-                id, display_name, avatar_url
-              )
+              *
             )
           ''')
           .eq('user_id', currentUserId);
@@ -403,12 +412,9 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_communities')
+          .from('communities')
           .select('''
             *,
-            creator:profiles!created_by (
-              id, display_name, avatar_url
-            ),
             is_member:community_members!community_id(user_id)
           ''')
           .eq('id', communityId)
@@ -443,11 +449,11 @@ class NetworkService {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (description != null) updates['description'] = description;
-    if (bannerUrl != null) updates['banner_url'] = bannerUrl;
+    if (bannerUrl != null) updates['logo_url'] = bannerUrl;
     updates['updated_at'] = DateTime.now().toIso8601String();
     
     await _supabase
-        .from('network_communities')
+        .from('communities')
         .update(updates)
         .eq('id', communityId);
   }
@@ -456,7 +462,7 @@ class NetworkService {
     final currentUserId = this.currentUserId;
     
     final community = await _supabase
-        .from('network_communities')
+        .from('communities')
         .select('created_by')
         .eq('id', communityId)
         .single();
@@ -465,7 +471,7 @@ class NetworkService {
       throw Exception('Seul le créateur peut supprimer la communauté');
     }
     
-    await _supabase.from('network_communities').delete().eq('id', communityId);
+    await _supabase.from('communities').delete().eq('id', communityId);
   }
 
   // ==================== MEMBRES ====================
@@ -515,8 +521,8 @@ class NetworkService {
           .from('community_members')
           .select('''
             *,
-            user:profiles!user_id (
-              id, display_name, avatar_url, title
+            user:users!user_id (
+              id, display_name, photo_url, profession
             )
           ''')
           .eq('community_id', communityId)
@@ -633,11 +639,12 @@ class NetworkService {
       throw Exception('Vous devez être membre pour publier dans cette communauté');
     }
     
-    await _supabase.from('network_posts').insert({
+    await _supabase.from('posts').insert({
       'user_id': currentUserId,
       'community_id': communityId,
       'content': content,
-      'images': images,
+      'media_url': images.isNotEmpty ? images[0] : null,
+      'media_type': images.isNotEmpty ? 'image' : 'none',
       'created_at': DateTime.now().toIso8601String(),
     });
     
@@ -649,29 +656,33 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_posts')
+          .from('posts')
           .select('''
             *,
-            profiles!user_id (
-              id, display_name, avatar_url, title
-            ),
-            user_liked:network_likes!post_id(user_id)
+            users!user_id (
+              id, display_name, photo_url, profession
+            )
           ''')
           .eq('community_id', communityId)
           .order('created_at', ascending: false)
           .limit(limit);
       
-      return (response as List).map((e) {
-        final userLiked = (e['user_liked'] as List?)
-            ?.any((like) => like['user_id'] == currentUserId) ?? false;
+      final posts = <NetworkPost>[];
+      for (var e in response as List) {
+        final userLiked = await _hasUserLikedPost(e['id'], currentUserId);
         
-        return NetworkPost.fromJson({
+        posts.add(NetworkPost.fromJson({
           ...e,
+          'author_name': e['users']?['display_name'],
+          'author_avatar': e['users']?['photo_url'],
+          'author_title': e['users']?['profession'],
           'likes_count': 0,
           'comments_count': 0,
-          'is_liked_by_current_user': userLiked,
-        });
-      }).toList();
+          'is_liked': userLiked,
+        }));
+      }
+      
+      return posts;
     } catch (e) {
       debugPrint('Error getCommunityPosts: $e');
       return [];
@@ -691,127 +702,24 @@ class NetworkService {
     await Share.share(shareText);
   }
 
-  // ==================== RECHERCHE ====================
-
-  Future<List<NetworkCommunity>> searchCommunities(String query) async {
-    try {
-      final currentUserId = this.currentUserId;
-      
-      final response = await _supabase
-          .from('network_communities')
-          .select('''
-            *,
-            creator:profiles!created_by (
-              id, display_name, avatar_url
-            ),
-            is_member:community_members!community_id(user_id)
-          ''')
-          .ilike('name', '%$query%')
-          .order('members_count', ascending: false)
-          .limit(20);
-      
-      return (response as List).map((e) {
-        final isMember = (e['is_member'] as List?)
-            ?.any((member) => member['user_id'] == currentUserId) ?? false;
-        
-        return NetworkCommunity.fromJson({
-          ...e,
-          'is_member': isMember,
-        });
-      }).toList();
-    } catch (e) {
-      debugPrint('Error searchCommunities: $e');
-      return [];
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
-    try {
-      final response = await _supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, title')
-          .ilike('display_name', '%$query%')
-          .limit(20);
-      
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      debugPrint('Error searchUsers: $e');
-      return [];
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> searchPosts(String query) async {
-    try {
-      final response = await _supabase
-          .from('network_posts')
-          .select('''
-            id, content, created_at,
-            profiles!user_id (display_name, avatar_url)
-          ''')
-          .ilike('content', '%$query%')
-          .order('created_at', ascending: false)
-          .limit(20);
-      
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      debugPrint('Error searchPosts: $e');
-      return [];
-    }
-  }
-
-  Future<Map<String, int>> getRecommendationsCount() async {
-    final currentUserId = this.currentUserId;
-    
-    final people = await _supabase
-        .from('profiles')
-        .select('id')
-        .neq('id', currentUserId)
-        .limit(10);
-    
-    final opportunities = await _supabase
-        .from('opportunities')
-        .select('id')
-        .eq('is_active', true)
-        .limit(10);
-    
-    final communities = await _supabase
-        .from('network_communities')
-        .select('id')
-        .limit(10);
-    
-    return {
-      'people': (people as List).length,
-      'opportunities': (opportunities as List).length,
-      'communities': (communities as List).length,
-    };
-  }
-
-  // ==================== CONNECTIONS ====================
+  // ==================== CONNEXIONS ====================
 
   Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
     try {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('profiles')
-          .select('''
-            id,
-            display_name,
-            avatar_url,
-            title,
-            mutual_connections:network_connections!target_id(count)
-          ''')
-          .neq('id', currentUserId)
-          .limit(limit);
+          .rpc('get_suggested_connections', params: {
+            'p_user_id': currentUserId,
+            'limit_val': limit,
+          });
       
       return (response as List).map((e) => NetworkConnection(
         id: e['id'],
-        name: e['display_name'],
-        avatar: e['avatar_url'],
-        title: e['title'] ?? 'Membre THIX',
-        mutualConnections: e['mutual_connections'] != null && (e['mutual_connections'] as List).isNotEmpty 
-            ? (e['mutual_connections'][0]['count'] ?? 0) 
-            : 0,
+        name: e['display_name'] ?? 'Utilisateur',
+        avatar: e['photo_url'],
+        title: e['profession'] ?? 'Membre THIX',
+        mutualConnections: e['mutual_connections'] ?? 0,
       )).toList();
     } catch (e) {
       debugPrint('Error getSuggestedConnections: $e');
@@ -821,34 +729,48 @@ class NetworkService {
 
   Future<void> sendConnectionRequest(String targetUserId) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('network_connections').insert({
-      'requester_id': currentUserId,
-      'target_id': targetUserId,
+    await _supabase.from('connection_requests').insert({
+      'sender_id': currentUserId,
+      'receiver_id': targetUserId,
       'status': 'pending',
       'created_at': DateTime.now().toIso8601String(),
     });
     
     await _createNotification(
       userId: targetUserId,
-      type: 'connection_request',
+      type: 'connection',
     );
   }
 
   Future<void> acceptConnectionRequest(String requestId) async {
     await _supabase
-        .from('network_connections')
+        .from('connection_requests')
         .update({'status': 'accepted', 'updated_at': DateTime.now().toIso8601String()})
         .eq('id', requestId);
+    
+    // Créer aussi une connexion dans la table connections
+    final request = await _supabase
+        .from('connection_requests')
+        .select('sender_id, receiver_id')
+        .eq('id', requestId)
+        .single();
+    
+    await _supabase.from('connections').insert({
+      'user_id': request['sender_id'],
+      'connection_id': request['receiver_id'],
+      'status': 'accepted',
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<String?> getConnectionStatus(String userId) async {
     try {
       final currentUserId = this.currentUserId;
       final response = await _supabase
-          .from('network_connections')
+          .from('connection_requests')
           .select('status')
-          .or('requester_id.eq.$currentUserId,target_id.eq.$currentUserId')
-          .or('requester_id.eq.$userId,target_id.eq.$userId')
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .or('sender_id.eq.$userId,receiver_id.eq.$userId')
           .maybeSingle();
       
       return response?['status'];
@@ -906,17 +828,18 @@ class NetworkService {
       NetworkStory.setCurrentUserId(currentUserId);
       
       final response = await _supabase
-          .from('network_stories')
+          .from('stories')
           .select('''
             *,
-            profiles!user_id (
-              display_name, avatar_url, title
+            users!user_id (
+              display_name,
+              photo_url,
+              profession
             )
           ''')
           .eq('is_active', true)
           .gte('expires_at', DateTime.now().toIso8601String())
-          .order('created_at', ascending: false)
-          .limit(20);
+          .order('created_at', ascending: false);
       
       return (response as List).map((e) => NetworkStory.fromJson(e)).toList();
     } catch (e) {
@@ -925,12 +848,12 @@ class NetworkService {
     }
   }
 
-  Future<void> createStory(String imageUrl, {int duration = 24}) async {
+  Future<void> createStory(String mediaUrl, {String mediaType = 'image', int duration = 24}) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('network_stories').insert({
+    await _supabase.from('stories').insert({
       'user_id': currentUserId,
-      'image_url': imageUrl,
-      'duration': duration,
+      'media_url': mediaUrl,
+      'media_type': mediaType,
       'is_active': true,
       'created_at': DateTime.now().toIso8601String(),
       'expires_at': DateTime.now().add(Duration(hours: duration)).toIso8601String(),
@@ -940,7 +863,7 @@ class NetworkService {
   Future<void> deleteStory(String storyId) async {
     final currentUserId = this.currentUserId;
     await _supabase
-        .from('network_stories')
+        .from('stories')
         .delete()
         .eq('id', storyId)
         .eq('user_id', currentUserId);
@@ -970,17 +893,17 @@ class NetworkService {
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
       final response = await _supabase
-          .from('profiles')
+          .from('users')
           .select('''
             id,
             display_name,
-            avatar_url,
-            title,
+            photo_url,
+            profession,
             bio,
             skills,
-            posts_count:network_posts(count),
-            followers_count:network_connections!target_id(count),
-            following_count:network_connections!requester_id(count)
+            posts_count:posts(count),
+            followers_count:connections!connection_id(count),
+            following_count:connections!user_id(count)
           ''')
           .eq('id', userId)
           .maybeSingle();
@@ -990,8 +913,8 @@ class NetworkService {
       return {
         'id': response['id'],
         'display_name': response['display_name'],
-        'avatar_url': response['avatar_url'],
-        'title': response['title'],
+        'photo_url': response['photo_url'],
+        'profession': response['profession'],
         'bio': response['bio'],
         'skills': response['skills'] ?? [],
         'posts_count': (response['posts_count'] as List?)?.length ?? 0,
@@ -1007,11 +930,11 @@ class NetworkService {
   Future<List<NetworkPost>> getUserPosts(String userId) async {
     try {
       final response = await _supabase
-          .from('network_posts')
+          .from('posts')
           .select('''
             *,
-            profiles!user_id (
-              display_name, avatar_url, title
+            users!user_id (
+              display_name, photo_url, profession
             )
           ''')
           .eq('user_id', userId)
@@ -1019,8 +942,12 @@ class NetworkService {
       
       return (response as List).map((e) => NetworkPost.fromJson({
         ...e,
+        'author_name': e['users']?['display_name'],
+        'author_avatar': e['users']?['photo_url'],
+        'author_title': e['users']?['profession'],
         'likes_count': 0,
         'comments_count': 0,
+        'is_liked': false,
       })).toList();
     } catch (e) {
       debugPrint('Error getUserPosts: $e');
@@ -1035,26 +962,49 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_conversations')
+          .from('messages')
           .select('''
-            id,
-            user1_id,
-            user2_id,
-            last_message,
-            last_message_at,
-            last_sender_id,
-            user1:profiles!network_conversations_user1_id(
-              id, display_name, avatar_url
+            sender_id,
+            receiver_id,
+            content,
+            created_at,
+            is_read,
+            sender:users!messages_sender_id (
+              id, display_name, photo_url
             ),
-            user2:profiles!network_conversations_user2_id(
-              id, display_name, avatar_url
-            ),
-            unread_count:network_messages!conversation_id(count)
+            receiver:users!messages_receiver_id (
+              id, display_name, photo_url
+            )
           ''')
-          .or('user1_id.eq.$currentUserId,user2_id.eq.$currentUserId')
-          .order('last_message_at', ascending: false);
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .order('created_at', ascending: false);
       
-      return (response as List).map((e) => Conversation.fromJson(e, currentUserId)).toList();
+      // Grouper par conversation
+      final Map<String, Conversation> conversations = {};
+      
+      for (var msg in response as List) {
+        final otherId = msg['sender_id'] == currentUserId 
+            ? msg['receiver_id'] 
+            : msg['sender_id'];
+        
+        final otherUser = msg['sender_id'] == currentUserId
+            ? msg['receiver']
+            : msg['sender'];
+        
+        if (!conversations.containsKey(otherId)) {
+          conversations[otherId] = Conversation(
+            id: otherId,
+            otherUserId: otherId,
+            otherUserName: otherUser['display_name'] ?? 'Utilisateur',
+            otherUserAvatar: otherUser['photo_url'],
+            lastMessage: msg['content'],
+            lastMessageTime: DateTime.parse(msg['created_at']),
+            unreadCount: msg['is_read'] == false && msg['receiver_id'] == currentUserId ? 1 : 0,
+          );
+        }
+      }
+      
+      return conversations.values.toList();
     } catch (e) {
       debugPrint('Error getConversations: $e');
       return [];
@@ -1064,43 +1014,9 @@ class NetworkService {
   Future<Map<String, dynamic>> sendMessage(String receiverId, String content) async {
     final currentUserId = this.currentUserId;
     
-    var conv = await _supabase
-        .from('network_conversations')
-        .select()
-        .or('user1_id.eq.$currentUserId,user2_id.eq.$currentUserId')
-        .or('user1_id.eq.$receiverId,user2_id.eq.$receiverId')
-        .maybeSingle();
-    
-    String conversationId;
-    if (conv == null) {
-      final newConv = await _supabase
-          .from('network_conversations')
-          .insert({
-            'user1_id': currentUserId,
-            'user2_id': receiverId,
-            'last_message': content,
-            'last_message_at': DateTime.now().toIso8601String(),
-            'last_sender_id': currentUserId,
-          })
-          .select()
-          .single();
-      conversationId = newConv['id'];
-    } else {
-      conversationId = conv['id'];
-      await _supabase
-          .from('network_conversations')
-          .update({
-            'last_message': content,
-            'last_message_at': DateTime.now().toIso8601String(),
-            'last_sender_id': currentUserId,
-          })
-          .eq('id', conversationId);
-    }
-    
     final response = await _supabase
-        .from('network_messages')
+        .from('messages')
         .insert({
-          'conversation_id': conversationId,
           'sender_id': currentUserId,
           'receiver_id': receiverId,
           'content': content,
@@ -1123,7 +1039,7 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_messages')
+          .from('messages')
           .select('*')
           .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
           .or('sender_id.eq.$otherUserId,receiver_id.eq.$otherUserId')
@@ -1145,7 +1061,7 @@ class NetworkService {
     try {
       final currentUserId = this.currentUserId;
       await _supabase
-          .from('network_messages')
+          .from('messages')
           .update({'is_read': true})
           .eq('receiver_id', currentUserId)
           .eq('sender_id', otherUserId);
@@ -1161,13 +1077,14 @@ class NetworkService {
       final currentUserId = this.currentUserId;
       
       final response = await _supabase
-          .from('network_notifications')
+          .from('notifications')
           .select('''
             *,
-            actor:profiles!actor_id(
-              id, display_name, avatar_url
+            users!sender_id (
+              display_name,
+              photo_url
             ),
-            post:network_posts!post_id(
+            posts!post_id (
               id, content
             )
           ''')
@@ -1186,14 +1103,30 @@ class NetworkService {
     try {
       final currentUserId = this.currentUserId;
       final response = await _supabase
-          .from('network_notifications')
-          .select('id')
+          .from('notifications')
+          .select('id', count: CountOption.exact)
           .eq('user_id', currentUserId)
           .eq('is_read', false);
       
-      return (response as List).length;
+      return response.count ?? 0;
     } catch (e) {
       debugPrint('Error getUnreadNotificationsCount: $e');
+      return 0;
+    }
+  }
+
+  Future<int> getUnreadMessagesCount() async {
+    try {
+      final currentUserId = this.currentUserId;
+      final response = await _supabase
+          .from('messages')
+          .select('id', count: CountOption.exact)
+          .eq('receiver_id', currentUserId)
+          .eq('is_read', false);
+      
+      return response.count ?? 0;
+    } catch (e) {
+      debugPrint('Error getUnreadMessagesCount: $e');
       return 0;
     }
   }
@@ -1202,7 +1135,7 @@ class NetworkService {
     try {
       final currentUserId = this.currentUserId;
       await _supabase
-          .from('network_notifications')
+          .from('notifications')
           .update({'is_read': true})
           .eq('user_id', currentUserId)
           .eq('is_read', false);
@@ -1219,14 +1152,100 @@ class NetworkService {
     final currentUserId = this.currentUserId;
     if (userId == currentUserId) return;
     
-    await _supabase.from('network_notifications').insert({
+    await _supabase.from('notifications').insert({
       'user_id': userId,
       'type': type,
-      'actor_id': currentUserId,
+      'sender_id': currentUserId,
       'post_id': postId,
       'is_read': false,
       'created_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  // ==================== RECHERCHE ====================
+
+  Future<List<NetworkCommunity>> searchCommunities(String query) async {
+    try {
+      final currentUserId = this.currentUserId;
+      
+      final response = await _supabase
+          .from('communities')
+          .select('''
+            *,
+            is_member:community_members!community_id(user_id)
+          ''')
+          .ilike('name', '%$query%')
+          .order('members_count', ascending: false)
+          .limit(20);
+      
+      return (response as List).map((e) {
+        final isMember = (e['is_member'] as List?)
+            ?.any((member) => member['user_id'] == currentUserId) ?? false;
+        
+        return NetworkCommunity.fromJson({
+          ...e,
+          'is_member': isMember,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error searchCommunities: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select('id, display_name, photo_url, profession')
+          .ilike('display_name', '%$query%')
+          .limit(20);
+      
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error searchUsers: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchPosts(String query) async {
+    try {
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            id, content, created_at,
+            users!user_id (display_name, photo_url)
+          ''')
+          .ilike('content', '%$query%')
+          .order('created_at', ascending: false)
+          .limit(20);
+      
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error searchPosts: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, int>> getRecommendationsCount() async {
+    final currentUserId = this.currentUserId;
+    
+    final people = await _supabase
+        .from('users')
+        .select('id')
+        .neq('id', currentUserId)
+        .limit(10);
+    
+    final communities = await _supabase
+        .from('communities')
+        .select('id')
+        .limit(10);
+    
+    return {
+      'people': (people as List).length,
+      'opportunities': 0, // À implémenter avec une table opportunities
+      'communities': (communities as List).length,
+    };
   }
 
   // ==================== ÉVÉNEMENTS ====================
