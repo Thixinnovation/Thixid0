@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 
@@ -24,6 +25,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
   final ScrollController _scrollController = ScrollController();
+  bool _isTyping = false;
+  RealtimeChannel? _channel;
 
   @override
   void initState() {
@@ -31,6 +34,41 @@ class _ChatScreenState extends State<ChatScreen> {
     _networkService = NetworkService(Supabase.instance.client);
     _loadMessages();
     _markAsRead();
+    _listenForNewMessages();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _listenForNewMessages() {
+    final supabase = Supabase.instance.client;
+    final currentUserId = supabase.auth.currentUser?.id;
+    
+    if (currentUserId == null) return;
+    
+    _channel = supabase
+        .channel('messages_${widget.userId}_$currentUserId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'network_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'receiver_id',
+            value: currentUserId,
+          ),
+          callback: (payload) {
+            if (payload.newRecord['sender_id'] == widget.userId) {
+              _loadMessages();
+            }
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadMessages() async {
@@ -40,7 +78,12 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _messages = messages);
       _scrollToBottom();
     } catch (e) {
-      print('Error loading messages: $e');
+      debugPrint('Error loading messages: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _loading = false);
     }
@@ -55,12 +98,14 @@ class _ChatScreenState extends State<ChatScreen> {
     if (content.isEmpty) return;
 
     _messageController.clear();
+    setState(() => _isTyping = false);
     
     final tempMessage = {
       'id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
       'content': content,
       'is_sent_by_me': true,
       'created_at': DateTime.now(),
+      'is_temp': true,
     };
     
     setState(() {
@@ -83,9 +128,61 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages[index]['error'] = true;
         }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de l\'envoi du message')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de l\'envoi du message'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMessage(String messageId, bool isMe) async {
+    if (!isMe) return;
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer le message'),
+        content: const Text('Voulez-vous vraiment supprimer ce message ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      try {
+        final supabase = Supabase.instance.client;
+        await supabase
+            .from('network_messages')
+            .delete()
+            .eq('id', messageId);
+        
+        setState(() {
+          _messages.removeWhere((m) => m['id'] == messageId);
+        });
+      } catch (e) {
+        debugPrint('Error deleting message: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _onTyping() {
+    if (!_isTyping) {
+      setState(() => _isTyping = true);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _isTyping = false);
+      });
     }
   }
 
@@ -101,6 +198,17 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  String _formatTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    
+    if (diff.inMinutes < 1) return 'maintenant';
+    if (diff.inHours < 1) return 'il y a ${diff.inMinutes}min';
+    if (diff.inDays < 1) return 'il y a ${diff.inHours}h';
+    if (diff.inDays < 7) return 'il y a ${diff.inDays}j';
+    return 'le ${date.day}/${date.month}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,10 +221,10 @@ class _ChatScreenState extends State<ChatScreen> {
             CircleAvatar(
               radius: 18,
               backgroundColor: Colors.grey.shade200,
-              backgroundImage: widget.userAvatar != null
+              backgroundImage: widget.userAvatar != null && widget.userAvatar!.isNotEmpty
                   ? NetworkImage(widget.userAvatar!)
                   : null,
-              child: widget.userAvatar == null
+              child: widget.userAvatar == null || widget.userAvatar!.isEmpty
                   ? const Icon(Icons.person, size: 18, color: Colors.grey)
                   : null,
             ),
@@ -133,21 +241,48 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    reverse: false,
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isMe = message['is_sent_by_me'] == true;
-                      return _buildMessageBubble(
-                        message['content'],
-                        isMe,
-                        message['created_at'],
-                        message['error'] == true,
-                      );
-                    },
+                : Column(
+                    children: [
+                      if (_isTyping)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(color: Color(0xFFD4AF37), shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${widget.userName} est en train d\'écrire...',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          reverse: false,
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            final isMe = message['is_sent_by_me'] == true;
+                            final messageId = message['id'] as String;
+                            final content = message['content'] as String;
+                            final createdAt = message['created_at'] as DateTime;
+                            final hasError = message['error'] == true;
+                            
+                            return GestureDetector(
+                              onLongPress: () => _deleteMessage(messageId, isMe),
+                              child: _buildMessageBubble(content, isMe, createdAt, hasError),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
           ),
           _buildMessageInput(),
@@ -232,6 +367,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: TextField(
               controller: _messageController,
+              onChanged: (_) => _onTyping(),
               decoration: InputDecoration(
                 hintText: 'Écrivez un message...',
                 border: OutlineInputBorder(
@@ -259,16 +395,5 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    
-    if (diff.inMinutes < 1) return 'maintenant';
-    if (diff.inHours < 1) return '${diff.inMinutes}min';
-    if (diff.inDays < 1) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}j';
-    return '${date.day}/${date.month}';
   }
 }
