@@ -50,7 +50,7 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
             child: TextField(
               controller: _trackingController,
               decoration: const InputDecoration(
-                hintText: 'Numéro de suivi',
+                hintText: 'Numero de suivi',
                 border: InputBorder.none,
               ),
             ),
@@ -79,7 +79,7 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Numéro de suivi', style: TextStyle(color: Colors.grey)),
+                  const Text('Numero de suivi', style: TextStyle(color: Colors.grey)),
                   Text(_trackingNumber, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -102,7 +102,7 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Livraison estimée', style: TextStyle(color: Colors.grey)),
+                  const Text('Livraison estimee', style: TextStyle(color: Colors.grey)),
                   const Text('25 Mai 2025', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -119,16 +119,21 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
 
   Widget _buildTimeline() {
     final steps = [
-      {'status': 'Colis enregistré', 'date': '18 Mai 2025 - 10:30', 'location': 'Abidjan', 'completed': true},
+      {'status': 'Colis enregistre', 'date': '18 Mai 2025 - 10:30', 'location': 'Abidjan', 'completed': true},
       {'status': 'Prise en charge', 'date': '18 Mai 2025 - 14:00', 'location': 'Abidjan', 'completed': true},
       {'status': 'En transit', 'date': '19 Mai 2025 - 08:00', 'location': 'En route', 'completed': true},
-      {'status': 'Arrivée à destination', 'date': 'En attente', 'location': 'Yamoussoukro', 'completed': false},
-      {'status': 'Livré', 'date': 'En attente', 'location': 'Yamoussoukro', 'completed': false},
+      {'status': 'Arrivee a destination', 'date': 'En attente', 'location': 'Yamoussoukro', 'completed': false},
+      {'status': 'Livre', 'date': 'En attente', 'location': 'Yamoussoukro', 'completed': false},
     ];
     return Column(
       children: steps.asMap().entries.map((entry) {
         final step = entry.value;
-        final isLast = entry.key == steps.length - 1;
+        final bool completed = step['completed'] as bool;
+        final String status = step['status'] as String;
+        final String date = step['date'] as String;
+        final String location = step['location'] as String;
+        final bool isLast = entry.key == steps.length - 1;
+        
         return Row(
           children: [
             Column(
@@ -137,10 +142,10 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: step['completed'] == true ? const Color(0xFFD4AF37) : Colors.grey.shade300,
+                    color: completed ? const Color(0xFFD4AF37) : Colors.grey.shade300,
                     shape: BoxShape.circle,
                   ),
-                  child: step['completed'] == true
+                  child: completed
                       ? const Icon(Icons.check, size: 14, color: Colors.white)
                       : null,
                 ),
@@ -148,7 +153,7 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
                   Container(
                     width: 2,
                     height: 40,
-                    color: step['completed'] == true ? const Color(0xFFD4AF37) : Colors.grey.shade300,
+                    color: completed ? const Color(0xFFD4AF37) : Colors.grey.shade300,
                   ),
               ],
             ),
@@ -159,10 +164,10 @@ class _ColisSuiviPageState extends State<ColisSuiviPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(step['status']!, style: TextStyle(fontWeight: FontWeight.bold, color: step['completed'] == true ? Colors.black : Colors.grey)),
+                    Text(status, style: TextStyle(fontWeight: FontWeight.bold, color: completed ? Colors.black : Colors.grey)),
                     const SizedBox(height: 4),
-                    Text(step['date']!, style: TextStyle(fontSize: 11, color: step['completed'] == true ? Colors.grey : Colors.grey.shade400)),
-                    Text(step['location']!, style: TextStyle(fontSize: 11, color: step['completed'] == true ? Colors.grey : Colors.grey.shade400)),
+                    Text(date, style: TextStyle(fontSize: 11, color: completed ? Colors.grey : Colors.grey.shade400)),
+                    Text(location, style: TextStyle(fontSize: 11, color: completed ? Colors.grey : Colors.grey.shade400)),
                   ],
                 ),
               ),
