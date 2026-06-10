@@ -19,6 +19,11 @@ import 'widgets/create_post_dialog.dart';
 import 'widgets/edit_profile_dialog.dart';
 import 'widgets/create_story_dialog.dart';
 
+// Imports pour les redirections réelles
+import 'package:thix_id/presentation/jobs/jobs_page.dart';
+import 'package:thix_id/presentation/events/events_page.dart';
+import 'package:thix_id/presentation/opportunities/opportunities_page.dart';
+
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
 
@@ -150,6 +155,33 @@ class _NetworkProHomeState extends State<NetworkProHome> {
 
   void _goToGroups() {
     context.push('/network/groups');
+  }
+
+  // ==================== NAVIGATIONS RÉELLES ====================
+  
+  void _goToJobs() {
+    context.push('/jobs');
+  }
+
+  void _goToEvents() {
+    context.push('/events');
+  }
+
+  void _goToOpportunities() {
+    context.push('/opportunities');
+  }
+
+  void _goToConnexions() {
+    context.push('/network/connections');
+  }
+
+  void _goToPublications() {
+    context.push('/network/my-posts');
+  }
+
+  void _goToStory(String storyId) {
+    // Navigation vers la story
+    context.push('/network/story/$storyId');
   }
 
   void _showCommentDialog(NetworkPost post) {
@@ -302,31 +334,21 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 onPhotoPressed: () => _showCreatePostDialog(),
                 onVideoPressed: () => _showCreatePostDialog(),
                 onDocumentPressed: () => _showCreatePostDialog(),
-                onEventPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
-                ),
-                onJobPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
-                ),
+                onEventPressed: _goToEvents,
+                onJobPressed: _goToJobs,
                 onStoryPressed: _showCreateStoryDialog,
               ),
               const SizedBox(height: 16),
               StatsRow(
-                onConnexionsTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
-                ),
-                onPublicationsTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
-                ),
+                onConnexionsTap: _goToConnexions,
+                onPublicationsTap: _goToPublications,
                 onCommunitiesTap: () => context.push('/network/groups'),
                 onMessagesTap: () => context.push('/network/messages'),
               ),
               const SizedBox(height: 20),
               StoriesList(
                 onStoryTap: (storyId) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Story - Fonctionnalité à venir')),
-                  );
+                  _goToStory(storyId);
                 },
               ),
               const SizedBox(height: 20),
@@ -364,7 +386,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                       context.push('/network/post/${post.id}');
                     },
                     onShare: () {
-                      // Partager la publication
+                      // Fonctionnalité de partage à venir
                     },
                   ),
                 )),
@@ -389,10 +411,8 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                   context.push('/network/community/$communityId');
                 },
                 onJoinTap: (communityId) async {
-                  // joinCommunity existe déjà dans NetworkService
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Rejoindre communauté - Fonctionnalité à venir')),
-                  );
+                  await _networkService.joinCommunity(communityId);
+                  await _loadData();
                 },
               ),
               const SizedBox(height: 20),
@@ -410,15 +430,16 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                   context.push('/events/$eventId');
                 },
                 onInterestedTap: (eventId) async {
+                  await _networkService.markEventInterest(eventId);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Inscription à l\'événement'), backgroundColor: Colors.green),
+                    const SnackBar(content: Text('Inscription à l\'événement confirmée'), backgroundColor: Colors.green),
                   );
                 },
               ),
               const SizedBox(height: 20),
               RecommendationsIA(
                 onPeopleTap: () => context.push('/network/search'),
-                onOpportunitiesTap: () => context.push('/opportunities'),
+                onOpportunitiesTap: _goToOpportunities,
                 onCommunitiesTap: () => context.push('/network/groups'),
               ),
               const SizedBox(height: 80),
