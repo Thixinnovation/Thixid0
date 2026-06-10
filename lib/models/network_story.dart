@@ -33,6 +33,7 @@ class NetworkStory {
       : id = '',
         userId = '',
         userName = '',
+        userAvatar = null,
         userTitle = '',
         imageUrl = '',
         duration = 24,
