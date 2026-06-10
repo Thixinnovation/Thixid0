@@ -7,12 +7,23 @@ class HotelListePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hotels = (ModalRoute.of(context)?.settings.arguments as List?) ?? [];
+    final args = ModalRoute.of(context)?.settings.arguments;
+    List<dynamic> hotels = [];
+    
+    if (args is List) {
+      hotels = args;
+    } else {
+      hotels = [
+        {'id': '1', 'nom': 'Azalai Hotel Abidjan', 'ville': 'Abidjan', 'prix': 68000, 'prixOriginal': 85600, 'note': 4.5, 'promo': '-20%'},
+        {'id': '2', 'nom': 'Onomo Hotel Dakar', 'ville': 'Dakar', 'prix': 63750, 'prixOriginal': 75000, 'note': 4.2, 'promo': '-15%'},
+        {'id': '3', 'nom': 'Pullman Hotel Paris', 'ville': 'Paris', 'prix': 198, 'prixOriginal': 220, 'note': 4.6, 'promo': '-10%', 'devise': 'EUR'},
+      ];
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Hôtels disponibles'),
+        title: const Text('Hotels disponibles'),
         backgroundColor: const Color(0xFF0B1B3D),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -25,33 +36,24 @@ class HotelListePage extends StatelessWidget {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: hotels.isEmpty ? 5 : hotels.length,
+        itemCount: hotels.length,
         itemBuilder: (context, index) {
-          if (hotels.isEmpty) {
-            return _buildHotelCard(
-              'Azalai Hôtel Abidjan',
-              'Abidjan, Côte d\'Ivoire',
-              4.5,
-              '68.000',
-              '85.600',
-              '-20%',
-            );
-          }
-          final hotel = hotels[index];
-          return _buildHotelCard(
-            hotel['nom'],
-            hotel['ville'],
-            hotel['note'],
-            hotel['prixPromo'],
-            hotel['prixOriginal'],
-            hotel['promo'],
-          );
+          final hotel = hotels[index] as Map<String, dynamic>;
+          return _buildHotelCard(hotel, context);
         },
       ),
     );
   }
 
-  Widget _buildHotelCard(String nom, String ville, double note, String prixPromo, String prixOriginal, String promo) {
+  Widget _buildHotelCard(Map<String, dynamic> hotel, BuildContext context) {
+    final nom = hotel['nom'] as String;
+    final ville = hotel['ville'] as String;
+    final note = (hotel['note'] as num).toDouble();
+    final prixPromo = hotel['prix'].toString();
+    final prixOriginal = hotel['prixOriginal'].toString();
+    final promo = hotel['promo'] as String;
+    final devise = hotel['devise'] as String? ?? 'FCFA';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -113,9 +115,9 @@ class HotelListePage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text('$prixOriginal FCFA', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 12, color: Colors.grey)),
+                        Text('$prixOriginal $devise', style: const TextStyle(decoration: TextDecoration.lineThrough, fontSize: 12, color: Colors.grey)),
                         const SizedBox(width: 8),
-                        Text('$prixPromo FCFA', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFD4AF37))),
+                        Text('$prixPromo $devise', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFD4AF37))),
                       ],
                     ),
                     ElevatedButton(
