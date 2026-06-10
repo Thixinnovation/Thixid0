@@ -86,7 +86,7 @@ class Tontine {
     this.payments,
   });
 
-  double get remainingMembers => maxMembers - currentMembers;
+  int get remainingMembers => maxMembers - currentMembers;
   bool get isFull => currentMembers >= maxMembers;
   String get formattedContribution => '${contributionAmount.toStringAsFixed(0)} FCFA';
   int get progressPercent => (progress * 100).toInt();
