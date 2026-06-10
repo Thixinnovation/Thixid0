@@ -30,6 +30,7 @@ class QrPaymentService {
 
       return QrScanResult(
         success: true,
+        message: 'QR code scanné avec succès',
         merchantId: parsedData['merchantId'],
         merchantName: parsedData['merchantName'],
         amount: parsedData['amount'],
