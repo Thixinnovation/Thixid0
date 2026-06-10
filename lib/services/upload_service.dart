@@ -242,23 +242,17 @@ class UploadService {
   // ==================== BUCKET MANAGEMENT ====================
 
   Future<void> ensureBucketsExist() async {
-    await _ensureBucketExists(_publicBucket, isPublic: true);
-    await _ensureBucketExists(_privateBucket, isPublic: false);
+    await _ensureBucketExists(_publicBucket);
+    await _ensureBucketExists(_privateBucket);
   }
 
-  Future<void> _ensureBucketExists(String bucketName, {required bool isPublic}) async {
+  Future<void> _ensureBucketExists(String bucketName) async {
     try {
       final buckets = await _supabase.storage.listBuckets();
       final exists = buckets.any((b) => b.id == bucketName);
       
       if (!exists) {
-        await _supabase.storage.createBucket(bucketName, 
-          public: isPublic,
-          fileSizeLimit: maxDocumentSizeMB * 1024 * 1024,
-          allowedMimeTypes: isPublic 
-              ? ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-              : ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-        );
+        await _supabase.storage.createBucket(bucketName);
         debugPrint('Bucket created: $bucketName');
       }
     } catch (e) {
