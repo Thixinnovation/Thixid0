@@ -1,3 +1,4 @@
+// lib/presentation/network/widgets/create_story_dialog.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -17,7 +18,7 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
   bool _isUploading = false;
   late NetworkService _networkService;
   late UploadService _uploadService;
-  int _duration = 24; // heures
+  int _duration = 24;
 
   @override
   void initState() {
@@ -35,23 +36,21 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
       
       if (result != null && result.files.isNotEmpty) {
         final file = File(result.files.first.path!);
-        // Vérifier la taille du fichier (max 10MB)
         final size = await file.length();
+        
         if (size > 10 * 1024 * 1024) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('L\'image ne doit pas dépasser 10MB')),
           );
           return;
         }
+        
         setState(() {
           _selectedImage = file;
         });
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de la sélection de l\'image')),
-      );
     }
   }
 
@@ -104,7 +103,6 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -121,8 +119,6 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            
-            // Zone d'image
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -171,8 +167,6 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            
-            // Durée
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
@@ -209,8 +203,6 @@ class _CreateStoryDialogState extends State<CreateStoryDialog> {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Bouton publier
             SizedBox(
               width: double.infinity,
               height: 50,
