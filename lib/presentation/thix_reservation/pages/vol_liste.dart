@@ -18,9 +18,9 @@ class _VolListePageState extends State<VolListePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments as List<Map<String, dynamic>>?;
-    if (args != null) {
-      _vols = args;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is List) {
+      _vols = List<Map<String, dynamic>>.from(args);
     } else {
       _vols = _getMockVols();
     }
@@ -36,20 +36,33 @@ class _VolListePageState extends State<VolListePage> {
   }
 
   List<Map<String, dynamic>> get _filteredVols {
-    var filtered = List.from(_vols);
+    List<Map<String, dynamic>> filtered = List.from(_vols);
+    
     if (_filterEscales == 'direct') {
       filtered = filtered.where((v) => v['escales'] == 0).toList();
     } else if (_filterEscales == '1escale') {
       filtered = filtered.where((v) => v['escales'] == 1).toList();
     }
-    filtered = filtered.where((v) => (v['prix'] as double) >= _priceRange.start && (v['prix'] as double) <= _priceRange.end).toList();
+    
+    filtered = filtered.where((v) {
+      final prix = v['prix'] is int ? (v['prix'] as int).toDouble() : v['prix'] as double;
+      return prix >= _priceRange.start && prix <= _priceRange.end;
+    }).toList();
 
     switch (_sortBy) {
       case 'price_asc':
-        filtered.sort((a, b) => (a['prix'] as double).compareTo(b['prix'] as double));
+        filtered.sort((a, b) {
+          final prixA = a['prix'] is int ? (a['prix'] as int).toDouble() : a['prix'] as double;
+          final prixB = b['prix'] is int ? (b['prix'] as int).toDouble() : b['prix'] as double;
+          return prixA.compareTo(prixB);
+        });
         break;
       case 'price_desc':
-        filtered.sort((a, b) => (b['prix'] as double).compareTo(a['prix'] as double));
+        filtered.sort((a, b) {
+          final prixA = a['prix'] is int ? (a['prix'] as int).toDouble() : a['prix'] as double;
+          final prixB = b['prix'] is int ? (b['prix'] as int).toDouble() : b['prix'] as double;
+          return prixB.compareTo(prixA);
+        });
         break;
       case 'duration':
         filtered.sort((a, b) => (a['duree'] as String).compareTo(b['duree'] as String));
@@ -70,7 +83,10 @@ class _VolListePageState extends State<VolListePage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: () => _showFilters()),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () => _showFilters(),
+          ),
         ],
       ),
       body: Column(
@@ -84,7 +100,7 @@ class _VolListePageState extends State<VolListePage> {
                 final vol = _filteredVols[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildFlightCard(vol, context),
+                  child: _buildFlightCard(vol),
                 );
               },
             ),
@@ -95,31 +111,30 @@ class _VolListePageState extends State<VolListePage> {
   }
 
   Widget _buildSortBar() {
+    final sorts = [
+      {'label': 'Meilleur choix', 'value': 'best'},
+      {'label': 'Prix croissant', 'value': 'price_asc'},
+      {'label': 'Prix decroissant', 'value': 'price_desc'},
+      {'label': 'Duree', 'value': 'duration'},
+    ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSortChip('Meilleur choix', 'best'),
-          _buildSortChip('Prix croissant', 'price_asc'),
-          _buildSortChip('Prix decroissant', 'price_desc'),
-          _buildSortChip('Duree', 'duration'),
-        ],
+        children: sorts.map((sort) {
+          return FilterChip(
+            label: Text(sort['label'] as String, style: const TextStyle(fontSize: 12)),
+            selected: _sortBy == sort['value'],
+            onSelected: (_) => setState(() => _sortBy = sort['value'] as String),
+            selectedColor: const Color(0xFFD4AF37).withOpacity(0.2),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildSortChip(String label, String value) {
-    return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      selected: _sortBy == value,
-      onSelected: (_) => setState(() => _sortBy = value),
-      selectedColor: const Color(0xFFD4AF37).withOpacity(0.2),
-    );
-  }
-
-  Widget _buildFlightCard(Map<String, dynamic> vol, BuildContext context) {
+  Widget _buildFlightCard(Map<String, dynamic> vol) {
     final compagnie = vol['compagnie'] as String;
     final codeVol = vol['codeVol'] as String;
     final depart = vol['depart'] as String;
@@ -131,7 +146,7 @@ class _VolListePageState extends State<VolListePage> {
     final bagageCabine = vol['bagageCabine'] as String;
     final bagageSoute = vol['bagageSoute'] as String;
     final repasInclus = vol['repasInclus'] as bool;
-    final prix = vol['prix'] as double;
+    final prix = vol['prix'] is int ? (vol['prix'] as int).toDouble() : vol['prix'] as double;
     final devise = vol['devise'] as String;
 
     return GestureDetector(
@@ -256,9 +271,21 @@ class _VolListePageState extends State<VolListePage> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    FilterChip(label: const Text('Tous'), selected: _filterEscales == 'all', onSelected: (_) => setModalState(() => _filterEscales = 'all')),
-                    FilterChip(label: const Text('Direct'), selected: _filterEscales == 'direct', onSelected: (_) => setModalState(() => _filterEscales = 'direct')),
-                    FilterChip(label: const Text('1 escale'), selected: _filterEscales == '1escale', onSelected: (_) => setModalState(() => _filterEscales = '1escale')),
+                    FilterChip(
+                      label: const Text('Tous'),
+                      selected: _filterEscales == 'all',
+                      onSelected: (_) => setModalState(() => _filterEscales = 'all'),
+                    ),
+                    FilterChip(
+                      label: const Text('Direct'),
+                      selected: _filterEscales == 'direct',
+                      onSelected: (_) => setModalState(() => _filterEscales = 'direct'),
+                    ),
+                    FilterChip(
+                      label: const Text('1 escale'),
+                      selected: _filterEscales == '1escale',
+                      onSelected: (_) => setModalState(() => _filterEscales = '1escale'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -280,7 +307,10 @@ class _VolListePageState extends State<VolListePage> {
                     });
                     Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4AF37),
+                    minimumSize: const Size(double.infinity, 45),
+                  ),
                   child: const Text('Appliquer'),
                 ),
               ],
