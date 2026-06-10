@@ -94,7 +94,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showCreatePostDialog() {
-    // Navigation vers la création de post
     context.push('/network-pro');
   }
 
@@ -133,6 +132,62 @@ class _HomePageState extends State<HomePage> {
       return 'il y a ${difference.inMinutes} min';
     } else {
       return 'à l\'instant';
+    }
+  }
+
+  void _showPostOptions(NetworkPost post) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text('Signaler'),
+              onTap: () {
+                Navigator.pop(context);
+                _reportPost(post.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.visibility_off, color: Colors.orange),
+              title: const Text('Masquer'),
+              onTap: () {
+                Navigator.pop(context);
+                _hidePost(post.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.green),
+              title: const Text('Partager'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _hidePost(String postId) async {
+    await _networkService.hidePost(postId);
+    await _loadPosts();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
+      );
+    }
+  }
+
+  Future<void> _reportPost(String postId) async {
+    await _networkService.reportPost(postId, 'Signalé par utilisateur');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
+      );
     }
   }
 
@@ -401,6 +456,12 @@ class _HomePageState extends State<HomePage> {
                       width: MediaQuery.of(context).size.width - 30,
                       height: 220,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: MediaQuery.of(context).size.width - 30,
+                        height: 220,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image),
+                      ),
                     ),
                   ),
                 ),
@@ -409,15 +470,15 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 15),
 
-          // Stats
+          // Stats - CORRECTION : utilisation de likes, comments, shares
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("❤️ ${post.likesCount}"),
-                Text("💬 ${post.commentsCount}"),
-                Text("↗ ${post.sharesCount ?? 0}"),
+                Text("❤️ ${post.likes}"),
+                Text("💬 ${post.comments}"),
+                Text("↗ ${post.shares}"),
               ],
             ),
           ),
@@ -455,61 +516,5 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
-  }
-
-  void _showPostOptions(NetworkPost post) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.flag, color: Colors.red),
-              title: const Text('Signaler'),
-              onTap: () {
-                Navigator.pop(context);
-                _reportPost(post.id);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.visibility_off, color: Colors.orange),
-              title: const Text('Masquer'),
-              onTap: () {
-                Navigator.pop(context);
-                _hidePost(post.id);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share, color: Colors.green),
-              title: const Text('Partager'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _hidePost(String postId) async {
-    await _networkService.hidePost(postId);
-    await _loadPosts();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
-      );
-    }
-  }
-
-  Future<void> _reportPost(String postId) async {
-    await _networkService.reportPost(postId, 'Signalé par utilisateur');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
-      );
-    }
   }
 }
