@@ -640,7 +640,30 @@ class NetworkService {
       return false;
     }
   }
+// ==================== OPPORTUNITÉS ====================
+Future<List<Opportunity>> getOpportunities({int limit = 5}) async {
+  final response = await _supabase
+      .from('opportunities')
+      .select()
+      .eq('is_active', true)
+      .order('created_at', ascending: false)
+      .limit(limit);
+  
+  return (response as List).map((e) => Opportunity.fromJson(e)).toList();
+}
 
+// ==================== ÉVÉNEMENTS ====================
+Future<List<Event>> getUpcomingEvents({int limit = 5}) async {
+  final response = await _supabase
+      .from('events')
+      .select()
+      .gte('date', DateTime.now().toIso8601String())
+      .order('date', ascending: true)
+      .limit(limit);
+  
+  return (response as List).map((e) => Event.fromJson(e)).toList();
+}
+  
   // ==================== RECHERCHE ====================
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
