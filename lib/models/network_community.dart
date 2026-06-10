@@ -30,8 +30,12 @@ class NetworkCommunity {
   NetworkCommunity.empty()
       : id = '',
         name = '',
+        description = null,
+        bannerUrl = null,
         membersCount = 0,
         postsCount = 0,
+        createdBy = null,
+        creatorName = null,
         createdAt = DateTime.now(),
         isMember = false;
 
@@ -174,7 +178,9 @@ class CommunityMember {
       : id = '',
         userId = '',
         userName = '',
+        userAvatar = null,
         userTitle = '',
+        role = null,
         joinedAt = DateTime.now();
 
   // Getters
