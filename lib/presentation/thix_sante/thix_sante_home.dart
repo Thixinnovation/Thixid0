@@ -6,9 +6,6 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/health_service.dart';
 import 'widgets/health_header.dart';
 import 'widgets/health_stats_grid.dart';
-import 'widgets/health_service_card.dart';
-import 'widgets/health_quick_action.dart';
-import 'widgets/health_insurance_card.dart';
 import 'widgets/health_article_card.dart';
 
 class ThixSanteHome extends StatefulWidget {
@@ -37,7 +34,7 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     try {
       final stats = await _healthService.getStats();
       final services = await _getServices();
-      final articles = await _healthService.getArticles(limit: 5);
+      final articles = await _healthService.getArticles(limit: 4);
 
       setState(() {
         _stats = stats;
@@ -111,8 +108,18 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
         toolbarHeight: 45,
         title: const Text('THIX SANTÉ', style: TextStyle(fontSize: 14, color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined, size: 16, color: Color(0xFF0B1B3D)), onPressed: () {}, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-          IconButton(icon: const Icon(Icons.settings_outlined, size: 16, color: Color(0xFF0B1B3D)), onPressed: () {}, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 16, color: Color(0xFF0B1B3D)),
+            onPressed: () => context.push('/sante/notifications'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 16, color: Color(0xFF0B1B3D)),
+            onPressed: () => context.push('/sante/settings'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -126,11 +133,11 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header avec message de bienvenue
+                    // Header
                     HealthHeader(),
                     const SizedBox(height: 8),
                     
-                    // Résumé de santé (stats) - compact
+                    // Stats Grid
                     HealthStatsGrid(
                       consultationsCount: _stats['consultations_count'] ?? 0,
                       examensCount: _stats['examens_count'] ?? 0,
@@ -143,27 +150,27 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Services santé en grille (MOSAIC - 3 colonnes)
+                    // Services santé en GRILLE (MOSAIC)
                     _buildSectionTitle('Services santé', 'Voir tout'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _buildServicesGrid(),
                     const SizedBox(height: 12),
                     
-                    // Services rapides en grille (4 items)
+                    // Services rapides en GRILLE
                     _buildSectionTitle('Services rapides', null),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _buildQuickServicesGrid(),
                     const SizedBox(height: 12),
                     
-                    // Assurances santé en grille (2 colonnes)
+                    // Assurances santé en GRILLE
                     _buildSectionTitle('Assurances santé', 'Voir tout'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _buildHealthInsuranceGrid(),
                     const SizedBox(height: 12),
                     
-                    // Pour vous (articles)
+                    // Articles (Pour vous)
                     _buildSectionTitle('Pour vous', 'Voir tous'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     ..._articles.take(3).map((article) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: HealthArticleCard(
@@ -193,14 +200,14 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
         Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D))),
         if (seeAll != null)
           GestureDetector(
-            onTap: () {},
+            onTap: () => context.push('/sante/services'),
             child: Text(seeAll, style: const TextStyle(fontSize: 10, color: Color(0xFFD4AF37), fontWeight: FontWeight.w500)),
           ),
       ],
     );
   }
 
-  // Services santé en GRILLE (MOSAIC) - 3 colonnes
+  // ==================== SERVICES SANTÉ EN GRILLE (MOSAIC) ====================
   Widget _buildServicesGrid() {
     return GridView.builder(
       shrinkWrap: true,
@@ -257,7 +264,7 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     );
   }
 
-  // Grille des services rapides (4 items)
+  // ==================== SERVICES RAPIDES EN GRILLE ====================
   Widget _buildQuickServicesGrid() {
     final quickServices = [
       ('👨‍⚕️', 'Consulter médecin', '/sante/consultation'),
@@ -305,11 +312,11 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     );
   }
 
-  // Grille des assurances santé (2 colonnes)
+  // ==================== ASSURANCES SANTÉ EN GRILLE ====================
   Widget _buildHealthInsuranceGrid() {
     final insuranceServices = [
-      ('🏥', 'Trouver un hôpital', 'Proche de vous', '/sante/hopitaux'),
-      ('💊', 'Trouver un médicament', 'Disponibilité', '/sante/recherche-medicament'),
+      ('🏥', 'Trouver hôpital', 'Proche de vous', '/sante/hopitaux'),
+      ('💊', 'Trouver médicament', 'Disponibilité', '/sante/recherche-medicament'),
       ('🏪', 'Pharmacies proches', 'À proximité', '/sante/pharmacies'),
       ('🚑', 'Urgences proches', '24h/24', '/sante/urgences'),
     ];
@@ -356,6 +363,7 @@ class _ThixSanteHomeState extends State<ThixSanteHome> {
     );
   }
 
+  // ==================== BOUTON URGENCE ====================
   Widget _buildEmergencyButton() {
     return GestureDetector(
       onTap: () => context.push('/sante/urgences'),
