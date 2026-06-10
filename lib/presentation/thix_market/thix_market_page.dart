@@ -71,12 +71,14 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
             category: category,
             city: city,
             rating: 3.5 + (i * 0.3),
-            reviews: 50 + (i * 10),
+            reviewsCount: 50 + (i * 10),
             imageUrl: 'https://picsum.photos/400/400?random=${city.hashCode + i}',
             seller: 'Vendeur de $city',
+            sellerId: 'seller_$city',
             sellerAvatar: 'https://picsum.photos/50/50?random=${city.hashCode}',
             country: 'RDC',
             inStock: true,
+            stock: 10 + i,
             createdAt: DateTime.now().subtract(Duration(days: i)),
           ));
         }
@@ -99,12 +101,14 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         category: category,
         city: city,
         rating: 4.5 + (i * 0.1),
-        reviews: 200 + (i * 15),
+        reviewsCount: 200 + (i * 15),
         imageUrl: 'https://picsum.photos/400/400?random=flash$i',
         seller: 'Flash Vendeur',
+        sellerId: 'flash_seller_$i',
         sellerAvatar: 'https://picsum.photos/50/50?random=flash$i',
         country: 'RDC',
         inStock: true,
+        stock: 5,
         createdAt: DateTime.now(),
         discountPercentage: 30 + (i * 5),
         originalPrice: _getFlashOriginalPrice(category),
@@ -142,10 +146,6 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
       'Automobile': 450000.0,
     };
     return basePrices[category] ?? 100000.0;
-  }
-
-  double _getRandomOriginalPrice(String category) {
-    return _getRandomPrice(category) * 1.3;
   }
 
   double _getFlashPrice(String category) {
@@ -201,7 +201,7 @@ class _ThixMarketPageState extends State<ThixMarketPage> {
         case 'price_asc': filtered.sort((a, b) => a.price.compareTo(b.price)); break;
         case 'price_desc': filtered.sort((a, b) => b.price.compareTo(a.price)); break;
         case 'rating': filtered.sort((a, b) => b.rating.compareTo(a.rating)); break;
-        case 'popularity': filtered.sort((a, b) => b.reviews.compareTo(a.reviews)); break;
+        case 'popularity': filtered.sort((a, b) => b.reviewsCount.compareTo(a.reviewsCount)); break;
         default: filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       
