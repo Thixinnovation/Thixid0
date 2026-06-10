@@ -3,62 +3,75 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ServicesGrid extends StatelessWidget {
-  const ServicesGrid({super.key});
+  final VoidCallback? onCreditTap;
+  final VoidCallback? onSavingsTap;
+  final VoidCallback? onTontineTap;
+  final VoidCallback? onInvestmentTap;
+  final VoidCallback? onInsuranceTap;
+  final VoidCallback? onCardsTap;
+  final VoidCallback? onInternationalTap;
+
+  const ServicesGrid({
+    super.key,
+    this.onCreditTap,
+    this.onSavingsTap,
+    this.onTontineTap,
+    this.onInvestmentTap,
+    this.onInsuranceTap,
+    this.onCardsTap,
+    this.onInternationalTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final services = [
-      {'icon': Icons.flash_on, 'label': 'Crédit', 'color': const Color(0xFFD4AF37), 'route': '/thix-money/credit'},
-      {'icon': Icons.shield, 'label': 'Assurance', 'color': Colors.blue, 'route': '/thix-money/insurance'},
-      {'icon': Icons.savings, 'label': 'Épargne', 'color': Colors.green, 'route': '/thix-money/savings'},
-      {'icon': Icons.currency_exchange, 'label': 'Change', 'color': Colors.orange, 'route': '/thix-money/exchange'},
-      {'icon': Icons.store, 'label': 'Marchand', 'color': Colors.purple, 'route': '/thix-money/merchant'},
-      {'icon': Icons.favorite, 'label': 'Don', 'color': Colors.red, 'route': '/thix-money/donations'},
-      {'icon': Icons.groups, 'label': 'Tontine', 'color': Colors.teal, 'route': '/thix-money/tontine'},
-      {'icon': Icons.school, 'label': 'Éducation', 'color': Colors.indigo, 'route': '/thix-money/education'},
-      {'icon': Icons.public, 'label': 'Virement', 'color': Colors.cyan, 'route': '/thix-money/international'},
-      {'icon': Icons.account_balance, 'label': 'Microfinance', 'color': Colors.brown, 'route': '/thix-money/microfinance'},
-      {'icon': Icons.show_chart, 'label': 'Investir', 'color': Colors.lime, 'route': '/thix-money/investment'},
-      {'icon': Icons.analytics, 'label': 'Planifier', 'color': Colors.deepPurple, 'route': '/thix-money/planning'},
+      {'icon': Icons.flash_on, 'label': 'Crédit', 'color': const Color(0xFFD4AF37), 'onTap': onCreditTap},
+      {'icon': Icons.savings, 'label': 'Épargne', 'color': Colors.green, 'onTap': onSavingsTap},
+      {'icon': Icons.groups, 'label': 'Tontine', 'color': Colors.teal, 'onTap': onTontineTap},
+      {'icon': Icons.show_chart, 'label': 'Investir', 'color': Colors.lime, 'onTap': onInvestmentTap},
+      {'icon': Icons.shield, 'label': 'Assurance', 'color': Colors.blue, 'onTap': onInsuranceTap},
+      {'icon': Icons.credit_card, 'label': 'Cartes', 'color': Colors.purple, 'onTap': onCardsTap},
+      {'icon': Icons.public, 'label': 'International', 'color': Colors.cyan, 'onTap': onInternationalTap},
+      {'icon': Icons.analytics, 'label': 'Planifier', 'color': Colors.deepPurple, 'onTap': null},
     ];
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,  // 4 colonnes au lieu de 3
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisCount: 4,
+        childAspectRatio: 0.9,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
         final service = services[index];
         return GestureDetector(
-          onTap: () => context.push(service['route'] as String),
+          onTap: service['onTap'] as VoidCallback?,
           child: Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 2)],
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4)],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: (service['color'] as Color).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(service['icon'] as IconData, color: service['color'] as Color, size: 20),
+                  child: Icon(service['icon'] as IconData, color: service['color'] as Color, size: 22),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   service['label'] as String,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
