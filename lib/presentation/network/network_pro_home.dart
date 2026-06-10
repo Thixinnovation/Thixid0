@@ -5,47 +5,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
-import 'package:thix_id/models/network_connection.dart';
-import 'package:thix_id/models/network_community.dart';
-import 'widgets/profile_header_card.dart';
-import 'widgets/stats_row.dart';
-import 'widgets/stories_list.dart';
-import 'widgets/post_card.dart';
-import 'widgets/suggestions_list.dart';
-import 'widgets/communities_list.dart';
-import 'widgets/opportunities_list.dart';
-import 'widgets/events_list.dart';
-import 'widgets/recommendations_ia.dart';
-import 'widgets/create_post_dialog.dart';
-import 'widgets/edit_profile_dialog.dart';
-import 'widgets/create_story_dialog.dart';
+import 'package:thix_id/models/network_story.dart';
 
-// Imports pour les redirections
-import 'package:thix_id/presentation/jobs/jobs_page.dart';
-import 'package:thix_id/presentation/events/events_page.dart';
-import 'package:thix_id/presentation/opportunities/opportunities_page.dart';
-
-class NetworkProHome extends StatefulWidget {
-  const NetworkProHome({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<NetworkProHome> createState() => _NetworkProHomeState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _NetworkProHomeState extends State<NetworkProHome> {
+class _HomePageState extends State<HomePage> {
   late NetworkService _networkService;
   
-  // Données réelles
   List<NetworkPost> _posts = [];
-  List<NetworkConnection> _suggestions = [];
-  List<NetworkCommunity> _communities = [];
+  List<NetworkStory> _stories = [];
   
   bool _loadingPosts = true;
-  bool _loadingSuggestions = true;
-  bool _loadingCommunities = true;
-  
+  bool _loadingStories = true;
   int _unreadNotifications = 0;
-  bool _isRefreshing = false;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -58,8 +36,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadAllData() async {
     await Future.wait([
       _loadPosts(),
-      _loadSuggestions(),
-      _loadCommunities(),
+      _loadStories(),
     ]);
   }
 
@@ -75,27 +52,15 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     }
   }
 
-  Future<void> _loadSuggestions() async {
-    setState(() => _loadingSuggestions = true);
+  Future<void> _loadStories() async {
+    setState(() => _loadingStories = true);
     try {
-      final suggestions = await _networkService.getSuggestedConnections();
-      setState(() => _suggestions = suggestions);
+      final stories = await _networkService.getActiveStories();
+      setState(() => _stories = stories);
     } catch (e) {
-      debugPrint('Error loading suggestions: $e');
+      debugPrint('Error loading stories: $e');
     } finally {
-      setState(() => _loadingSuggestions = false);
-    }
-  }
-
-  Future<void> _loadCommunities() async {
-    setState(() => _loadingCommunities = true);
-    try {
-      final communities = await _networkService.getSuggestedCommunities();
-      setState(() => _communities = communities);
-    } catch (e) {
-      debugPrint('Error loading communities: $e');
-    } finally {
-      setState(() => _loadingCommunities = false);
+      setState(() => _loadingStories = false);
     }
   }
 
@@ -108,128 +73,67 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     }
   }
 
-  Future<void> _onRefresh() async {
-    if (_isRefreshing) return;
-    setState(() => _isRefreshing = true);
-    await _loadAllData();
-    await _loadUnreadCount();
-    setState(() => _isRefreshing = false);
+  void _onBottomNavTap(int index) {
+    setState(() => _selectedIndex = index);
+    switch (index) {
+      case 0: // Accueil
+        break;
+      case 1: // Réseau
+        context.push('/network-pro');
+        break;
+      case 2: // Créer
+        _showCreatePostDialog();
+        break;
+      case 3: // Messages
+        context.push('/network/messages');
+        break;
+      case 4: // Profil
+        context.push('/user-dashboard');
+        break;
+    }
   }
 
   void _showCreatePostDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => const CreatePostDialog(),
-    ).then((refresh) {
-      if (refresh == true) _loadPosts();
-    });
-  }
-
-  void _showCreateStoryDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => const CreateStoryDialog(),
-    ).then((refresh) {
-      if (refresh == true) _loadAllData();
-    });
-  }
-
-  void _showEditProfileDialog() async {
-    final auth = Provider.of<AuthController>(context, listen: false);
-    final user = auth.currentUser;
-    if (user == null) return;
-
-    final result = await showDialog(
-      context: context,
-      builder: (_) => EditProfileDialog(
-        userId: user.id,
-        currentName: user.displayName,
-        currentTitle: user.profession,
-        currentBio: user.bio,
-        currentAvatarUrl: user.photoUrl,
-        currentSkills: user.skills.map((s) => s['name']?.toString() ?? '').toList(),
-      ),
-    );
-    
-    if (result != null && mounted) {
-      await auth.updateCurrentUser(user.copyWith(
-        displayName: result['name'],
-        profession: result['title'],
-        bio: result['bio'],
-        photoUrl: result['avatar_url'],
-      ));
-      await _loadAllData();
-    }
+    // Navigation vers la création de post
+    context.push('/network-pro');
   }
 
   void _showNotifications() {
     context.push('/network/notifications').then((_) => _loadUnreadCount());
   }
 
-  void _goToMessages() => context.push('/network/messages');
-  void _goToSearch() => context.push('/network/search');
-  void _goToGroups() => context.push('/network/groups');
-  void _goToJobs() => context.push('/jobs');
-  void _goToEvents() => context.push('/events');
-  void _goToOpportunities() => context.push('/opportunities');
-  void _goToConnexions() => context.push('/network/connections');
-  void _goToPublications() => context.push('/network/my-posts');
-  void _goToStory(String storyId) => context.push('/network/story/$storyId');
+  void _goToMessages() {
+    context.push('/network/messages');
+  }
 
-  void _showCommentDialog(NetworkPost post) {
-    final commentController = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ajouter un commentaire', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                decoration: const InputDecoration(
-                  hintText: 'Écrivez votre commentaire...',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Annuler'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (commentController.text.trim().isNotEmpty) {
-                          await _networkService.addComment(post.id, commentController.text.trim());
-                          if (mounted) {
-                            Navigator.pop(context);
-                            await _loadPosts();
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
-                      child: const Text('Publier'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _goToSearch() {
+    context.push('/network/search');
+  }
+
+  void _likePost(NetworkPost post) async {
+    if (post.isLikedByCurrentUser) {
+      await _networkService.unlikePost(post.id);
+    } else {
+      await _networkService.likePost(post.id);
+    }
+    await _loadPosts();
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 7) {
+      return 'le ${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      return 'il y a ${difference.inDays} j';
+    } else if (difference.inHours > 0) {
+      return 'il y a ${difference.inHours} h';
+    } else if (difference.inMinutes > 0) {
+      return 'il y a ${difference.inMinutes} min';
+    } else {
+      return 'à l\'instant';
+    }
   }
 
   @override
@@ -241,7 +145,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Connectez-vous pour accéder au Réseau Pro'),
+              const Text('Connectez-vous pour accéder à THIX'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => context.push('/login'),
@@ -254,164 +158,358 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xffF5F7FB),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xff081A3A),
         elevation: 0,
-        title: const Text('THIX RÉSEAU PRO', style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold, fontSize: 16)),
+        title: const Text(
+          "THIX RÉSEAU PRO",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.search, color: Color(0xFF0B1B3D)), onPressed: _goToSearch),
-          IconButton(icon: const Icon(Icons.groups, color: Color(0xFF0B1B3D)), onPressed: _goToGroups),
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: _goToSearch,
+          ),
+          const SizedBox(width: 4),
           Stack(
             children: [
-              IconButton(icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)), onPressed: _showNotifications),
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white),
+                onPressed: _showNotifications,
+              ),
               if (_unreadNotifications > 0)
                 Positioned(
-                  right: 4, top: 4,
+                  right: 4,
+                  top: 4,
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                    child: Text('$_unreadNotifications', style: const TextStyle(color: Colors.white, fontSize: 8), textAlign: TextAlign.center),
-                  ),
-                ),
-            ],
-          ),
-          IconButton(icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)), onPressed: _goToMessages),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              ProfileHeaderCard(
-                onEditPressed: _showEditProfileDialog,
-                onPhotoPressed: _showCreatePostDialog,
-                onVideoPressed: _showCreatePostDialog,
-                onDocumentPressed: _showCreatePostDialog,
-                onEventPressed: _goToEvents,
-                onJobPressed: _goToJobs,
-                onStoryPressed: _showCreateStoryDialog,
-              ),
-              const SizedBox(height: 16),
-
-              // Stats
-              StatsRow(
-                onConnexionsTap: _goToConnexions,
-                onPublicationsTap: _goToPublications,
-                onCommunitiesTap: _goToGroups,
-                onMessagesTap: _goToMessages,
-              ),
-              const SizedBox(height: 20),
-
-              // Stories
-              StoriesList(onStoryTap: _goToStory),
-              const SizedBox(height: 20),
-
-              // Posts
-              if (_loadingPosts)
-                const Center(child: CircularProgressIndicator())
-              else if (_posts.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        Icon(Icons.post_add, size: 48, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text('Aucune publication'),
-                        Text('Soyez le premier à partager quelque chose'),
-                      ],
+                    constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
+                    child: Text(
+                      '$_unreadNotifications',
+                      style: const TextStyle(color: Colors.white, fontSize: 8),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                )
-              else
-                ..._posts.map((post) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: PostCard(
-                    post: post,
-                    onLike: () async {
-                      if (post.isLikedByCurrentUser) {
-                        await _networkService.unlikePost(post.id);
-                      } else {
-                        await _networkService.likePost(post.id);
-                      }
-                      await _loadPosts();
-                    },
-                    onComment: () => _showCommentDialog(post),
-                    onTap: () => context.push('/network/post/${post.id}'),
-                    onShare: () {},
-                  ),
-                )),
-              const SizedBox(height: 16),
-
-              // Suggestions de connexions
-              if (_loadingSuggestions)
-                const Center(child: CircularProgressIndicator())
-              else if (_suggestions.isNotEmpty) ...[
-                const Text('Suggestions de connexions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                SuggestionsList(
-                  suggestions: _suggestions,
-                  onConnect: (userId) async {
-                    await _networkService.sendConnectionRequest(userId);
-                    await _loadSuggestions();
-                  },
                 ),
-                const SizedBox(height: 20),
-              ],
-
-              // Communautés populaires (lecture seule)
-              if (_loadingCommunities)
-                const Center(child: CircularProgressIndicator())
-              else if (_communities.isNotEmpty) ...[
-                const Text('Communautés populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                CommunitiesList(
-                  communities: _communities,
-                  onCommunityTap: (communityId) => context.push('/network/community/$communityId'),
-                  onJoinTap: (communityId) async {
-                    await _networkService.joinCommunity(communityId);
-                    await _loadCommunities();
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Opportunités (redirection seulement)
-              OpportunitiesList(
-                onOpportunityTap: (id) => _goToOpportunities(),
-                onApplyTap: (id) => _goToOpportunities(),
-              ),
-              const SizedBox(height: 20),
-
-              // Événements (redirection seulement)
-              EventsList(
-                onEventTap: (id) => _goToEvents(),
-                onInterestedTap: (id) => _goToEvents(),
-              ),
-              const SizedBox(height: 20),
-
-              // IA Recommendations
-              RecommendationsIA(
-                onPeopleTap: _goToSearch,
-                onOpportunitiesTap: _goToOpportunities,
-                onCommunitiesTap: _goToGroups,
-              ),
-              const SizedBox(height: 80),
             ],
           ),
-        ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            onPressed: _goToMessages,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xff081A3A),
+        child: const Icon(Icons.add, color: Colors.white),
         onPressed: _showCreatePostDialog,
-        backgroundColor: const Color(0xFFD4AF37),
-        child: const Icon(Icons.add, color: Color(0xFF0B1B3D)),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: const Color(0xff081A3A),
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        onTap: _onBottomNavTap,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "Accueil"),
+          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "Réseau"),
+          BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), label: "Créer"),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_outlined), label: "Messages"),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Profil"),
+        ],
+      ),
+      body: Column(
+        children: [
+          /// SEARCH BAR
+          GestureDetector(
+            onTap: _goToSearch,
+            child: Container(
+              margin: const EdgeInsets.all(15),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              height: 55,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.search, color: Colors.grey),
+                  SizedBox(width: 10),
+                  Text("Rechercher...", style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+
+          /// STORIES
+          if (_loadingStories)
+            const SizedBox(
+              height: 95,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            SizedBox(
+              height: 95,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _stories.length > 5 ? 5 : _stories.length,
+                itemBuilder: (context, index) {
+                  final story = _stories[index];
+                  return Container(
+                    width: 75,
+                    margin: const EdgeInsets.only(left: 12),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: const Color(0xff081A3A),
+                          backgroundImage: story.userAvatar != null
+                              ? NetworkImage(story.userAvatar!)
+                              : null,
+                          child: story.userAvatar == null
+                              ? Text(
+                                  story.userName.substring(0, 1).toUpperCase(),
+                                  style: const TextStyle(color: Colors.white),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          story.userName.length > 8
+                              ? '${story.userName.substring(0, 8)}...'
+                              : story.userName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          /// FEED
+          if (_loadingPosts)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_posts.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.post_add, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('Aucune publication'),
+                    Text('Soyez le premier à partager'),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: _posts.length,
+                itemBuilder: (context, index) {
+                  final post = _posts[index];
+                  return _buildPostCard(post);
+                },
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  Widget _buildPostCard(NetworkPost post) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundImage: post.userAvatar != null
+                      ? NetworkImage(post.userAvatar!)
+                      : null,
+                  child: post.userAvatar == null
+                      ? Text(
+                          post.userName.substring(0, 1).toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.userName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        _getTimeAgo(post.createdAt),
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _showPostOptions(post),
+                  icon: const Icon(Icons.more_vert),
+                ),
+              ],
+            ),
+          ),
+
+          // Contenu
+          if (post.content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Text(post.content),
+            ),
+
+          const SizedBox(height: 15),
+
+          // Image
+          if (post.images.isNotEmpty)
+            SizedBox(
+              height: 220,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: post.images.length,
+                itemBuilder: (context, imgIndex) => Padding(
+                  padding: const EdgeInsets.only(left: 15, right: imgIndex == post.images.length - 1 ? 15 : 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.network(
+                      post.images[imgIndex],
+                      width: MediaQuery.of(context).size.width - 30,
+                      height: 220,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 15),
+
+          // Stats
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("❤️ ${post.likesCount}"),
+                Text("💬 ${post.commentsCount}"),
+                Text("↗ ${post.sharesCount ?? 0}"),
+              ],
+            ),
+          ),
+
+          const Divider(),
+
+          // Actions
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                GestureDetector(
+                  onTap: () => _likePost(post),
+                  child: Icon(
+                    post.isLikedByCurrentUser ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                    color: post.isLikedByCurrentUser ? Colors.blue : Colors.grey,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/network/post/${post.id}'),
+                  child: const Icon(Icons.comment_outlined, color: Colors.grey),
+                ),
+                GestureDetector(
+                  onTap: () {},
+                  child: const Icon(Icons.share_outlined, color: Colors.grey),
+                ),
+                GestureDetector(
+                  onTap: () {},
+                  child: const Icon(Icons.send_outlined, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPostOptions(NetworkPost post) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text('Signaler'),
+              onTap: () {
+                Navigator.pop(context);
+                _reportPost(post.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.visibility_off, color: Colors.orange),
+              title: const Text('Masquer'),
+              onTap: () {
+                Navigator.pop(context);
+                _hidePost(post.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.green),
+              title: const Text('Partager'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _hidePost(String postId) async {
+    await _networkService.hidePost(postId);
+    await _loadPosts();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publication masquée'), backgroundColor: Colors.orange),
+      );
+    }
+  }
+
+  Future<void> _reportPost(String postId) async {
+    await _networkService.reportPost(postId, 'Signalé par utilisateur');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publication signalée'), backgroundColor: Colors.orange),
+      );
+    }
   }
 }
