@@ -29,7 +29,11 @@ class InvestmentCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -50,8 +54,14 @@ class InvestmentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(description, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      description,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
@@ -63,7 +73,10 @@ class InvestmentCard extends StatelessWidget {
                 ),
                 child: Text(
                   returnRate,
-                  style: TextStyle(color: returnRate.contains('+') ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: returnRate.contains('+') ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -76,16 +89,24 @@ class InvestmentCard extends StatelessWidget {
                 children: [
                   Icon(Icons.risk, size: 16, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Text('Risque $risk', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    'Risque $risk',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
               ),
-              Text('Min ${minAmount.toStringAsFixed(0)} FCFA', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                'Min ${minAmount.toStringAsFixed(0)} FCFA',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               ElevatedButton(
                 onPressed: onTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD4AF37),
                   foregroundColor: const Color(0xFF0B1B3D),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
                 child: const Text('Investir'),
               ),
