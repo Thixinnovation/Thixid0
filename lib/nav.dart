@@ -5,7 +5,37 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/models/app_user.dart';
 
-// Imports des écrans (tous vos écrans existants)
+// ==================== IMPORTS THIX RESERVATION ====================
+import 'presentation/thix_reservation/thix_reservation_page.dart';
+import 'presentation/thix_reservation/pages/reservation_vols.dart';
+import 'presentation/thix_reservation/pages/vol_recherche.dart';
+import 'presentation/thix_reservation/pages/vol_liste.dart';
+import 'presentation/thix_reservation/pages/vol_details.dart';
+import 'presentation/thix_reservation/pages/vol_passagers.dart';
+import 'presentation/thix_reservation/pages/vol_paiement.dart';
+import 'presentation/thix_reservation/pages/vol_confirmation.dart';
+import 'presentation/thix_reservation/pages/reservation_hotels.dart';
+import 'presentation/thix_reservation/pages/hotel_recherche.dart';
+import 'presentation/thix_reservation/pages/hotel_liste.dart';
+import 'presentation/thix_reservation/pages/hotel_details.dart';
+import 'presentation/thix_reservation/pages/hotel_reservation.dart';
+import 'presentation/thix_reservation/pages/reservation_bus.dart';
+import 'presentation/thix_reservation/pages/bus_recherche.dart';
+import 'presentation/thix_reservation/pages/bus_liste.dart';
+import 'presentation/thix_reservation/pages/bus_reservation.dart';
+import 'presentation/thix_reservation/pages/reservation_taxi.dart';
+import 'presentation/thix_reservation/pages/taxi_commande.dart';
+import 'presentation/thix_reservation/pages/taxi_trajets.dart';
+import 'presentation/thix_reservation/pages/reservation_colis.dart';
+import 'presentation/thix_reservation/pages/colis_envoi.dart';
+import 'presentation/thix_reservation/pages/colis_suivi.dart';
+import 'presentation/thix_reservation/pages/reservation_event.dart';
+import 'presentation/thix_reservation/pages/reservation_restaurant.dart';
+import 'presentation/thix_reservation/pages/mes_reservations.dart';
+import 'presentation/thix_reservation/pages/favoris.dart';
+import 'presentation/thix_reservation/pages/profil.dart';
+
+// ==================== IMPORTS EXISTANTS ====================
 import 'presentation/home/home_page.dart';
 import 'presentation/auth/login_page.dart';
 import 'presentation/auth/personal_registration_page.dart';
@@ -102,7 +132,6 @@ import 'package:thix_id/presentation/thix_market/thix_market_page.dart';
 import 'package:thix_id/presentation/thix_market/cart_page.dart';
 import 'package:thix_id/presentation/thix_market/checkout_page.dart';
 import 'package:thix_id/presentation/thix_market/order_history_page.dart';
-import 'package:thix_id/presentation/thix_reservation/thix_reservation_page.dart';
 import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
 import 'package:thix_id/presentation/admin/pages/admin_media_page.dart';
 
@@ -189,6 +218,36 @@ class AppRoutes {
   static const String thixMoneyCards = '/thix-money/cards';
   static const String thixMoneyNotifications = '/thix-money/notifications';
   static const String thixMoneyHistory = '/thix-money/history';
+
+  // ==================== THIX RESERVATION ====================
+  static const String reservation = '/reservation';
+  static const String reservationVols = '/reservation/vols';
+  static const String reservationVolsRecherche = '/reservation/vols/recherche';
+  static const String reservationVolsListe = '/reservation/vols/liste';
+  static const String reservationVolsDetails = '/reservation/vols/details';
+  static const String reservationVolsPassagers = '/reservation/vols/passagers';
+  static const String reservationVolsPaiement = '/reservation/vols/paiement';
+  static const String reservationVolsConfirmation = '/reservation/vols/confirmation';
+  static const String reservationHotels = '/reservation/hotels';
+  static const String reservationHotelsRecherche = '/reservation/hotels/recherche';
+  static const String reservationHotelsListe = '/reservation/hotels/liste';
+  static const String reservationHotelsDetails = '/reservation/hotels/details';
+  static const String reservationHotelsReservation = '/reservation/hotels/reservation';
+  static const String reservationBus = '/reservation/bus';
+  static const String reservationBusRecherche = '/reservation/bus/recherche';
+  static const String reservationBusListe = '/reservation/bus/liste';
+  static const String reservationBusReservation = '/reservation/bus/reservation';
+  static const String reservationTaxi = '/reservation/taxi';
+  static const String reservationTaxiCommande = '/reservation/taxi/commande';
+  static const String reservationTaxiTrajets = '/reservation/taxi/trajets';
+  static const String reservationColis = '/reservation/colis';
+  static const String reservationColisEnvoi = '/reservation/colis/envoi';
+  static const String reservationColisSuivi = '/reservation/colis/suivi';
+  static const String reservationEvent = '/reservation/event';
+  static const String reservationRestaurant = '/reservation/restaurant';
+  static const String reservationMesReservations = '/reservation/mes-reservations';
+  static const String reservationFavoris = '/reservation/favoris';
+  static const String reservationProfil = '/reservation/profil';
   
   // Autres services
   static const String jobs = '/jobs';
@@ -206,7 +265,6 @@ class AppRoutes {
   static const String thixMarketCart = '/market/cart';
   static const String thixMarketCheckout = '/market/checkout';
   static const String thixMarketOrders = '/market/orders';
-  static const String reservation = '/reservation';
   static const String thixMedia = '/thix-media';
   static const String adminMedia = '/admin/media';
 
@@ -579,42 +637,31 @@ class AppRouter {
         ),
 
         // ==================== THIX MONEY ====================
-        // Page principale
         GoRoute(
           path: AppRoutes.thixMoney,
           name: 'thixMoney',
           pageBuilder: (context, state) => NoTransitionPage(child: ThixMoneyPage()),
         ),
-        
-        // Transactions
         GoRoute(
           path: AppRoutes.thixMoneyTransactions,
           name: 'thixMoneyTransactions',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyTransactions()),
         ),
-        
-        // Scanner QR
         GoRoute(
           path: AppRoutes.thixMoneyScanner,
           name: 'thixMoneyScanner',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyScanner()),
         ),
-        
-        // Services
         GoRoute(
           path: AppRoutes.thixMoneyServices,
           name: 'thixMoneyServices',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyServices()),
         ),
-        
-        // Profil
         GoRoute(
           path: AppRoutes.thixMoneyProfile,
           name: 'thixMoneyProfile',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyProfile()),
         ),
-        
-        // Transfert
         GoRoute(
           path: AppRoutes.thixMoneyTransfer,
           name: 'thixMoneyTransfer',
@@ -629,126 +676,257 @@ class AppRouter {
             );
           },
         ),
-        
-        // Retrait
         GoRoute(
           path: AppRoutes.thixMoneyWithdraw,
           name: 'thixMoneyWithdraw',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyWithdraw()),
         ),
-        
-        // Dépôt / Rechargement
         GoRoute(
           path: AppRoutes.thixMoneyDeposit,
           name: 'thixMoneyDeposit',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyDeposit()),
         ),
-        
-        // Crédit
         GoRoute(
           path: AppRoutes.thixMoneyCredit,
           name: 'thixMoneyCredit',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyCredit()),
         ),
-        
-        // Demande de crédit
         GoRoute(
           path: AppRoutes.thixMoneyCreditRequest,
           name: 'thixMoneyCreditRequest',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyCreditRequest()),
         ),
-        
-        // Épargne
         GoRoute(
           path: AppRoutes.thixMoneySavings,
           name: 'thixMoneySavings',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneySavings()),
         ),
-        
-        // Épargne groupe
         GoRoute(
           path: AppRoutes.thixMoneyGroupSavings,
           name: 'thixMoneyGroupSavings',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyGroupSavings()),
         ),
-        
-        // Tontine
         GoRoute(
           path: AppRoutes.thixMoneyTontine,
           name: 'thixMoneyTontine',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyTontine()),
         ),
-        
-        // Créer une tontine
         GoRoute(
           path: AppRoutes.thixMoneyCreateTontine,
           name: 'thixMoneyCreateTontine',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyCreateTontine()),
         ),
-        
-        // Détails tontine
         GoRoute(
           path: AppRoutes.thixMoneyTontineDetails,
           name: 'thixMoneyTontineDetails',
           pageBuilder: (context, state) {
             final tontineId = state.pathParameters['tontineId']!;
-            return NoTransitionPage(child: Placeholder()); // TODO: Page détails tontine
+            return NoTransitionPage(child: Placeholder());
           },
         ),
-        
-        // Investissement
         GoRoute(
           path: AppRoutes.thixMoneyInvestment,
           name: 'thixMoneyInvestment',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyInvestment()),
         ),
-        
-        // Détails investissement
         GoRoute(
           path: AppRoutes.thixMoneyInvestmentDetails,
           name: 'thixMoneyInvestmentDetails',
           pageBuilder: (context, state) {
             final investmentId = state.pathParameters['investmentId']!;
-            return NoTransitionPage(child: Placeholder()); // TODO: Page détails investissement
+            return NoTransitionPage(child: Placeholder());
           },
         ),
-        
-        // Assurance
         GoRoute(
           path: AppRoutes.thixMoneyInsurance,
           name: 'thixMoneyInsurance',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyInsurance()),
         ),
-        
-        // Virement international
         GoRoute(
           path: AppRoutes.thixMoneyInternationalTransfer,
           name: 'thixMoneyInternationalTransfer',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyInternationalTransfer()),
         ),
-        
-        // Cartes virtuelles
         GoRoute(
           path: AppRoutes.thixMoneyCards,
           name: 'thixMoneyCards',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyCards()),
         ),
-        
-        // Notifications THIX Money
         GoRoute(
           path: AppRoutes.thixMoneyNotifications,
           name: 'thixMoneyNotifications',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyNotifications()),
         ),
-        
-        // Historique complet
         GoRoute(
           path: AppRoutes.thixMoneyHistory,
           name: 'thixMoneyHistory',
           pageBuilder: (context, state) => NoTransitionPage(child: const ThixMoneyHistory()),
         ),
 
-        // ==================== THIX MARKET ROUTES ====================
+        // ==================== THIX RESERVATION ====================
+        // Page principale
+        GoRoute(
+          path: AppRoutes.reservation,
+          name: 'reservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ThixReservationPage()),
+        ),
+        
+        // Vols
+        GoRoute(
+          path: AppRoutes.reservationVols,
+          name: 'reservationVols',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationVolsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsRecherche,
+          name: 'reservationVolsRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsListe,
+          name: 'reservationVolsListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsDetails,
+          name: 'reservationVolsDetails',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolDetailsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsPassagers,
+          name: 'reservationVolsPassagers',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolPassagersPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsPaiement,
+          name: 'reservationVolsPaiement',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolPaiementPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationVolsConfirmation,
+          name: 'reservationVolsConfirmation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const VolConfirmationPage()),
+        ),
+        
+        // Hôtels
+        GoRoute(
+          path: AppRoutes.reservationHotels,
+          name: 'reservationHotels',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationHotelsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsRecherche,
+          name: 'reservationHotelsRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsListe,
+          name: 'reservationHotelsListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsDetails,
+          name: 'reservationHotelsDetails',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelDetailsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationHotelsReservation,
+          name: 'reservationHotelsReservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HotelReservationPage()),
+        ),
+        
+        // Bus
+        GoRoute(
+          path: AppRoutes.reservationBus,
+          name: 'reservationBus',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationBusPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusRecherche,
+          name: 'reservationBusRecherche',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusRecherchePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusListe,
+          name: 'reservationBusListe',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusListePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationBusReservation,
+          name: 'reservationBusReservation',
+          pageBuilder: (context, state) => NoTransitionPage(child: const BusReservationPage()),
+        ),
+        
+        // Taxi
+        GoRoute(
+          path: AppRoutes.reservationTaxi,
+          name: 'reservationTaxi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationTaxiPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationTaxiCommande,
+          name: 'reservationTaxiCommande',
+          pageBuilder: (context, state) => NoTransitionPage(child: const TaxiCommandePage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationTaxiTrajets,
+          name: 'reservationTaxiTrajets',
+          pageBuilder: (context, state) => NoTransitionPage(child: const TaxiTrajetsPage()),
+        ),
+        
+        // Colis
+        GoRoute(
+          path: AppRoutes.reservationColis,
+          name: 'reservationColis',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationColisPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationColisEnvoi,
+          name: 'reservationColisEnvoi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ColisEnvoiPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.reservationColisSuivi,
+          name: 'reservationColisSuivi',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ColisSuiviPage()),
+        ),
+        
+        // Événements
+        GoRoute(
+          path: AppRoutes.reservationEvent,
+          name: 'reservationEvent',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationEventPage()),
+        ),
+        
+        // Restaurants
+        GoRoute(
+          path: AppRoutes.reservationRestaurant,
+          name: 'reservationRestaurant',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReservationRestaurantPage()),
+        ),
+        
+        // Mes réservations
+        GoRoute(
+          path: AppRoutes.reservationMesReservations,
+          name: 'reservationMesReservations',
+          pageBuilder: (context, state) => NoTransitionPage(child: const MesReservationsPage()),
+        ),
+        
+        // Favoris
+        GoRoute(
+          path: AppRoutes.reservationFavoris,
+          name: 'reservationFavoris',
+          pageBuilder: (context, state) => NoTransitionPage(child: const FavorisPage()),
+        ),
+        
+        // Profil
+        GoRoute(
+          path: AppRoutes.reservationProfil,
+          name: 'reservationProfil',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ProfilPage()),
+        ),
+
+        // ==================== THIX MARKET ====================
         GoRoute(
           path: AppRoutes.thixMarket,
           name: 'thixMarket',
@@ -770,12 +948,7 @@ class AppRouter {
           pageBuilder: (context, state) => NoTransitionPage(child: OrderHistoryPage()),
         ),
 
-        // ==================== THIX SERVICES ROUTES ====================
-        GoRoute(
-          path: AppRoutes.reservation,
-          name: 'reservation',
-          pageBuilder: (context, state) => NoTransitionPage(child: ThixReservationPage()),
-        ),
+        // ==================== THIX MEDIA ====================
         GoRoute(
           path: AppRoutes.thixMedia,
           name: 'thixMedia',
