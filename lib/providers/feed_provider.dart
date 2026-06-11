@@ -51,30 +51,31 @@ class FeedProvider extends ChangeNotifier {
   }
   
   // ⭐ MODIFICATION IMPORTANTE ICI ⭐
-  Future<bool> createPost(String content, List<String> images) async {
-    try {
-      debugPrint('📝 Création du post...');
-      
-      // Créer le post et récupérer l'ID
-      final postId = await _networkService.createPost(content, images);
-      
-      if (postId.isEmpty) {
-        debugPrint('❌ Pas d\'ID retourné');
-        return false;
-      }
-      
-      debugPrint('✅ Post créé avec ID: $postId');
-      
-      // Recharger tout le feed
-      await loadFeed();
-      debugPrint('🔄 Feed rechargé, ${_posts.length} posts');
-      
-      return true;
-    } catch (e) {
-      debugPrint('❌ FeedProvider createPost error: $e');
+  // lib/providers/feed_provider.dart
+Future<bool> createPost(String content, List<String> images) async {
+  try {
+    debugPrint('📝 FeedProvider: création du post...');
+    
+    // Maintenant createPost retourne directement l'ID
+    final postId = await _networkService.createPost(content, images);
+    
+    if (postId.isEmpty) {
+      debugPrint('❌ FeedProvider: pas d\'ID retourné');
       return false;
     }
+    
+    debugPrint('✅ FeedProvider: post créé avec ID: $postId');
+    
+    // Recharger tout le feed
+    await loadFeed();
+    debugPrint('🔄 FeedProvider: feed rechargé, ${_posts.length} posts');
+    
+    return true;
+  } catch (e) {
+    debugPrint('❌ FeedProvider createPost error: $e');
+    return false;
   }
+}
   
   Future<void> toggleLike(String postId) async {
     final index = _posts.indexWhere((p) => p.id == postId);
