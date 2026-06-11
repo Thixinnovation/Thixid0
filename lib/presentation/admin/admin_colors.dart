@@ -1,6 +1,6 @@
 // lib/presentation/admin/admin_colors.dart
 import 'package:flutter/material.dart';
-import 'admin_colors.dart';
+
 /// Couleurs unifiées pour l'espace Administrateur THIX
 class AdminColors {
   // ============================================================
@@ -8,43 +8,43 @@ class AdminColors {
   // ============================================================
   
   // Fond principal
-  static const Color black = Color(0xFF0A0E1A);      // Noir profond
-  static const Color background = Color(0xFF0F1420);  // Fond légèrement plus clair
+  static const Color black = Color(0xFF0A0E1A);
+  static const Color background = Color(0xFF0F1420);
   
   // Panel et surfaces
-  static const Color panel = Color(0xCC1A1F2E);       // Panel semi-transparent
-  static const Color panelHi = Color(0xE6222A3E);     // Panel surbrillance
-  static const Color stroke = Color(0x33FFFFFF);      // Bordure transparente
+  static const Color panel = Color(0xCC1A1F2E);
+  static const Color panelHi = Color(0xE6222A3E);
+  static const Color stroke = Color(0x33FFFFFF);
   
   // Texte
-  static const Color text = Color(0xFFF0F3FA);        // Texte principal
-  static const Color textDim = Color(0xFF8E98B0);     // Texte secondaire
-  static const Color textLight = Colors.white;        // Texte sur fond sombre
+  static const Color text = Color(0xFFF0F3FA);
+  static const Color textDim = Color(0xFF8E98B0);
+  static const Color textLight = Colors.white;
   
   // ============================================================
   // COULEURS NÉON/ACCENT
   // ============================================================
-  static const Color neonCyan = Color(0xFF00E5FF);     // Cyan néon
-  static const Color electricBlue = Color(0xFF2962FF); // Bleu électrique
-  static const Color neonViolet = Color(0xFFB388FF);   // Violet néon
-  static const Color neonPink = Color(0xFFFF4081);     // Rose néon
-  static const Color neonGreen = Color(0xFF00E676);    // Vert néon
-  static const Color neonOrange = Color(0xFFFF9100);   // Orange néon
+  static const Color neonCyan = Color(0xFF00E5FF);
+  static const Color electricBlue = Color(0xFF2962FF);
+  static const Color neonViolet = Color(0xFFB388FF);
+  static const Color neonPink = Color(0xFFFF4081);
+  static const Color neonGreen = Color(0xFF00E676);
+  static const Color neonOrange = Color(0xFFFF9100);
   
   // ============================================================
   // COULEURS THIX (Doré)
   // ============================================================
-  static const Color thixGold = Color(0xFFD4AF37);     // Doré THIX
-  static const Color thixGoldDark = Color(0xFFB8941E); // Doré foncé
-  static const Color thixGoldLight = Color(0xFFE8C96C); // Doré clair
+  static const Color thixGold = Color(0xFFD4AF37);
+  static const Color thixGoldDark = Color(0xFFB8941E);
+  static const Color thixGoldLight = Color(0xFFE8C96C);
   
   // ============================================================
   // COULEURS DE STATUT
   // ============================================================
-  static const Color success = Color(0xFF00E676);      // Vert succès
-  static const Color warning = Color(0xFFFF9100);      // Orange warning
-  static const Color error = Color(0xFFFF1744);        // Rouge erreur
-  static const Color info = Color(0xFF00B0FF);         // Bleu info
+  static const Color success = Color(0xFF00E676);
+  static const Color warning = Color(0xFFFF9100);
+  static const Color error = Color(0xFFFF1744);
+  static const Color info = Color(0xFF00B0FF);
   
   // ============================================================
   // DÉGRADÉS
@@ -106,151 +106,140 @@ class AdminColors {
   }
 }
 
-/// Gestionnaire de couleurs par module
+/// Gestionnaire de couleurs par module (utilise AdminModule de admin_page.dart)
 class AdminModuleColors {
-  static Color getColor(AdminModule module) {
-    switch (module) {
-      case AdminModule.overview:
+  static Color getColor(dynamic module) {
+    final moduleStr = module.toString().split('.').last;
+    
+    switch (moduleStr) {
+      case 'overview':
         return AdminColors.electricBlue;
-      case AdminModule.accessRequests:
+      case 'accessRequests':
         return AdminColors.warning;
-      case AdminModule.users:
+      case 'users':
         return AdminColors.info;
-      case AdminModule.verification:
+      case 'verification':
         return AdminColors.success;
-      case AdminModule.events:
+      case 'events':
         return AdminColors.neonCyan;
-      case AdminModule.trainings:
+      case 'trainings':
         return AdminColors.thixGold;
-      case AdminModule.uid:
+      case 'uid':
         return AdminColors.electricBlue;
-      case AdminModule.jobs:
+      case 'jobs':
         return AdminColors.success;
-      case AdminModule.news:
+      case 'news':
         return AdminColors.thixGold;
-      case AdminModule.chat:
+      case 'chat':
         return AdminColors.neonCyan;
-      case AdminModule.sos:
+      case 'sos':
         return AdminColors.error;
-      case AdminModule.institutions:
+      case 'institutions':
         return AdminColors.electricBlue;
-      case AdminModule.analytics:
+      case 'analytics':
         return AdminColors.info;
-      case AdminModule.cybersecurity:
+      case 'cybersecurity':
         return AdminColors.error;
-      case AdminModule.api:
+      case 'api':
         return AdminColors.electricBlue;
-      case AdminModule.settings:
+      case 'settings':
         return AdminColors.warning;
-      case AdminModule.audit:
+      case 'audit':
         return AdminColors.textDim;
-      case AdminModule.media:
+      case 'media':
         return AdminColors.neonPink;
+      default:
+        return AdminColors.textDim;
     }
   }
   
-  static IconData getIcon(AdminModule module) {
-    switch (module) {
-      case AdminModule.overview:
+  static IconData getIcon(dynamic module) {
+    final moduleStr = module.toString().split('.').last;
+    
+    switch (moduleStr) {
+      case 'overview':
         return Icons.dashboard_rounded;
-      case AdminModule.accessRequests:
+      case 'accessRequests':
         return Icons.admin_panel_settings_rounded;
-      case AdminModule.users:
+      case 'users':
         return Icons.people_alt_rounded;
-      case AdminModule.verification:
+      case 'verification':
         return Icons.verified_user_rounded;
-      case AdminModule.events:
+      case 'events':
         return Icons.event_available_rounded;
-      case AdminModule.trainings:
+      case 'trainings':
         return Icons.school_rounded;
-      case AdminModule.uid:
+      case 'uid':
         return Icons.badge_rounded;
-      case AdminModule.jobs:
+      case 'jobs':
         return Icons.work_rounded;
-      case AdminModule.news:
+      case 'news':
         return Icons.campaign_rounded;
-      case AdminModule.chat:
-        return Icons.forum_rounded;
-      case AdminModule.sos:
-        return Icons.sos_rounded;
-      case AdminModule.institutions:
-        return Icons.account_balance_rounded;
-      case AdminModule.analytics:
-        return Icons.query_stats_rounded;
-      case AdminModule.cybersecurity:
-        return Icons.shield_rounded;
-      case AdminModule.api:
-        return Icons.api_rounded;
-      case AdminModule.settings:
-        return Icons.tune_rounded;
-      case AdminModule.audit:
-        return Icons.manage_history_rounded;
-      case AdminModule.media:
+      case 'media':
         return Icons.movie_rounded;
+      case 'chat':
+        return Icons.forum_rounded;
+      case 'sos':
+        return Icons.sos_rounded;
+      case 'institutions':
+        return Icons.account_balance_rounded;
+      case 'analytics':
+        return Icons.query_stats_rounded;
+      case 'cybersecurity':
+        return Icons.shield_rounded;
+      case 'api':
+        return Icons.api_rounded;
+      case 'settings':
+        return Icons.tune_rounded;
+      case 'audit':
+        return Icons.manage_history_rounded;
+      default:
+        return Icons.help_outline_rounded;
     }
   }
   
-  static String getLabel(AdminModule module) {
-    switch (module) {
-      case AdminModule.overview:
+  static String getLabel(dynamic module) {
+    final moduleStr = module.toString().split('.').last;
+    
+    switch (moduleStr) {
+      case 'overview':
         return 'Global Overview';
-      case AdminModule.accessRequests:
+      case 'accessRequests':
         return 'Account Access Requests';
-      case AdminModule.users:
+      case 'users':
         return 'User Management';
-      case AdminModule.verification:
+      case 'verification':
         return 'Verification Center';
-      case AdminModule.events:
+      case 'events':
         return 'Events';
-      case AdminModule.trainings:
+      case 'trainings':
         return 'Trainings';
-      case AdminModule.uid:
+      case 'uid':
         return 'THIX UID';
-      case AdminModule.jobs:
+      case 'jobs':
         return 'Jobs & Opportunities';
-      case AdminModule.news:
+      case 'news':
         return 'Info / News';
-      case AdminModule.media:
+      case 'media':
         return 'THIX Media';
-      case AdminModule.chat:
+      case 'chat':
         return 'THIX Chat Admin';
-      case AdminModule.sos:
+      case 'sos':
         return 'SOS Emergency';
-      case AdminModule.institutions:
+      case 'institutions':
         return 'Institutions';
-      case AdminModule.analytics:
+      case 'analytics':
         return 'Analytics';
-      case AdminModule.cybersecurity:
+      case 'cybersecurity':
         return 'Cybersecurity';
-      case AdminModule.api:
+      case 'api':
         return 'API & Integrations';
-      case AdminModule.settings:
+      case 'settings':
         return 'Settings';
-      case AdminModule.audit:
+      case 'audit':
         return 'Audit & Activity';
+      default:
+        return moduleStr;
     }
   }
-}
-
-// Définition temporaire de AdminModule pour éviter les erreurs
-// Ceci devrait déjà être défini dans admin_page.dart
-enum AdminModule {
-  overview,
-  accessRequests,
-  users,
-  verification,
-  events,
-  trainings,
-  uid,
-  jobs,
-  news,
-  chat,
-  sos,
-  institutions,
-  analytics,
-  cybersecurity,
-  api,
-  settings,
-  audit,
-  media,
 }
