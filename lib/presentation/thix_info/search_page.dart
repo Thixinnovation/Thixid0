@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 
 import '../../providers/news_provider.dart';
@@ -20,7 +19,7 @@ class _SearchPageState extends State<SearchPage> {
   final FocusNode _focusNode = FocusNode();
   List<NewsArticle> _results = [];
   bool _isSearching = false;
-  String _selectedFilter = 'all'; // all, recent, popular
+  String _selectedFilter = 'all';
 
   @override
   void initState() {
@@ -122,7 +121,7 @@ class _SearchPageState extends State<SearchPage> {
     final isSelected = _selectedFilter == value;
     return FilterChip(
       selected: isSelected,
-      label: Text(label, style: TextStyle(fontSize: 12)),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
       onSelected: (selected) {
         setState(() => _selectedFilter = value);
         _applyFilter();
@@ -153,15 +152,29 @@ class _SearchPageState extends State<SearchPage> {
         ),
         child: Row(
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
+                child: Image.network(
+                  article.imageUrl!,
                   width: 70,
                   height: 70,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(width: 70, height: 70, color: Colors.grey[200]),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                  ),
                 ),
               ),
             const SizedBox(width: 10),
