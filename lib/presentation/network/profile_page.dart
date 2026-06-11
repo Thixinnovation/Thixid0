@@ -8,7 +8,6 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'widgets/pinned_post.dart';
-import 'widgets/story_highlights.dart' as highlights;
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -23,7 +22,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<highlights.Highlight> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -59,27 +57,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final userData = await _networkService.getUserProfile(userId);
       final posts = await _networkService.getUserPosts(userId);
       final pinnedPosts = await _networkService.getPinnedPosts(userId);
-      final highlightsData = await _networkService.getUserHighlights(userId);
       final savedPosts = await _networkService.getSavedPosts();
       final repostedPosts = await _networkService.getUserReposts(userId);
-      
-      // Convertir les highlights correctement
-      final List<highlights.Highlight> convertedHighlights = [];
-      for (var e in highlightsData) {
-        convertedHighlights.add(highlights.Highlight(
-          id: e['id'],
-          name: e['name'],
-          coverImage: e['cover_image'],
-          storyIds: List<String>.from(e['story_ids']),
-          createdAt: DateTime.parse(e['created_at']),
-        ));
-      }
       
       setState(() {
         _user = userData;
         _posts = posts;
         _pinnedPosts = pinnedPosts;
-        _highlights = convertedHighlights;
         _savedPosts = savedPosts;
         _repostedPosts = repostedPosts;
         _loading = false;
@@ -114,36 +98,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     }
   }
 
-  Future<void> _createHighlight() async {
-    final nameController = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nouvelle story en vedette'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            hintText: 'Nom de la collection',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
-            child: const Text('Créer'),
-          ),
-        ],
-      ),
-    );
-    
-    if (result == true && nameController.text.isNotEmpty) {
-      await _networkService.createHighlight(nameController.text, [], null);
-      await _loadData();
-    }
-  }
-
   void _shareProfile() {
     final shareText = 'Découvrez le profil de ${_user?['display_name']} sur THIX Réseau Pro !';
     ScaffoldMessenger.of(context).showSnackBar(
@@ -168,15 +122,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 slivers: [
                   SliverToBoxAdapter(child: _buildCoverBanner()),
                   SliverToBoxAdapter(child: _buildProfileHeader(isOwnProfile)),
-                  
-                  // Story Highlights
-                  if (_highlights.isNotEmpty || isOwnProfile)
-                    SliverToBoxAdapter(
-                      child: highlights.StoryHighlights(
-                        highlights: _highlights,
-                        onAddHighlight: isOwnProfile ? () => _createHighlight() : null,
-                      ),
-                    ),
                   
                   // Post épinglé
                   if (_pinnedPosts.isNotEmpty)
