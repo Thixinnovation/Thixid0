@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class MemberProfile extends StatefulWidget {
   final String userId;
@@ -22,22 +21,12 @@ class _MemberProfileState extends State<MemberProfile> {
   bool _isConnected = false;
   bool _isConnectionPending = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _networkService = NetworkService(Supabase.instance.client);
-    _loadData();
-  }
-
-  // ============================================================
-  // MÉTHODE LOCALE POUR VÉRIFIER LE STATUT DE CONNEXION
-  // ============================================================
+  // Méthode locale pour vérifier le statut de connexion
   Future<String?> _getConnectionStatusDirect(String userId) async {
     try {
       final supabase = Supabase.instance.client;
       final currentUserId = supabase.auth.currentUser!.id;
       
-      // Vérifier si déjà connecté
       final connection = await supabase
           .from('connections')
           .select('status')
@@ -48,7 +37,6 @@ class _MemberProfileState extends State<MemberProfile> {
       
       if (connection != null) return 'accepted';
       
-      // Vérifier s'il y a une demande en attente
       final request = await supabase
           .from('connection_requests')
           .select('status')
@@ -62,6 +50,13 @@ class _MemberProfileState extends State<MemberProfile> {
       debugPrint('Error checking connection status: $e');
       return null;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _networkService = NetworkService(Supabase.instance.client);
+    _loadData();
   }
 
   Future<void> _loadData() async {
