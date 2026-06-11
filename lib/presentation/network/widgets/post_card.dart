@@ -6,7 +6,6 @@ import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class PostCard extends StatefulWidget {
   final NetworkPost post;
@@ -220,7 +219,7 @@ class _PostCardState extends State<PostCard> {
                   CircleAvatar(
                     radius: 20,
                     backgroundImage: _post.authorAvatar != null && _post.authorAvatar!.isNotEmpty
-                        ? CachedNetworkImageProvider(_post.authorAvatar!)
+                        ? NetworkImage(_post.authorAvatar!)
                         : null,
                     child: _post.authorAvatar == null || _post.authorAvatar!.isEmpty
                         ? const Icon(Icons.person, size: 20)
@@ -285,20 +284,23 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
               
-              // Image unique
+              // Image unique avec NetworkImage au lieu de CachedNetworkImage
               if (hasImage)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: _post.mediaUrl!,
+                  child: Image.network(
+                    _post.mediaUrl!,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 200,
-                      color: Colors.grey.shade200,
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                    errorWidget: (context, url, error) => Container(
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 200,
+                        color: Colors.grey.shade200,
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
                       height: 200,
                       color: Colors.grey.shade200,
                       child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
