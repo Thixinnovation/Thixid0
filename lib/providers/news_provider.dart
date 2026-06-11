@@ -8,19 +8,16 @@ class NewsProvider extends ChangeNotifier {
 
   List<NewsArticle> _articles = [];
   List<NewsArticle> _videos = [];
-  List<NewsArticle> _breakingNews = [];
   List<NewsArticle> _savedArticles = [];
   bool _isLoading = false;
   String? _error;
   String _currentCategory = 'featured';
-  String? _searchQuery;
 
   NewsProvider(this._newsService);
 
   // Getters
   List<NewsArticle> get articles => _articles;
   List<NewsArticle> get videos => _videos;
-  List<NewsArticle> get breakingNews => _breakingNews;
   List<NewsArticle> get savedArticles => _savedArticles;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -38,7 +35,7 @@ class NewsProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // CHARGEMENT DES DONNÉES
+  // CHARGEMENT
   // ============================================================
 
   Future<void> fetchArticles({String? category}) async {
@@ -49,7 +46,6 @@ class NewsProvider extends ChangeNotifier {
     try {
       final newCategory = category ?? _currentCategory;
       _currentCategory = newCategory;
-      
       _articles = await _newsService.getArticles(category: newCategory);
     } catch (e) {
       _error = e.toString();
@@ -69,48 +65,12 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchBreakingNews() async {
-    try {
-      _breakingNews = await _newsService.getBreakingNews();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('❌ fetchBreakingNews error: $e');
-    }
-  }
-
   Future<NewsArticle?> fetchArticleById(String id) async {
     try {
-      final article = await _newsService.getArticleById(id);
-      return article;
+      return await _newsService.getArticleById(id);
     } catch (e) {
       debugPrint('❌ fetchArticleById error: $e');
       return null;
-    }
-  }
-
-  Future<List<NewsArticle>> fetchArticlesByCategory(String category) async {
-    try {
-      return await _newsService.getArticles(category: category);
-    } catch (e) {
-      debugPrint('❌ fetchArticlesByCategory error: $e');
-      return [];
-    }
-  }
-
-  Future<List<NewsArticle>> searchArticles(String query) async {
-    _searchQuery = query;
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final results = await _newsService.searchArticles(query);
-      return results;
-    } catch (e) {
-      _error = e.toString();
-      return [];
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
@@ -140,13 +100,11 @@ class NewsProvider extends ChangeNotifier {
   Future<void> saveArticle(String articleId) async {
     await _newsService.saveArticle(articleId);
     
-    // Mettre à jour dans articles
     final index = _articles.indexWhere((a) => a.id == articleId);
     if (index != -1) {
       _articles[index] = _articles[index].copyWith(isSaved: true);
     }
     
-    // Recharger les favoris
     await loadSavedArticles();
     notifyListeners();
   }
@@ -154,20 +112,13 @@ class NewsProvider extends ChangeNotifier {
   Future<void> unsaveArticle(String articleId) async {
     await _newsService.unsaveArticle(articleId);
     
-    // Mettre à jour dans articles
     final index = _articles.indexWhere((a) => a.id == articleId);
     if (index != -1) {
       _articles[index] = _articles[index].copyWith(isSaved: false);
     }
     
-    // Recharger les favoris
     await loadSavedArticles();
     notifyListeners();
-  }
-
-  Future<bool> isArticleSaved(String articleId) async {
-    final saved = await _newsService.getSavedArticles();
-    return saved.any((a) => a.id == articleId);
   }
 
   Future<void> loadSavedArticles() async {
@@ -204,10 +155,7 @@ class NewsProvider extends ChangeNotifier {
         isFeatured: isFeatured,
         isBreaking: isBreaking,
       );
-      
-      // Recharger les articles
       await fetchArticles();
-      
       return article;
     } catch (e) {
       debugPrint('❌ createArticle error: $e');
@@ -241,6 +189,10 @@ class NewsProvider extends ChangeNotifier {
     return await _newsService.uploadImage(filePath);
   }
 
+  Future<String?> uploadVideo(String filePath) async {
+    return await _newsService.uploadVideo(filePath);
+  }
+
   // ============================================================
   // UTILITAIRES
   // ============================================================
@@ -251,15 +203,9 @@ class NewsProvider extends ChangeNotifier {
     fetchArticles(category: category);
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
   void refresh() {
     fetchArticles();
     fetchVideos();
-    fetchBreakingNews();
     loadSavedArticles();
   }
 }
