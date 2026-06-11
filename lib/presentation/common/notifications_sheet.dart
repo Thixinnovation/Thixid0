@@ -9,7 +9,7 @@ import 'package:thix_id/services/access_request_service.dart';
 import 'package:thix_id/services/notification_counters_service.dart';
 import 'package:thix_id/services/notification_service.dart';
 import 'package:thix_id/services/profile_service.dart';
-import 'package:thix_id/presentation/common/alert_info_sheet.dart';
+//import 'package:thix_id/presentation/common/alert_info_sheet.dart';
 import 'package:thix_id/theme.dart';
 
 class NotificationsSheet {
@@ -200,7 +200,7 @@ class _ReceptionPanel extends StatelessWidget {
                           await counters.markSectionSeen(uid: meId, section: ThixSection.info);
                           if (context.mounted) {
                             context.pop();
-                            AlertInfoSheet.show(context);
+                           // AlertInfoSheet.show(context);
                           }
                         },
                       ),
@@ -562,7 +562,7 @@ class _ReceptionPanel extends StatelessWidget {
           return;
         case ThixSection.info:
           context.pop();
-          AlertInfoSheet.show(context);
+          //AlertInfoSheet.show(context);
           return;
         case ThixSection.events:
           context.push(AppRoutes.events);
