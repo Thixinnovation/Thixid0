@@ -13,7 +13,7 @@ class NewsService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ============================================================
-  // LECTURE DES ARTICLES - CORRIGÉ
+  // LECTURE DES ARTICLES - CORRECTION DÉFINITIVE
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
@@ -22,8 +22,8 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
-      // ✅ CORRECTION : Ne pas typer la variable comme PostgrestFilterBuilder
-      var query = _supabase
+      // ✅ CORRECTION : Construire la requête avec PostgrestFilterBuilder
+      PostgrestFilterBuilder query = _supabase
           .from('news_articles')
           .select('*')
           .order('published_at', ascending: false)
@@ -59,6 +59,53 @@ class NewsService {
       return [];
     }
   }
+
+  // Alternative si PostgrestFilterBuilder ne fonctionne pas
+  Future<List<NewsArticle>> getArticlesAlt({
+    String? category,
+    int limit = 50,
+    bool onlyPublished = true,
+  }) async {
+    try {
+      // ✅ ALTERNATIVE : Utiliser une approche différente
+      var query = _supabase.from('news_articles').select('*');
+      
+      if (onlyPublished) {
+        query = query.eq('status', 'published');
+      }
+      if (category != null && category != 'featured') {
+        query = query.eq('category', category);
+      }
+      if (category == 'featured') {
+        query = query.eq('is_featured', true);
+      }
+      
+      final response = await query
+          .order('published_at', ascending: false)
+          .limit(limit);
+          
+      final articles = <NewsArticle>[];
+      for (var e in response as List) {
+        final isLiked = await _isArticleLiked(e['id']);
+        final isSaved = await _isArticleSaved(e['id']);
+        
+        articles.add(NewsArticle.fromJson({
+          ...e,
+          'is_liked': isLiked,
+          'is_saved': isSaved,
+        }));
+      }
+      
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getArticlesAlt: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // AUTRES MÉTHODES (inchangées)
+  // ============================================================
 
   Future<NewsArticle?> getArticleById(String articleId) async {
     try {
