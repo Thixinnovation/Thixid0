@@ -1,5 +1,7 @@
 // lib/presentation/network/widgets/post_card.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/models/network_post.dart';
@@ -14,7 +16,7 @@ class PostCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onShare;
   final VoidCallback? onRefresh;
-  final VoidCallback? onPin;  // NOUVEAU
+  final VoidCallback? onPin;
 
   const PostCard({
     super.key,
@@ -36,12 +38,17 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   late NetworkPost _post;
   late AnimationController _likeAnimationController;
   bool _isPressed = false;
+  bool _isSaved = false;
+  bool _isReposted = false;
+  final TextEditingController _quoteController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _networkService = NetworkService(Supabase.instance.client);
     _post = widget.post;
+    _isSaved = _post.isSavedByCurrentUser;
+    _isReposted = _post.isRepostedByCurrentUser;
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -51,6 +58,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     _likeAnimationController.dispose();
+    _quoteController.dispose();
     super.dispose();
   }
 
@@ -69,6 +77,116 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     } else {
       return 'à l\'instant';
     }
+  }
+
+  List<TextSpan> _parseContent(String content) {
+    final RegExp mentionRegex = RegExp(r'@(\w+)');
+    final RegExp hashtagRegex = RegExp(r'#(\w+)');
+    final List<TextSpan> spans = [];
+    int lastIndex = 0;
+    
+    final allMatches = <RegExpMatch>[
+      ...mentionRegex.allMatches(content),
+      ...hashtagRegex.allMatches(content),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    
+    for (final match in allMatches) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(text: content.substring(lastIndex, match.start)));
+      }
+      
+      final isMention = match.pattern == mentionRegex;
+      final text = match.group(0)!;
+      final value = match.group(1)!;
+      
+      spans.add(TextSpan(
+        text: text,
+        style: TextStyle(
+          color: isMention ? Colors.blue : const Color(0xFFD4AF37),
+          fontWeight: FontWeight.w500,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () {
+            if (isMention) {
+              _navigateToUser(value);
+            } else {
+              _navigateToHashtag(value);
+            }
+          },
+      ));
+      lastIndex = match.end;
+    }
+    
+    if (lastIndex < content.length) {
+      spans.add(TextSpan(text: content.substring(lastIndex)));
+    }
+    
+    return spans;
+  }
+
+  void _navigateToUser(String username) {
+    Navigator.pushNamed(context, '/profile/$username');
+  }
+
+  void _navigateToHashtag(String hashtag) {
+    Navigator.pushNamed(context, '/hashtag/$hashtag');
+  }
+
+  Future<void> _toggleSave() async {
+    setState(() => _isSaved = !_isSaved);
+    
+    if (_isSaved) {
+      await _networkService.savePost(_post.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post sauvegardé'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+        );
+      }
+    } else {
+      await _networkService.unsavePost(_post.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post retiré des sauvegardes'), backgroundColor: Colors.orange, duration: Duration(seconds: 1)),
+        );
+      }
+    }
+  }
+
+  Future<void> _repost() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reposter'),
+        content: TextField(
+          controller: _quoteController,
+          decoration: const InputDecoration(
+            hintText: 'Ajouter un commentaire (optionnel)',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('Reposter'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      await _networkService.repost(_post.id, _quoteController.text);
+      setState(() => _isReposted = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post reposté'), backgroundColor: Colors.green),
+        );
+        widget.onRefresh?.call();
+      }
+    }
+    _quoteController.clear();
   }
 
   Future<void> _pinPost() async {
@@ -248,6 +366,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final isOwner = auth.currentUser?.id == _post.userId;
     final hasUserTitle = _post.authorTitle != null && _post.authorTitle!.isNotEmpty;
     final hasImage = _post.mediaUrl != null && _post.mediaUrl!.isNotEmpty;
+    final hasContent = _post.content != null && _post.content!.isNotEmpty;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -352,6 +471,12 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                           case 'share':
                             widget.onShare();
                             break;
+                          case 'save':
+                            _toggleSave();
+                            break;
+                          case 'repost':
+                            _repost();
+                            break;
                         }
                       },
                       itemBuilder: (context) => [
@@ -388,6 +513,26 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                           ),
                         ],
                         const PopupMenuItem<String>(
+                          value: 'save',
+                          child: Row(
+                            children: [
+                              Icon(Icons.bookmark_border, size: 18),
+                              SizedBox(width: 8),
+                              Text('Sauvegarder'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'repost',
+                          child: Row(
+                            children: [
+                              Icon(Icons.repeat, size: 18),
+                              SizedBox(width: 8),
+                              Text('Reposter'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
                           value: 'hide',
                           child: Row(
                             children: [
@@ -423,17 +568,19 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                 ),
                 const SizedBox(height: 12),
 
-                // Contenu
-                if (_post.content != null && _post.content!.isNotEmpty)
+                // Contenu avec mentions et hashtags
+                if (hasContent)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      _post.content!,
-                      style: const TextStyle(fontSize: 14, height: 1.4),
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black87),
+                        children: _parseContent(_post.content!),
+                      ),
                     ),
                   ),
                 
-                // Image unique avec animation
+                // Image
                 if (hasImage)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -472,9 +619,10 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                 
                 if (hasImage) const SizedBox(height: 12),
 
-                // Actions avec animation like
+                // Actions
                 Row(
                   children: [
+                    // Like
                     InkWell(
                       onTap: () {
                         _likeAnimationController.forward(from: 0.0);
@@ -509,6 +657,8 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                       ),
                     ),
                     const SizedBox(width: 20),
+                    
+                    // Comment
                     InkWell(
                       onTap: widget.onComment,
                       child: Row(
@@ -520,14 +670,31 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                       ),
                     ),
                     const SizedBox(width: 20),
+                    
+                    // Repost
                     InkWell(
-                      onTap: widget.onShare,
-                      child: const Row(
+                      onTap: _repost,
+                      child: Row(
                         children: [
-                          Icon(Icons.share, size: 20, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Text('Partager', style: TextStyle(fontSize: 12)),
+                          Icon(
+                            _isReposted ? Icons.repeat : Icons.repeat_outlined,
+                            size: 20,
+                            color: _isReposted ? Colors.green : Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(_formatCount(_post.repostsCount), style: const TextStyle(fontSize: 12)),
                         ],
+                      ),
+                    ),
+                    const Spacer(),
+                    
+                    // Save
+                    InkWell(
+                      onTap: _toggleSave,
+                      child: Icon(
+                        _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        size: 20,
+                        color: _isSaved ? const Color(0xFFD4AF37) : Colors.grey,
                       ),
                     ),
                   ],
