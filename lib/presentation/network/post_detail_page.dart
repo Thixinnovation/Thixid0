@@ -25,6 +25,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   @override
   void initState() {
     super.initState();
+    print('🔍 PostDetailPage - postId reçu: ${widget.postId}');
     _networkService = NetworkService(Supabase.instance.client);
     _loadData();
   }
@@ -38,14 +39,23 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
+      print('🔍 Chargement post: ${widget.postId}');
       final post = await _networkService.getPostById(widget.postId);
+      print('🔍 Post chargé: ${post != null}');
+      if (post != null) {
+        print('🔍 Contenu du post: ${post.content}');
+        print('🔍 Auteur du post: ${post.authorName}');
+      } else {
+        print('❌ Post est NULL! Vérifie l\'ID: ${widget.postId}');
+      }
       final comments = await _networkService.getComments(widget.postId);
+      print('🔍 Commentaires chargés: ${comments.length}');
       setState(() {
         _post = post;
         _comments = comments;
       });
     } catch (e) {
-      debugPrint('Error loading post: $e');
+      print('❌ Error loading post: $e');
     } finally {
       setState(() => _loading = false);
     }
