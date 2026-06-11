@@ -125,7 +125,7 @@ class NewsProvider extends ChangeNotifier {
   }
 
   Future<bool> isArticleSaved(String articleId) async {
-    final saved = await _newsService.getSavedArticles();
+    final saved = await getSavedArticlesList();
     return saved.any((a) => a.id == articleId);
   }
 
@@ -155,13 +155,14 @@ class NewsProvider extends ChangeNotifier {
 
   Future<void> loadSavedArticles() async {
     try {
-      _savedArticles = await _newsService.getSavedArticles();
+      _savedArticles = await getSavedArticlesList();
       notifyListeners();
     } catch (e) {
       debugPrint('❌ loadSavedArticles error: $e');
     }
   }
 
+  // ⭐ UNE SEULE FOIS - Méthode pour récupérer les articles sauvegardés
   Future<List<NewsArticle>> getSavedArticlesList() async {
     return await _newsService.getSavedArticles();
   }
@@ -228,12 +229,7 @@ class NewsProvider extends ChangeNotifier {
   Future<String?> uploadVideo(String filePath) async {
     return await _newsService.uploadVideo(filePath);
   }
-// lib/providers/news_provider.dart
-// Ajoute cette méthode :
 
-Future<List<NewsArticle>> getSavedArticlesList() async {
-  return await _newsService.getSavedArticles();
-}
   // ============================================================
   // UTILITAIRES
   // ============================================================
