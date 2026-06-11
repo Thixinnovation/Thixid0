@@ -1,265 +1,382 @@
-import 'dart:math';
-import 'dart:typed_data';
-
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// lib/services/news_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:thix_id/models/news_item.dart';
-import 'package:thix_id/supabase/supabase_config.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+
+import '../models/news_article.dart';
 
 class NewsService {
-  static const String table = 'thix_info_news';
-  static const _kLocal = 'thix_info_news_v1';
-  static const String imageBucket = 'thix_info_news_images';
+  final SupabaseClient _supabase;
 
-  /// Upload an image to Supabase Storage and return a public URL.
-  ///
-  /// Requires a public storage bucket named [imageBucket].
-  Future<String> uploadNewsImage({required Uint8List bytes, required String extension}) async {
-    final ext = extension.trim().isEmpty ? 'jpg' : extension.trim().toLowerCase();
-    final uid = SupabaseConfig.currentUser?.id ?? 'anon';
-    final ts = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final objectPath = 'news/$uid/$ts.$ext';
+  NewsService(this._supabase);
 
+  String get currentUserId => _supabase.auth.currentUser?.id ?? '';
+
+  // ============================================================
+  // LECTURE DES ARTICLES
+  // ============================================================
+
+  Future<List<NewsArticle>> getArticles({
+    String? category,
+    int limit = 50,
+    bool onlyPublished = true,
+  }) async {
     try {
-      await SupabaseConfig.storage.from(imageBucket).uploadBinary(
-            objectPath,
-            bytes,
-            fileOptions: FileOptions(
-              upsert: true,
-              cacheControl: '3600',
-              contentType: ext == 'png'
-                  ? 'image/png'
-                  : ext == 'webp'
-                      ? 'image/webp'
-                      : ext == 'gif'
-                          ? 'image/gif'
-                          : 'image/jpeg',
-            ),
-          );
+      var query = _supabase
+          .from('news_articles')
+          .select('*')
+          .order('published_at', ascending: false)
+          .limit(limit);
 
-      final url = SupabaseConfig.storage.from(imageBucket).getPublicUrl(objectPath);
-      if (url.trim().isEmpty) throw Exception('Storage: getPublicUrl returned empty.');
-      return url;
-    } catch (e) {
-      final msg = e.toString();
-      debugPrint('NewsService.uploadNewsImage failed err=$msg');
-      if (msg.contains('Bucket') && msg.contains('not found')) {
-        throw Exception("Bucket Supabase Storage introuvable: '$imageBucket'. Crée-le (public) dans Supabase → Storage.");
+      if (onlyPublished) {
+        query = query.eq('status', 'published');
       }
-      throw Exception('Upload image échoué: $msg');
+      if (category != null && category != 'featured') {
+        query = query.eq('category', category);
+      }
+      if (category == 'featured') {
+        query = query.eq('is_featured', true);
+      }
+
+      final response = await query;
+      final articles = <NewsArticle>[];
+      
+      for (var e in response as List) {
+        final isLiked = await _isArticleLiked(e['id']);
+        final isSaved = await _isArticleSaved(e['id']);
+        
+        articles.add(NewsArticle.fromJson({
+          ...e,
+          'is_liked': isLiked,
+          'is_saved': isSaved,
+        }));
+      }
+      
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getArticles: $e');
+      return [];
     }
   }
 
-  Future<List<NewsItem>> listNews({int limit = 200}) async {
-    // 1) Try Supabase first (so Admin-created content appears immediately)
+  Future<NewsArticle?> getArticleById(String articleId) async {
     try {
-      final res = await SupabaseService.select(table, select: '*', orderBy: 'created_at', ascending: false, limit: limit);
-      final items = _mapRows(res);
-      if (items.isNotEmpty) {
-        await _cache(items);
-        return items;
-      }
-    } catch (e) {
-      debugPrint('NewsService.listNews supabase failed err=$e');
-    }
+      final response = await _supabase
+          .from('news_articles')
+          .select('*')
+          .eq('id', articleId)
+          .maybeSingle();
 
-    // 2) Local fallback (cached or seeded)
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kLocal);
-      if (raw == null || raw.trim().isEmpty) {
-        final seeded = _seed();
-        await prefs.setString(_kLocal, NewsItem.encodeList(seeded));
-        return seeded;
-      }
-      final items = NewsItem.decodeList(raw);
-      if (items.isEmpty) {
-        final seeded = _seed();
-        await prefs.setString(_kLocal, NewsItem.encodeList(seeded));
-        return seeded;
-      }
-      return items;
+      if (response == null) return null;
+
+      final isLiked = await _isArticleLiked(articleId);
+      final isSaved = await _isArticleSaved(articleId);
+
+      return NewsArticle.fromJson({
+        ...response,
+        'is_liked': isLiked,
+        'is_saved': isSaved,
+      });
     } catch (e) {
-      debugPrint('NewsService.listNews local failed err=$e');
-      return _seed();
+      debugPrint('❌ Error getArticleById: $e');
+      return null;
     }
   }
 
-  Future<void> createNews(NewsItem item) async {
+  Future<List<NewsArticle>> getBreakingNews() async {
     try {
-      await SupabaseService.insert(table, _toRow(item, preferSubtitleColumn: true));
-      return;
+      final response = await _supabase
+          .from('news_articles')
+          .select('*')
+          .eq('is_breaking', true)
+          .eq('status', 'published')
+          .order('published_at', ascending: false)
+          .limit(20);
+
+      final articles = <NewsArticle>[];
+      for (var e in response as List) {
+        articles.add(NewsArticle.fromJson(e));
+      }
+      return articles;
     } catch (e) {
-      final msg = e.toString();
-      debugPrint('NewsService.createNews first insert failed err=$msg');
-
-      // Many Supabase schemas use `content` instead of `subtitle`. Because this
-      // app was built to tolerate multiple schemas, we retry with a different
-      // column mapping when PostgREST reports a missing column.
-      final missingSubtitle = msg.contains("Could not find the 'subtitle' column") || msg.contains('subtitle') && msg.contains('schema cache');
-      final missingContent = msg.contains("Could not find the 'content' column") || msg.contains('content') && msg.contains('schema cache');
-
-      if (missingSubtitle) {
-        try {
-          await SupabaseService.insert(table, _toRow(item, preferSubtitleColumn: false));
-          return;
-        } catch (e2) {
-          debugPrint('NewsService.createNews retry(content) failed err=$e2');
-          rethrow;
-        }
-      }
-
-      if (missingContent) {
-        try {
-          await SupabaseService.insert(table, _toRow(item, preferSubtitleColumn: true));
-          return;
-        } catch (e2) {
-          debugPrint('NewsService.createNews retry(subtitle) failed err=$e2');
-          rethrow;
-        }
-      }
-
-      rethrow;
+      debugPrint('❌ Error getBreakingNews: $e');
+      return [];
     }
   }
 
-  Future<void> updateNews({required String id, required NewsItem item}) async {
-    final safeId = id.trim();
-    if (safeId.isEmpty) throw Exception('News id requis.');
+  Future<List<NewsArticle>> getVideos() async {
     try {
-      await SupabaseService.update(
-        table,
-        _toRow(item, preferSubtitleColumn: true),
-        filters: {'id': safeId},
-      );
-    } catch (e) {
-      final msg = e.toString();
-      debugPrint('NewsService.updateNews failed err=$msg');
+      final response = await _supabase
+          .from('news_articles')
+          .select('*')
+          .not('video_url', 'is', null)
+          .eq('status', 'published')
+          .order('published_at', ascending: false)
+          .limit(20);
 
-      final missingSubtitle = msg.contains("Could not find the 'subtitle' column") || msg.contains('subtitle') && msg.contains('schema cache');
-      if (missingSubtitle) {
-        await SupabaseService.update(
-          table,
-          _toRow(item, preferSubtitleColumn: false),
-          filters: {'id': safeId},
-        );
-        return;
+      final articles = <NewsArticle>[];
+      for (var e in response as List) {
+        articles.add(NewsArticle.fromJson(e));
       }
-      rethrow;
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getVideos: $e');
+      return [];
     }
   }
 
-  Future<void> deleteNews({required String id}) async {
-    final safeId = id.trim();
-    if (safeId.isEmpty) return;
+  Future<List<NewsArticle>> searchArticles(String query) async {
     try {
-      await SupabaseService.delete(table, filters: {'id': safeId});
+      final response = await _supabase
+          .from('news_articles')
+          .select('*')
+          .eq('status', 'published')
+          .or('title.ilike.%$query%,content.ilike.%$query%,summary.ilike.%$query%')
+          .order('published_at', ascending: false)
+          .limit(50);
+
+      final articles = <NewsArticle>[];
+      for (var e in response as List) {
+        articles.add(NewsArticle.fromJson(e));
+      }
+      return articles;
     } catch (e) {
-      debugPrint('NewsService.deleteNews failed err=$e');
-      rethrow;
+      debugPrint('❌ Error searchArticles: $e');
+      return [];
     }
   }
 
-  List<NewsItem> _mapRows(List<Map<String, dynamic>> rows) {
-    final now = DateTime.now();
-    return rows.map((r) {
-      DateTime parseDate(dynamic v) {
-        if (v == null) return now;
-        if (v is DateTime) return v;
-        return DateTime.tryParse(v.toString()) ?? now;
-      }
+  // ============================================================
+  // ADMIN - CRUD COMPLET
+  // ============================================================
 
-      String pick(List<String> keys, {String fallback = ''}) {
-        for (final k in keys) {
-          final v = r[k];
-          if (v == null) continue;
-          final s = v.toString().trim();
-          if (s.isNotEmpty) return s;
-        }
-        return fallback;
-      }
+  Future<NewsArticle> createArticle({
+    required String title,
+    String? summary,
+    required String content,
+    required String category,
+    String? imageUrl,
+    String? videoUrl,
+    bool isFeatured = false,
+    bool isBreaking = false,
+    DateTime? publishedAt,
+  }) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('Admin non connecté');
 
-      final id = pick(const ['id', 'uuid'], fallback: _id('news'));
-      final title = pick(const ['title', 'headline'], fallback: '—');
-      final subtitle = pick(const ['subtitle', 'summary', 'content'], fallback: '');
-      final source = pick(const ['source', 'publisher', 'author'], fallback: 'THIX');
-      final category = pick(const ['category', 'tag'], fallback: 'Actualités');
-      final severity = pick(const ['severity', 'priority'], fallback: 'Info');
-      final featured = (r['featured'] == true) || (r['is_featured'] == true) || (r['featured']?.toString().toLowerCase() == 'true');
-      final imageUrl = pick(const ['image_url', 'imageUrl', 'cover_url', 'coverUrl'], fallback: '');
+    final now = DateTime.now().toIso8601String();
+    final publishDate = (publishedAt ?? DateTime.now()).toIso8601String();
 
-      return NewsItem(
-        id: id,
-        title: title,
-        subtitle: subtitle,
-        source: source,
-        category: category,
-        severity: severity,
-        featured: featured,
-        imageUrl: imageUrl.isEmpty ? null : imageUrl,
-        createdAt: parseDate(r['created_at'] ?? r['createdAt']),
-        updatedAt: parseDate(r['updated_at'] ?? r['updatedAt']),
-      );
-    }).toList(growable: false);
+    final response = await _supabase.from('news_articles').insert({
+      'title': title,
+      'summary': summary,
+      'content': content,
+      'category': category,
+      'image_url': imageUrl,
+      'video_url': videoUrl,
+      'is_featured': isFeatured,
+      'is_breaking': isBreaking,
+      'status': 'published',
+      'published_at': publishDate,
+      'created_at': now,
+      'updated_at': now,
+      'created_by': currentUserId,
+    }).select().single();
+
+    return NewsArticle.fromJson(response);
   }
 
-  Map<String, dynamic> _toRow(NewsItem item, {required bool preferSubtitleColumn}) {
-    return <String, dynamic>{
-      // We avoid sending id so DB can generate uuid if needed.
-      'title': item.title,
-      if (preferSubtitleColumn) 'subtitle': item.subtitle else 'content': item.subtitle,
-      'source': item.source,
-      'category': item.category,
-      'severity': item.severity,
-      'featured': item.featured,
-      if (item.imageUrl != null && item.imageUrl!.trim().isNotEmpty) 'image_url': item.imageUrl!.trim(),
-      // created_at/updated_at usually default server-side.
-    };
+  Future<void> updateArticle(String articleId, Map<String, dynamic> data) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('Admin non connecté');
+
+    await _supabase
+        .from('news_articles')
+        .update({
+          ...data,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', articleId);
   }
 
-  Future<void> _cache(List<NewsItem> items) async {
+  Future<void> deleteArticle(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('Admin non connecté');
+
+    await _supabase.from('news_articles').delete().eq('id', articleId);
+  }
+
+  // ============================================================
+  // INTERACTIONS UTILISATEUR
+  // ============================================================
+
+  Future<void> incrementViews(String articleId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kLocal, NewsItem.encodeList(items));
+      await _supabase.rpc('increment_news_views', params: {'article_id': articleId});
     } catch (e) {
-      debugPrint('NewsService cache failed err=$e');
+      // Fallback si RPC n'existe pas
+      final article = await _supabase
+          .from('news_articles')
+          .select('views_count')
+          .eq('id', articleId)
+          .single();
+      
+      final currentViews = article['views_count'] ?? 0;
+      await _supabase
+          .from('news_articles')
+          .update({'views_count': currentViews + 1})
+          .eq('id', articleId);
     }
   }
 
-  String _id(String prefix) {
-    final rnd = Random.secure();
-    final n = List.generate(10, (_) => rnd.nextInt(16).toRadixString(16)).join();
-    return '${prefix}_$n';
+  Future<bool> _isArticleLiked(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return false;
+
+    try {
+      final response = await _supabase
+          .from('news_likes')
+          .select('id')
+          .eq('article_id', articleId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      return response != null;
+    } catch (e) {
+      return false;
+    }
   }
 
-  List<NewsItem> _seed() {
-    final now = DateTime.now();
-    return [
-      NewsItem(
-        id: 'news_kyc_update',
-        title: 'Sécurité: mise à jour KYC / vérification',
-        subtitle: 'Nous renforçons la vérification des profils et documents. Les comptes “Vérifiés” auront un badge visible partout.',
-        source: 'THIX Trust Center',
-        category: 'Sécurité',
-        severity: 'Important',
-        featured: true,
-        imageUrl: null,
-        createdAt: now.subtract(const Duration(hours: 5)),
-        updatedAt: now.subtract(const Duration(hours: 2)),
-      ),
-      NewsItem(
-        id: 'news_grants',
-        title: 'Opportunités: bourses & subventions',
-        subtitle: 'Nouveaux programmes disponibles dans la section Opportunités. Pense à compléter ton profil pour candidater.',
-        source: 'THIX Opportunities',
-        category: 'Actualités',
-        severity: 'Info',
-        featured: false,
-        imageUrl: null,
-        createdAt: now.subtract(const Duration(days: 1)),
-        updatedAt: now.subtract(const Duration(days: 1)),
-      ),
-    ];
+  Future<void> likeArticle(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+
+    final exists = await _isArticleLiked(articleId);
+    if (!exists) {
+      await _supabase.from('news_likes').insert({
+        'article_id': articleId,
+        'user_id': currentUserId,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
+  Future<void> unlikeArticle(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+
+    await _supabase
+        .from('news_likes')
+        .delete()
+        .eq('article_id', articleId)
+        .eq('user_id', currentUserId);
+  }
+
+  Future<bool> _isArticleSaved(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return false;
+
+    try {
+      final response = await _supabase
+          .from('news_saved')
+          .select('id')
+          .eq('article_id', articleId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      return response != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> saveArticle(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+
+    final exists = await _isArticleSaved(articleId);
+    if (!exists) {
+      await _supabase.from('news_saved').insert({
+        'article_id': articleId,
+        'user_id': currentUserId,
+        'saved_at': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
+  Future<void> unsaveArticle(String articleId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+
+    await _supabase
+        .from('news_saved')
+        .delete()
+        .eq('article_id', articleId)
+        .eq('user_id', currentUserId);
+  }
+
+  Future<List<NewsArticle>> getSavedArticles() async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return [];
+
+    try {
+      final response = await _supabase
+          .from('news_saved')
+          .select('article:article_id(*)')
+          .eq('user_id', currentUserId)
+          .order('saved_at', ascending: false);
+
+      final articles = <NewsArticle>[];
+      for (var e in response as List) {
+        articles.add(NewsArticle.fromJson({
+          ...e['article'],
+          'is_saved': true,
+        }));
+      }
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getSavedArticles: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // UPLOAD D'IMAGES
+  // ============================================================
+
+  Future<String?> uploadImage(String filePath) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+
+      final file = File(filePath);
+      final bytes = await file.readAsBytes();
+      
+      final extension = filePath.split('.').last;
+      final fileName = 'news_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final storagePath = 'news_images/$fileName';
+      
+      await _supabase.storage
+          .from('news_images')
+          .uploadBinary(storagePath, bytes);
+      
+      return _supabase.storage.from('news_images').getPublicUrl(storagePath);
+    } catch (e) {
+      debugPrint('Error uploading news image: $e');
+      return null;
+    }
+  }
+
+  Future<void> deleteImage(String imageUrl) async {
+    try {
+      final uri = Uri.parse(imageUrl);
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf('news_images');
+      
+      if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
+        final filePath = segments.sublist(bucketIndex + 1).join('/');
+        await _supabase.storage.from('news_images').remove([filePath]);
+      }
+    } catch (e) {
+      debugPrint('Error deleting news image: $e');
+    }
   }
 }
