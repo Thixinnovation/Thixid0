@@ -13,7 +13,7 @@ class NewsService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ============================================================
-  // LECTURE DES ARTICLES - SOLUTION DÉFINITIVE
+  // LECTURE DES ARTICLES - VERSION SIMPLIFIÉE QUI FONCTIONNE
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
@@ -22,30 +22,31 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
-      // ✅ SOLUTION : Construire la requête avec des Map pour les filtres
-      Map<String, dynamic> filters = {};
-      
-      if (onlyPublished) {
-        filters['status'] = 'published';
-      }
-      if (category != null && category != 'featured') {
-        filters['category'] = category;
-      }
-      if (category == 'featured') {
-        filters['is_featured'] = true;
-      }
-
-      // Exécuter la requête
+      // Récupérer tous les articles
       final response = await _supabase
           .from('news_articles')
           .select('*')
-          .order('published_at', ascending: false)
-          .limit(limit)
-          .match(filters);  // ← Utiliser match() au lieu de eq() multiple
-
-      final articles = <NewsArticle>[];
+          .order('published_at', ascending: false);
       
-      for (var e in response as List) {
+      // Filtrer en Dart (pas de soucis de version Supabase)
+      List<dynamic> results = response as List;
+      
+      if (onlyPublished) {
+        results = results.where((e) => e['status'] == 'published').toList();
+      }
+      if (category != null && category != 'featured') {
+        results = results.where((e) => e['category'] == category).toList();
+      }
+      if (category == 'featured') {
+        results = results.where((e) => e['is_featured'] == true).toList();
+      }
+      
+      // Limiter le nombre
+      results = results.take(limit).toList();
+      
+      // Convertir en objets
+      final articles = <NewsArticle>[];
+      for (var e in results) {
         final isLiked = await _isArticleLiked(e['id']);
         final isSaved = await _isArticleSaved(e['id']);
         
@@ -63,53 +64,8 @@ class NewsService {
     }
   }
 
-  // Alternative avec filter() si match() ne fonctionne pas
-  Future<List<NewsArticle>> getArticlesAlt({
-    String? category,
-    int limit = 50,
-    bool onlyPublished = true,
-  }) async {
-    try {
-      var query = _supabase
-          .from('news_articles')
-          .select('*')
-          .order('published_at', ascending: false)
-          .limit(limit);
-
-      // Appliquer les filtres un par un avec filter()
-      if (onlyPublished) {
-        query = query.filter('status', 'eq', 'published');
-      }
-      if (category != null && category != 'featured') {
-        query = query.filter('category', 'eq', category);
-      }
-      if (category == 'featured') {
-        query = query.filter('is_featured', 'eq', true);
-      }
-
-      final response = await query;
-      final articles = <NewsArticle>[];
-      
-      for (var e in response as List) {
-        final isLiked = await _isArticleLiked(e['id']);
-        final isSaved = await _isArticleSaved(e['id']);
-        
-        articles.add(NewsArticle.fromJson({
-          ...e,
-          'is_liked': isLiked,
-          'is_saved': isSaved,
-        }));
-      }
-      
-      return articles;
-    } catch (e) {
-      debugPrint('❌ Error getArticlesAlt: $e');
-      return [];
-    }
-  }
-
   // ============================================================
-  // AUTRES MÉTHODES
+  // AUTRES MÉTHODES (similaires, sans filtres complexes)
   // ============================================================
 
   Future<NewsArticle?> getArticleById(String articleId) async {
@@ -140,17 +96,16 @@ class NewsService {
     try {
       final response = await _supabase
           .from('news_articles')
-          .select('*')
-          .eq('is_breaking', true)
-          .eq('status', 'published')
-          .order('published_at', ascending: false)
-          .limit(20);
-
-      final articles = <NewsArticle>[];
-      for (var e in response as List) {
-        articles.add(NewsArticle.fromJson(e));
-      }
-      return articles;
+          .select('*');
+      
+      final List articles = response as List;
+      final filtered = articles.where((e) => 
+        e['is_breaking'] == true && e['status'] == 'published'
+      ).toList();
+      
+      filtered.sort((a, b) => b['published_at'].compareTo(a['published_at']));
+      
+      return filtered.take(20).map((e) => NewsArticle.fromJson(e)).toList();
     } catch (e) {
       debugPrint('❌ Error getBreakingNews: $e');
       return [];
@@ -161,17 +116,18 @@ class NewsService {
     try {
       final response = await _supabase
           .from('news_articles')
-          .select('*')
-          .not('video_url', 'is', null)
-          .eq('status', 'published')
-          .order('published_at', ascending: false)
-          .limit(20);
-
-      final articles = <NewsArticle>[];
-      for (var e in response as List) {
-        articles.add(NewsArticle.fromJson(e));
-      }
-      return articles;
+          .select('*');
+      
+      final List articles = response as List;
+      final filtered = articles.where((e) => 
+        e['video_url'] != null && 
+        e['video_url'].toString().isNotEmpty && 
+        e['status'] == 'published'
+      ).toList();
+      
+      filtered.sort((a, b) => b['published_at'].compareTo(a['published_at']));
+      
+      return filtered.take(20).map((e) => NewsArticle.fromJson(e)).toList();
     } catch (e) {
       debugPrint('❌ Error getVideos: $e');
       return [];
@@ -182,17 +138,22 @@ class NewsService {
     try {
       final response = await _supabase
           .from('news_articles')
-          .select('*')
-          .eq('status', 'published')
-          .or('title.ilike.%$query%,content.ilike.%$query%,summary.ilike.%$query%')
-          .order('published_at', ascending: false)
-          .limit(50);
-
-      final articles = <NewsArticle>[];
-      for (var e in response as List) {
-        articles.add(NewsArticle.fromJson(e));
-      }
-      return articles;
+          .select('*');
+      
+      final List articles = response as List;
+      final searchLower = query.toLowerCase();
+      
+      final filtered = articles.where((e) => 
+        e['status'] == 'published' && (
+          e['title'].toString().toLowerCase().contains(searchLower) ||
+          e['content'].toString().toLowerCase().contains(searchLower) ||
+          (e['summary'] ?? '').toString().toLowerCase().contains(searchLower)
+        )
+      ).toList();
+      
+      filtered.sort((a, b) => b['published_at'].compareTo(a['published_at']));
+      
+      return filtered.take(50).map((e) => NewsArticle.fromJson(e)).toList();
     } catch (e) {
       debugPrint('❌ Error searchArticles: $e');
       return [];
@@ -200,7 +161,7 @@ class NewsService {
   }
 
   // ============================================================
-  // INTERACTIONS (Likes, Vues, Favoris)
+  // INTERACTIONS (pas de changement)
   // ============================================================
 
   Future<void> incrementViews(String articleId) async {
@@ -209,7 +170,9 @@ class NewsService {
           .from('news_articles')
           .select('views_count')
           .eq('id', articleId)
-          .single();
+          .maybeSingle();
+      
+      if (article == null) return;
       
       final currentViews = article['views_count'] ?? 0;
       await _supabase
@@ -391,7 +354,7 @@ class NewsService {
   }
 
   // ============================================================
-  // UPLOAD FICHIERS
+  // UPLOAD
   // ============================================================
 
   Future<String?> uploadImage(String filePath) async {
@@ -437,21 +400,6 @@ class NewsService {
     } catch (e) {
       debugPrint('Error uploading video: $e');
       return null;
-    }
-  }
-
-  Future<void> deleteFile(String fileUrl, String bucket) async {
-    try {
-      final uri = Uri.parse(fileUrl);
-      final segments = uri.pathSegments;
-      final bucketIndex = segments.indexOf(bucket);
-      
-      if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
-        final filePath = segments.sublist(bucketIndex + 1).join('/');
-        await _supabase.storage.from(bucket).remove([filePath]);
-      }
-    } catch (e) {
-      debugPrint('Error deleting file: $e');
     }
   }
 }
