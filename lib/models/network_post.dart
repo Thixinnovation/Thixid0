@@ -17,9 +17,8 @@ class NetworkPost {
   bool isLikedByCurrentUser;
   bool isSavedByCurrentUser;
   
-  // Propriétés supplémentaires pour les filtres
-  final int? viralScore;  // Score de viralité (basé sur likes/comments/shares)
-  final int? viewCount;   // Nombre de vues
+  final int? viralScore;
+  final int? viewCount;
 
   NetworkPost({
     required this.id,
@@ -41,33 +40,24 @@ class NetworkPost {
     this.viewCount,
   });
 
-  // Vérifier si le post est viral (score > 100 ou ratio engagement élevé)
   bool get isViral {
     if (viralScore != null) return viralScore! > 100;
     
-    // Calcul simple de viralité: (likes * 1 + comments * 3 + shares * 5) / age_en_heures
     final ageInHours = DateTime.now().difference(createdAt).inHours;
     if (ageInHours < 1) return false;
     
     final engagementScore = (likesCount * 1) + (commentsCount * 3) + (sharesCount * 5);
     final engagementPerHour = engagementScore / ageInHours;
     
-    return engagementPerHour > 10; // Plus de 10 interactions par heure = viral
+    return engagementPerHour > 10;
   }
 
-  // Vérifier si le post contient des images
   bool get hasImages => mediaType == 'image' && mediaUrl != null;
-  
-  // Vérifier si le post contient une vidéo
   bool get hasVideo => mediaType == 'video';
-  
-  // Vérifier si le post contient un document
   bool get hasDocument => mediaType == 'document';
   
-  // Taux d'engagement
   double get engagementRate {
     final total = likesCount + commentsCount + sharesCount;
-    // Simuler un nombre de vues si non disponible
     final views = viewCount ?? (likesCount * 10); 
     return views > 0 ? total / views : 0;
   }
@@ -88,7 +78,7 @@ class NetworkPost {
       sharesCount: json['shares_count'] ?? 0,
       createdAt: DateTime.parse(json['created_at']),
       isLikedByCurrentUser: json['is_liked'] ?? false,
-      isSavedByCurrentUser: json['is_saved'] ?? false,
+      isSavedByCurrentUser: json['is_saved_by_current_user'] ?? false, // ← CORRIGÉ
       viralScore: json['viral_score'],
       viewCount: json['view_count'],
     );
@@ -102,6 +92,7 @@ class NetworkPost {
       'media_url': mediaUrl,
       'media_type': mediaType,
       'is_public': isPublic,
+      'shares_count': sharesCount,  // ← AJOUTÉ
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -147,35 +138,25 @@ class NetworkPost {
   }
 }
 
-// Extension pour les fonctionnalités supplémentaires sur List<NetworkPost>
+// Extension pour les fonctionnalités supplémentaires
 extension NetworkPostListExtension on List<NetworkPost> {
   
-  // Filtrer les posts viraux
   List<NetworkPost> get viral => where((p) => p.isViral).toList();
-  
-  // Filtrer les posts avec images
   List<NetworkPost> get withImages => where((p) => p.hasImages).toList();
-  
-  // Filtrer les posts avec vidéos
   List<NetworkPost> get withVideos => where((p) => p.hasVideo).toList();
-  
-  // Filtrer les posts populaires (plus de 100 likes)
   List<NetworkPost> get popular => where((p) => p.likesCount > 100).toList();
   
-  // Filtrer les posts récents (moins de 24h)
   List<NetworkPost> get recent {
     final twentyFourHoursAgo = DateTime.now().subtract(const Duration(hours: 24));
     return where((p) => p.createdAt.isAfter(twentyFourHoursAgo)).toList();
   }
   
-  // Trier par engagement (du plus engagé au moins engagé)
   List<NetworkPost> sortedByEngagement() {
     final list = [...this];
     list.sort((a, b) => b.engagementRate.compareTo(a.engagementRate));
     return list;
   }
   
-  // Trier par viralité
   List<NetworkPost> sortedByViral() {
     final list = [...this];
     list.sort((a, b) {
@@ -186,25 +167,16 @@ extension NetworkPostListExtension on List<NetworkPost> {
     return list;
   }
   
-  // Calculer le total des likes
   int get totalLikes => fold(0, (sum, post) => sum + post.likesCount);
-  
-  // Calculer le total des commentaires
   int get totalComments => fold(0, (sum, post) => sum + post.commentsCount);
-  
-  // Calculer le total des partages
   int get totalShares => fold(0, (sum, post) => sum + post.sharesCount);
-  
-  // Calculer l'engagement total
   int get totalEngagement => totalLikes + totalComments + totalShares;
   
-  // Taux d'engagement moyen
   double get averageEngagementRate {
     if (isEmpty) return 0;
     return fold(0.0, (sum, post) => sum + post.engagementRate) / length;
   }
   
-  // Grouper par date
   Map<DateTime, List<NetworkPost>> groupByDate() {
     final map = <DateTime, List<NetworkPost>>{};
     for (final post in this) {
@@ -214,7 +186,6 @@ extension NetworkPostListExtension on List<NetworkPost> {
     return map;
   }
   
-  // Grouper par utilisateur
   Map<String, List<NetworkPost>> groupByUser() {
     final map = <String, List<NetworkPost>>{};
     for (final post in this) {
@@ -223,24 +194,20 @@ extension NetworkPostListExtension on List<NetworkPost> {
     return map;
   }
   
-  // Obtenir les posts d'un utilisateur spécifique
   List<NetworkPost> fromUser(String userId) {
     return where((p) => p.userId == userId).toList();
   }
   
-  // Obtenir les posts les plus likés
   List<NetworkPost> topLiked({int limit = 10}) {
     final sorted = [...this]..sort((a, b) => b.likesCount.compareTo(a.likesCount));
     return sorted.take(limit).toList();
   }
   
-  // Obtenir les posts les plus commentés
   List<NetworkPost> topCommented({int limit = 10}) {
     final sorted = [...this]..sort((a, b) => b.commentsCount.compareTo(a.commentsCount));
     return sorted.take(limit).toList();
   }
   
-  // Obtenir les posts les plus partagés
   List<NetworkPost> topShared({int limit = 10}) {
     final sorted = [...this]..sort((a, b) => b.sharesCount.compareTo(a.sharesCount));
     return sorted.take(limit).toList();
