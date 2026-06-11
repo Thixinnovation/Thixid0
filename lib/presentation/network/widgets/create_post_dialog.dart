@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 import '../../../services/network_service.dart';
 
 class CreatePostDialog extends StatefulWidget {
@@ -23,14 +22,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   final List<String> _uploadingFiles = [];
   bool _isUploading = false;
   String? _errorMessage;
-  int _selectedPostType = 0; // 0: Texte, 1: Image, 2: Vidéo, 3: Sondage
-  
-  // Pour les sondages
-  bool _isPoll = false;
-  String _pollQuestion = '';
-  final List<TextEditingController> _pollOptions = [];
-  int _pollDuration = 24; // heures
-  DateTime? _pollEndDate;
+  int _selectedPostType = 0; // 0: Texte, 1: Image, 2: Vidéo
   
   // Pour les suggestions de mentions
   List<Map<String, dynamic>> _mentionSuggestions = [];
@@ -40,14 +32,12 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   @override
   void initState() {
     super.initState();
-    _pollOptions.addAll([TextEditingController(), TextEditingController()]);
     _contentController.addListener(_onContentChanged);
   }
 
   @override
   void dispose() {
     _contentController.dispose();
-    _pollOptions.forEach((c) => c.dispose());
     super.dispose();
   }
 
@@ -108,7 +98,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
               _selectedImages.add(File(file.path!));
             }
           }
-          _selectedPostType = 1;
+          _selectedPostType = _selectedImages.isNotEmpty ? 1 : 0;
         });
       }
     } catch (e) {
@@ -131,21 +121,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       }
     } catch (e) {
       _showError('Impossible de charger la vidéo');
-    }
-  }
-
-  void _addPollOption() {
-    setState(() {
-      _pollOptions.add(TextEditingController());
-    });
-  }
-
-  void _removePollOption(int index) {
-    if (_pollOptions.length > 2) {
-      setState(() {
-        _pollOptions[index].dispose();
-        _pollOptions.removeAt(index);
-      });
     }
   }
 
@@ -174,8 +149,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   Future<void> _submitPost() async {
     if (_contentController.text.trim().isEmpty && 
         _selectedImages.isEmpty && 
-        _selectedVideos.isEmpty &&
-        !_isPoll) {
+        _selectedVideos.isEmpty) {
       setState(() {
         _errorMessage = 'Veuillez écrire quelque chose ou ajouter du contenu';
       });
@@ -209,14 +183,15 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         });
       }
       
-      // Upload des vidéos
+      // Upload des vidéos (utilisation de uploadImage pour vidéo aussi)
       for (int i = 0; i < _selectedVideos.length; i++) {
         final video = _selectedVideos[i];
         setState(() {
           _uploadingFiles.add('Vidéo ${i + 1}');
         });
         
-        final url = await networkService.uploadVideo(video.path);
+        // Pour les vidéos, on utilise le bucket post_images aussi
+        final url = await networkService.uploadImage(video.path);
         if (url != null) {
           mediaUrls.add(url);
         }
@@ -227,35 +202,17 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       }
       
       // Création du post
-      if (_isPoll && _pollQuestion.isNotEmpty) {
-        // Créer un sondage
-        final options = _pollOptions.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
-        await networkService.createPollPost(
+      if (widget.communityId != null) {
+        await networkService.createCommunityPost(
+          communityId: widget.communityId!,
           content: _contentController.text.trim(),
-          question: _pollQuestion,
-          options: options,
-          duration: _pollDuration,
-        );
-      } else if (_selectedPostType == 2 && mediaUrls.isNotEmpty) {
-        // Créer une vidéo courte (Reel)
-        await networkService.createReel(
-          videoUrl: mediaUrls.first,
-          caption: _contentController.text.trim(),
+          images: mediaUrls,
         );
       } else {
-        // Post normal
-        if (widget.communityId != null) {
-          await networkService.createCommunityPost(
-            communityId: widget.communityId!,
-            content: _contentController.text.trim(),
-            images: mediaUrls,
-          );
-        } else {
-          await networkService.createPost(
-            _contentController.text.trim(),
-            mediaUrls,
-          );
-        }
+        await networkService.createPost(
+          _contentController.text.trim(),
+          mediaUrls,
+        );
       }
       
       if (mounted) {
@@ -311,8 +268,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   _buildTypeButton(Icons.image, 'Image', 1),
                   const SizedBox(width: 8),
                   _buildTypeButton(Icons.videocam, 'Vidéo', 2),
-                  const SizedBox(width: 8),
-                  _buildTypeButton(Icons.poll, 'Sondage', 3),
                 ],
               ),
             ),
@@ -326,7 +281,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   controller: _contentController,
                   maxLines: 5,
                   decoration: InputDecoration(
-                    hintText: _isPoll ? 'Ajoutez une description (optionnel)...' : 'Écrivez votre publication... Utilisez #hashtag ou @mention',
+                    hintText: 'Écrivez votre publication... Utilisez #hashtag ou @mention',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -365,69 +320,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             ),
             
             const SizedBox(height: 16),
-            
-            // Section Sondage
-            if (_isPoll) ...[
-              const Divider(),
-              TextField(
-                onChanged: (value) => _pollQuestion = value,
-                decoration: const InputDecoration(
-                  labelText: 'Question du sondage',
-                  hintText: 'Que voulez-vous demander ?',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ..._pollOptions.asMap().entries.map((entry) {
-                final index = entry.key;
-                final controller = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          decoration: InputDecoration(
-                            hintText: 'Option ${index + 1}',
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      if (_pollOptions.length > 2)
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
-                          onPressed: () => _removePollOption(index),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-              TextButton.icon(
-                onPressed: _addPollOption,
-                icon: const Icon(Icons.add),
-                label: const Text('Ajouter une option'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('Durée: '),
-                  DropdownButton<int>(
-                    value: _pollDuration,
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('1 heure')),
-                      DropdownMenuItem(value: 6, child: Text('6 heures')),
-                      DropdownMenuItem(value: 12, child: Text('12 heures')),
-                      DropdownMenuItem(value: 24, child: Text('24 heures')),
-                      DropdownMenuItem(value: 72, child: Text('3 jours')),
-                      DropdownMenuItem(value: 168, child: Text('7 jours')),
-                    ],
-                    onChanged: (value) => setState(() => _pollDuration = value!),
-                  ),
-                ],
-              ),
-              const Divider(),
-            ],
             
             // Upload progress
             if (_uploadingFiles.isNotEmpty)
@@ -621,17 +513,12 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   }
 
   Widget _buildTypeButton(IconData icon, String label, int type) {
-    final isSelected = _selectedPostType == type && !_isPoll;
+    final isSelected = _selectedPostType == type;
     return Flexible(
       child: GestureDetector(
         onTap: () {
           setState(() {
             _selectedPostType = type;
-            _isPoll = type == 3;
-            if (type != 3) {
-              _pollQuestion = '';
-              _pollOptions.forEach((c) => c.clear());
-            }
           });
         },
         child: Container(
