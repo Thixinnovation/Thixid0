@@ -37,12 +37,15 @@ import 'presentation/thix_reservation/pages/favoris.dart';
 import 'presentation/thix_reservation/pages/profil.dart';
 
 // ==================== THIX INFO ====================
+// ✅ Chemins CORRECTS
 import 'presentation/thix_info/thix_info_home.dart';
 import 'presentation/thix_info/article_detail_page.dart';
 import 'presentation/thix_info/search_page.dart';
 import 'presentation/thix_info/category_articles_page.dart';
 import 'presentation/thix_info/saved_articles_page.dart';
 import 'presentation/thix_info/breaking_news_page.dart';
+
+// ✅ Chemins CORRECTS pour l'admin (dans thix_info/admin/)
 import 'presentation/thix_info/admin/admin_news_dashboard.dart';
 import 'presentation/thix_info/admin/create_news_page.dart';
 
@@ -279,15 +282,15 @@ class AppRoutes {
   static const String reservationProfil = '/reservation/profil';
   
   // ==================== THIX INFO ====================
-  static const String thixInfo = '/thix-info';
-  static const String thixInfoArticle = '/thix-info/article/:articleId';
-  static const String thixInfoSearch = '/thix-info/search';
-  static const String thixInfoCategory = '/thix-info/category/:category';
-  static const String thixInfoSaved = '/thix-info/saved';
-  static const String thixInfoBreaking = '/thix-info/breaking';
-  static const String thixInfoAdmin = '/thix-info/admin';
-  static const String thixInfoCreate = '/thix-info/admin/create';
-  static const String thixInfoEdit = '/thix-info/admin/edit/:articleId';
+static const String thixInfo = '/thix-info';
+static const String thixInfoArticle = '/thix-info/article/:articleId';
+static const String thixInfoSearch = '/thix-info/search';
+static const String thixInfoCategory = '/thix-info/category/:category';
+static const String thixInfoSaved = '/thix-info/saved';
+static const String thixInfoBreaking = '/thix-info/breaking';
+static const String thixInfoAdmin = '/thix-info/admin';
+static const String thixInfoCreate = '/thix-info/admin/create';
+static const String thixInfoEdit = '/thix-info/admin/edit/:articleId';
   
   // ==================== AUTRES SERVICES ====================
   static const String jobs = '/jobs';
@@ -991,70 +994,60 @@ class AppRouter {
         ),
 
         // ==================== THIX INFO ====================
-        // Page d'accueil THIX INFO
-        GoRoute(
-          path: AppRoutes.thixInfo,
-          name: 'thixInfo',
-          pageBuilder: (context, state) => NoTransitionPage(child: const ThixInfoHome()),
-        ),
-        // Détail d'un article
-        GoRoute(
-          path: AppRoutes.thixInfoArticle,
-          name: 'thixInfoArticle',
-          pageBuilder: (context, state) {
-            final articleId = state.pathParameters['articleId']!;
-            return NoTransitionPage(child: ArticleDetailPage(articleId: articleId));
-          },
-        ),
-        // Recherche
-        GoRoute(
-          path: AppRoutes.thixInfoSearch,
-          name: 'thixInfoSearch',
-          pageBuilder: (context, state) => NoTransitionPage(child: const SearchPage()),
-        ),
-        // Articles par catégorie
-        GoRoute(
-          path: AppRoutes.thixInfoCategory,
-          name: 'thixInfoCategory',
-          pageBuilder: (context, state) {
-            final category = state.pathParameters['category']!;
-            return NoTransitionPage(child: CategoryArticlesPage(category: category));
-          },
-        ),
-        // Articles sauvegardés (favoris)
-        GoRoute(
-          path: AppRoutes.thixInfoSaved,
-          name: 'thixInfoSaved',
-          pageBuilder: (context, state) => NoTransitionPage(child: const SavedArticlesPage()),
-        ),
-        // Fil info / Breaking news
-        GoRoute(
-          path: AppRoutes.thixInfoBreaking,
-          name: 'thixInfoBreaking',
-          pageBuilder: (context, state) => NoTransitionPage(child: const BreakingNewsPage()),
-        ),
-        // ADMIN THIX INFO
-        GoRoute(
-          path: AppRoutes.thixInfoAdmin,
-          name: 'thixInfoAdmin',
-          pageBuilder: (context, state) => NoTransitionPage(child: const AdminNewsDashboard()),
-        ),
-        // Création d'article
-        GoRoute(
-          path: AppRoutes.thixInfoCreate,
-          name: 'thixInfoCreate',
-          pageBuilder: (context, state) => NoTransitionPage(child: const CreateNewsPage()),
-        ),
-        // Édition d'article
-        GoRoute(
-          path: AppRoutes.thixInfoEdit,
-          name: 'thixInfoEdit',
-          pageBuilder: (context, state) {
-            final articleId = state.pathParameters['articleId']!;
-            // TODO: Passer l'article existant à la page d'édition
-            return NoTransitionPage(child: CreateNewsPage());
-          },
-        ),
+GoRoute(
+  path: AppRoutes.thixInfo,
+  name: 'thixInfo',
+  pageBuilder: (context, state) => NoTransitionPage(child: const ThixInfoHome()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoArticle,
+  name: 'thixInfoArticle',
+  pageBuilder: (context, state) {
+    final articleId = state.pathParameters['articleId']!;
+    return NoTransitionPage(child: ArticleDetailPage(articleId: articleId));
+  },
+),
+GoRoute(
+  path: AppRoutes.thixInfoSearch,
+  name: 'thixInfoSearch',
+  pageBuilder: (context, state) => NoTransitionPage(child: const SearchPage()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoCategory,
+  name: 'thixInfoCategory',
+  pageBuilder: (context, state) {
+    final category = state.pathParameters['category']!;
+    return NoTransitionPage(child: CategoryArticlesPage(category: category));
+  },
+),
+GoRoute(
+  path: AppRoutes.thixInfoSaved,
+  name: 'thixInfoSaved',
+  pageBuilder: (context, state) => NoTransitionPage(child: const SavedArticlesPage()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoBreaking,
+  name: 'thixInfoBreaking',
+  pageBuilder: (context, state) => NoTransitionPage(child: const BreakingNewsPage()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoAdmin,
+  name: 'thixInfoAdmin',
+  pageBuilder: (context, state) => NoTransitionPage(child: const AdminNewsDashboard()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoCreate,
+  name: 'thixInfoCreate',
+  pageBuilder: (context, state) => NoTransitionPage(child: const CreateNewsPage()),
+),
+GoRoute(
+  path: AppRoutes.thixInfoEdit,
+  name: 'thixInfoEdit',
+  pageBuilder: (context, state) {
+    final articleId = state.pathParameters['articleId']!;
+    return NoTransitionPage(child: CreateNewsPage());
+  },
+),
 
         // ==================== THIX MARKET ====================
         GoRoute(
