@@ -85,7 +85,180 @@ class NetworkService {
       return [];
     }
   }
+// ============================================================
+// AJOUTER DANS LA SECTION CONNEXIONS
+// ============================================================
 
+// 1. Obtenir le statut de connexion entre deux utilisateurs
+Future<String?> getConnectionStatus(String userId) async {
+  try {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return null;
+    
+    // Vérifier d'abord si déjà connecté
+    final connection = await _supabase
+        .from('connections')
+        .select('status')
+        .or('user_id.eq.$currentUserId,connection_id.eq.$currentUserId')
+        .or('user_id.eq.$userId,connection_id.eq.$userId')
+        .eq('status', 'accepted')
+        .maybeSingle();
+    
+    if (connection != null) return 'accepted';
+    
+    // Vérifier s'il y a une demande en attente
+    const request = await _supabase
+        .from('connection_requests')
+        .select('status')
+        .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+        .or('sender_id.eq.$userId,receiver_id.eq.$userId')
+        .eq('status', 'pending')
+        .maybeSingle();
+    
+    return request != null ? 'pending' : null;
+  } catch (e) {
+    debugPrint('Error getConnectionStatus: $e');
+    return null;
+  }
+}
+
+// ============================================================
+// AJOUTER DANS LA SECTION STORY HIGHLIGHTS
+// ============================================================
+
+// 2. Récupérer les highlights d'un utilisateur
+Future<List<Map<String, dynamic>>> getUserHighlights(String userId) async {
+  try {
+    final response = await _supabase
+        .from('story_highlights')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    
+    return response as List;
+  } catch (e) {
+    debugPrint('Error getUserHighlights: $e');
+    return [];
+  }
+}
+
+// 3. Créer un highlight
+Future<void> createHighlight(String name, List<String> storyIds, String? coverImage) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return;
+  
+  await _supabase.from('story_highlights').insert({
+    'user_id': currentUserId,
+    'name': name,
+    'cover_image': coverImage,
+    'story_ids': storyIds,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+}
+
+// ============================================================
+// AJOUTER DANS LA SECTION POSTS
+// ============================================================
+
+// 4. Récupérer les posts épinglés d'un utilisateur
+Future<List<NetworkPost>> getPinnedPosts(String userId) async {
+  try {
+    final response = await _supabase
+        .from('posts')
+        .select('*, users:user_id(display_name, photo_url, profession)')
+        .eq('user_id', userId)
+        .eq('is_pinned', true)
+        .order('created_at', ascending: false);
+    
+    return (response as List).map((e) => NetworkPost.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('Error getPinnedPosts: $e');
+    return [];
+  }
+}
+
+// 5. Désépingler un post
+Future<void> unpinPost(String postId) async {
+  await _supabase
+      .from('posts')
+      .update({'is_pinned': false})
+      .eq('id', postId);
+}
+
+// ============================================================
+// AJOUTER DANS LA SECTION SAUVEGARDES
+// ============================================================
+
+// 6. Récupérer les posts sauvegardés
+Future<List<NetworkPost>> getSavedPosts() async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return [];
+  
+  final response = await _supabase
+      .from('saved_posts')
+      .select('post:post_id(*)')
+      .eq('user_id', currentUserId)
+      .order('saved_at', ascending: false);
+  
+  return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
+}
+
+// 7. Sauvegarder un post
+Future<void> savePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return;
+  
+  await _supabase.from('saved_posts').insert({
+    'post_id': postId,
+    'user_id': currentUserId,
+    'saved_at': DateTime.now().toIso8601String(),
+  });
+}
+
+// 8. Retirer un post des sauvegardes
+Future<void> unsavePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return;
+  
+  await _supabase
+      .from('saved_posts')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', currentUserId);
+}
+
+// ============================================================
+// AJOUTER DANS LA SECTION REPOSTS
+// ============================================================
+
+// 9. Reposter un post
+Future<void> repost(String originalPostId, String? quote) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return;
+  
+  await _supabase.from('reposts').insert({
+    'original_post_id': originalPostId,
+    'user_id': currentUserId,
+    'quote': quote,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+}
+
+// 10. Récupérer les reposts d'un utilisateur
+Future<List<NetworkPost>> getUserReposts(String userId) async {
+  try {
+    final response = await _supabase
+        .from('reposts')
+        .select('post:original_post_id(*)')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    
+    return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
+  } catch (e) {
+    debugPrint('Error getUserReposts: $e');
+    return [];
+  }
+}
   // ============================================================
   // SECTION 2: FEED INTELLIGENT (IA & ALGORITHME)
   // ============================================================
