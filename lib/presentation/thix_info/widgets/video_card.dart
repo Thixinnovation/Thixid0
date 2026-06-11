@@ -1,7 +1,6 @@
 // lib/presentation/thix_info/widgets/video_card.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../models/news_article.dart';
 
@@ -41,17 +40,20 @@ class VideoCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: video.imageUrl ?? '',
+                  child: Image.network(
+                    video.imageUrl ?? '',
                     height: 140,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 140,
-                      color: Colors.grey[200],
-                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    ),
-                    errorWidget: (context, url, error) => Container(
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 140,
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
                       height: 140,
                       color: Colors.grey[200],
                       child: const Icon(Icons.videocam, size: 40, color: Colors.grey),
@@ -59,6 +61,10 @@ class VideoCard extends StatelessWidget {
                   ),
                 ),
                 const Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
                   child: Center(
                     child: Container(
                       padding: EdgeInsets.all(8),
@@ -86,6 +92,8 @@ class VideoCard extends StatelessWidget {
                       const SizedBox(width: 2),
                       Text(_formatCount(video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                       const SizedBox(width: 8),
+                      Text('•', style: TextStyle(fontSize: 9, color: Colors.grey[400])),
+                      const SizedBox(width: 8),
                       Text(_formatTimeAgo(video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                     ],
                   ),
@@ -112,18 +120,21 @@ class VideoCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-              child: CachedNetworkImage(
-                imageUrl: video.imageUrl ?? '',
+              child: Image.network(
+                video.imageUrl ?? '',
                 width: 120,
                 height: 90,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  width: 120,
-                  height: 90,
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-                errorWidget: (context, url, error) => Container(
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: 120,
+                    height: 90,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
                   width: 120,
                   height: 90,
                   color: Colors.grey[200],
