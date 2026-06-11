@@ -19,7 +19,7 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin, SingleTickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
   late NetworkService _networkService;
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
@@ -141,7 +141,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   void _shareProfile() {
     final shareText = 'Découvrez le profil de ${_user?['display_name']} sur THIX Réseau Pro !';
-    // Share.share(shareText);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Partage bientôt disponible'), backgroundColor: Colors.orange),
     );
@@ -815,19 +814,19 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   void _editProfile() {
-    // Naviguer vers l'édition du profil
+    context.push('/network/profile-settings');
   }
 
   void _changeCover() {
-    // Changer la bannière
+    // TODO: Changer la bannière
   }
 
   void _changeAvatar() {
-    // Changer l'avatar
+    // TODO: Changer l'avatar
   }
 
   void _openUrl(String url) async {
-    // Ouvrir URL
+    // TODO: Ouvrir URL
   }
 
   String _formatNumber(int num) {
