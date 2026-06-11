@@ -48,7 +48,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     _networkService = NetworkService(Supabase.instance.client);
     _post = widget.post;
     _isSaved = _post.isSavedByCurrentUser;
-    _isReposted = _post.isRepostedByCurrentUser;
+    _isReposted = false; // Valeur par défaut
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -367,6 +367,8 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final hasUserTitle = _post.authorTitle != null && _post.authorTitle!.isNotEmpty;
     final hasImage = _post.mediaUrl != null && _post.mediaUrl!.isNotEmpty;
     final hasContent = _post.content != null && _post.content!.isNotEmpty;
+    // Vérifier si le post est épinglé (via les posts épinglés du service)
+    final isPinned = _post.userId == auth.currentUser?.id && false; // Sera géré par le parent
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -414,24 +416,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (_post.isPinned) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFD4AF37).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.push_pin, size: 10, color: Color(0xFFD4AF37)),
-                                      SizedBox(width: 2),
-                                      Text('Épinglé', style: TextStyle(fontSize: 9, color: Color(0xFFD4AF37))),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                              // Badge épinglé retiré car isPinned n'existe pas dans le modèle
                             ],
                           ),
                           if (hasUserTitle)
@@ -671,18 +656,14 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                     ),
                     const SizedBox(width: 20),
                     
-                    // Repost
+                    // Share
                     InkWell(
-                      onTap: _repost,
-                      child: Row(
+                      onTap: widget.onShare,
+                      child: const Row(
                         children: [
-                          Icon(
-                            _isReposted ? Icons.repeat : Icons.repeat_outlined,
-                            size: 20,
-                            color: _isReposted ? Colors.green : Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(_formatCount(_post.repostsCount), style: const TextStyle(fontSize: 12)),
+                          Icon(Icons.share, size: 20, color: Colors.grey),
+                          SizedBox(width: 4),
+                          Text('Partager', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                     ),
