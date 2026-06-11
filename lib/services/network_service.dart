@@ -325,7 +325,40 @@ class NetworkService {
       'reported_at': DateTime.now().toIso8601String(),
     });
   }
+// ============================================================
+// SECTION: RECOMMANDATIONS IA
+// ============================================================
 
+Future<Map<String, int>> getRecommendationsCount() async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) {
+    return {'people': 0, 'opportunities': 0, 'communities': 0};
+  }
+  
+  try {
+    // Compter les personnes suggérées
+    final people = await _supabase
+        .from('users')
+        .select('id')
+        .neq('id', currentUserId)
+        .limit(10);
+    
+    // Compter les communautés suggérées
+    final communities = await _supabase
+        .from('communities')
+        .select('id')
+        .limit(10);
+    
+    return {
+      'people': (people as List).length,
+      'opportunities': 0,
+      'communities': (communities as List).length,
+    };
+  } catch (e) {
+    debugPrint('Error getRecommendationsCount: $e');
+    return {'people': 0, 'opportunities': 0, 'communities': 0};
+  }
+}
   // ============================================================
   // SECTION 4: INTERACTIONS (LIKES, COMMENTAIRES, PARTAGES)
   // ============================================================
