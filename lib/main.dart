@@ -1,3 +1,4 @@
+// lib/main.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,6 +11,8 @@ import 'package:thix_id/nav.dart';
 import 'package:thix_id/supabase/supabase_config.dart';
 import 'package:thix_id/theme.dart';
 import 'package:thix_id/services/cart_service.dart';
+import 'package:thix_id/services/network_service.dart';      // ← À AJOUTER
+import 'package:thix_id/providers/feed_provider.dart';       // ← À AJOUTER (à créer)
 
 /// Main entry point for the application
 ///
@@ -73,11 +76,16 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final LocaleController _localeController;
   late final _router;
+  late final NetworkService _networkService;  // ← AJOUTER
 
   @override
   void initState() {
     super.initState();
     _localeController = LocaleController()..init();
+    
+    // ← AJOUTER : initialiser NetworkService
+    _networkService = NetworkService(SupabaseConfig.client);
+    
     _router = AppRouter.create(widget.auth, extraRefreshListenable: _localeController);
   }
 
@@ -85,9 +93,22 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Providers existants
         ChangeNotifierProvider.value(value: widget.auth),
         ChangeNotifierProvider.value(value: _localeController),
         ChangeNotifierProvider(create: (_) => CartService()),
+        
+        // ========== NOUVEAUX PROVIDERS POUR LE RÉSEAU ==========
+        // Provider simple pour NetworkService (pas de ChangeNotifier)
+        Provider<NetworkService>.value(value: _networkService),
+        
+        // FeedProvider qui dépend de NetworkService
+        ChangeNotifierProxyProvider<NetworkService, FeedProvider>(
+          create: (context) => FeedProvider(_networkService),
+          update: (context, networkService, previous) =>
+              previous ?? FeedProvider(networkService),
+        ),
+        // =======================================================
       ],
       child: Builder(
         builder: (context) {
