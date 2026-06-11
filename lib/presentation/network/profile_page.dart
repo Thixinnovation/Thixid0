@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<Highlight> _highlights = [];
+  List<Map<String, dynamic>> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -172,7 +172,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     SliverToBoxAdapter(
                       child: StoryHighlights(
                         highlights: _highlights,
-                        onAddHighlight: isOwnProfile ? _createHighlight : null,
+                        onAddHighlight: isOwnProfile ? () => _createHighlight() : null,
                       ),
                     ),
                   
@@ -708,12 +708,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   Widget _buildPostGridItem(NetworkPost post) {
+    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final isPostPinned = _pinnedPosts.any((p) => p.id == post.id);
+    
     return GestureDetector(
       onTap: () => context.push('/network/post/${post.id}'),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (post.mediaUrl != null)
+          if (hasImage)
             Image.network(post.mediaUrl!, fit: BoxFit.cover)
           else
             Container(
@@ -738,7 +741,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               ),
             ),
           ),
-          if (post.isPinned)
+          if (isPostPinned)
             Positioned(
               top: 8,
               right: 8,
@@ -757,6 +760,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   Widget _buildPostListItem(NetworkPost post) {
+    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final isPostPinned = _pinnedPosts.any((p) => p.id == post.id);
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(12),
@@ -766,7 +772,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       ),
       child: Row(
         children: [
-          if (post.mediaUrl != null)
+          if (hasImage)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(post.mediaUrl!, width: 60, height: 60, fit: BoxFit.cover),
@@ -792,7 +798,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               ],
             ),
           ),
-          if (post.isPinned) const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
+          if (isPostPinned) const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
         ],
       ),
     );
