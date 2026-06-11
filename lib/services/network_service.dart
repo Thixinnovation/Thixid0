@@ -195,56 +195,59 @@ Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
   // SECTION 3: POST INDIVIDUEL (GET, CREATE, UPDATE, DELETE)
   // ============================================================
 
-  Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+  // Cette méthode doit exister dans NetworkService
+Future<NetworkPost?> getPostById(String postId) async {
   try {
-    print('🔍 === TEST ULTRA SIMPLE ===');
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return null;
     
-    // Requête la plus simple possible - SANS jointure, SANS condition
     final response = await _supabase
         .from('posts')
-        .select('*')
-        .limit(limit);
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        .eq('id', postId)
+        .maybeSingle();
     
-    print('🔍 Nombre de posts trouvés: ${(response as List).length}');
+    if (response == null) return null;
     
-    if (response.isEmpty) {
-      print('🔍 AUCUN POST !!!');
-      return [];
-    }
+    final likesData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId);
     
-    // Afficher le premier post
-    print('🔍 Premier post: ${response[0]}');
+    final commentsData = await _supabase
+        .from('comments')
+        .select('id')
+        .eq('post_id', postId);
     
-    // Convertir manuellement
-    final posts = <NetworkPost>[];
-    for (var e in response) {
-      posts.add(NetworkPost(
-        id: e['id'],
-        userId: e['user_id'],
-        authorName: 'Test User',
-        authorAvatar: null,
-        authorTitle: null,
-        content: e['content'],
-        mediaUrl: e['media_url'],
-        mediaType: e['media_type'] ?? 'none',
-        isPublic: e['is_public'] ?? true,
-        likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        createdAt: DateTime.parse(e['created_at']),
-        isLikedByCurrentUser: false,
-        isSavedByCurrentUser: false,
-      ));
-    }
+    final userLikedData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', currentUserId);
     
-    print('🔍 Posts convertis: ${posts.length}');
-    return posts;
+    final userData = response['users'] as Map<String, dynamic>?;
+    
+    return NetworkPost.fromJson({
+      ...response,
+      'author_name': userData?['display_name'] ?? 'Utilisateur',
+      'author_avatar': userData?['photo_url'],
+      'author_title': userData?['profession'],
+      'likes_count': (likesData as List).length,
+      'comments_count': (commentsData as List).length,
+      'is_liked': (userLikedData as List).isNotEmpty,
+    });
   } catch (e) {
-    print('❌ ERREUR: $e');
-    return [];
+    debugPrint('❌ Error getPostById: $e');
+    return null;
   }
 }
-
   // ⭐ CORRIGÉ : retourne seulement l'ID du post créé
   Future<String> createPost(String content, List<String> images) async {
     final currentUserId = this.currentUserId;
