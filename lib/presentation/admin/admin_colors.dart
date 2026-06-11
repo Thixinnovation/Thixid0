@@ -1,6 +1,6 @@
 // lib/presentation/admin/admin_colors.dart
 import 'package:flutter/material.dart';
-
+import 'admin_colors.dart';
 /// Couleurs unifiées pour l'espace Administrateur THIX
 class AdminColors {
   // ============================================================
