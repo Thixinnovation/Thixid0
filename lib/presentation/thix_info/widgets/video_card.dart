@@ -31,7 +31,7 @@ class VideoCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,23 +60,24 @@ class VideoCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Positioned(
+                // ⭐ Correction : enlever le const ici
+                Positioned(
                   left: 0,
                   right: 0,
                   top: 0,
                   bottom: 0,
                   child: Center(
                     child: Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                      child: Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                      child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
                     ),
                   ),
                 ),
               ],
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -85,15 +86,15 @@ class VideoCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     maxLines: 2,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Icon(Icons.visibility, size: 10, color: Colors.grey[500]),
                       const SizedBox(width: 2),
                       Text(_formatCount(video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text('•', style: TextStyle(fontSize: 9, color: Colors.grey[400])),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(_formatTimeAgo(video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                     ],
                   ),
