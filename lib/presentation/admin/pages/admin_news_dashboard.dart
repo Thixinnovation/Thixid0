@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../providers/news_provider.dart';
 import '../../../models/news_article.dart';
@@ -318,19 +317,32 @@ class _AdminNewsDashboardState extends State<AdminNewsDashboard> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image et en-tête
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (article.imageUrl != null)
+              if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
                 ClipRRect(
                   borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: article.imageUrl!,
+                  child: Image.network(
+                    article.imageUrl!,
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(width: 100, height: 100, color: Colors.grey[200]),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 100,
+                        height: 100,
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                    ),
                   ),
                 ),
               Expanded(
@@ -396,7 +408,6 @@ class _AdminNewsDashboardState extends State<AdminNewsDashboard> with SingleTick
               ),
             ],
           ),
-          // Actions
           Divider(height: 1, color: Colors.grey[200]),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -479,7 +490,6 @@ class _AdminNewsDashboardState extends State<AdminNewsDashboard> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cartes de statistiques
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -499,7 +509,6 @@ class _AdminNewsDashboardState extends State<AdminNewsDashboard> with SingleTick
             ],
           ),
           const SizedBox(height: 24),
-          // Stats par catégorie
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
