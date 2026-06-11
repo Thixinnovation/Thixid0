@@ -248,20 +248,21 @@ class NetworkService {
       return null;
     }
   }
-
-  Future<void> createPost(String content, List<String> images) async {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) throw Exception('User not logged in');
-    
-    await _supabase.from('posts').insert({
-      'user_id': currentUserId,
-      'content': content,
-      'media_url': images.isNotEmpty ? images[0] : null,
-      'media_type': images.isNotEmpty ? 'image' : 'none',
-      'is_public': true,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-  }
+Future<Map<String, dynamic>> createPost(String content, List<String> images) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) throw Exception('User not logged in');
+  
+  final response = await _supabase.from('posts').insert({
+    'user_id': currentUserId,
+    'content': content,
+    'media_url': images.isNotEmpty ? images[0] : null,
+    'media_type': images.isNotEmpty ? 'image' : 'none',
+    'is_public': true,
+    'created_at': DateTime.now().toIso8601String(),
+  }).select().single();  // ← AJOUTER .select().single()
+  
+  return response;
+}
 
   Future<void> updatePost(String postId, String newContent) async {
     final currentUserId = this.currentUserId;
