@@ -2,13 +2,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
+import '../../models/event_seat.dart';
+import '../../services/event_booking_limit_service.dart';
+import '../../services/event_seat_service.dart';
 
 class EventReservationPage extends StatefulWidget {
   final String eventId;
-  const EventReservationPage({super.key, required this.eventId});
+  final List<EventSeat>? selectedSeats;
+  final double? totalPrice;
+
+  const EventReservationPage({
+    super.key,
+    required this.eventId,
+    this.selectedSeats,
+    this.totalPrice,
+  });
 
   @override
   State<EventReservationPage> createState() => _EventReservationPageState();
@@ -19,6 +31,8 @@ class _EventReservationPageState extends State<EventReservationPage> {
   bool _isLoading = true;
   int _quantity = 1;
   bool _isProcessing = false;
+  bool _isCheckingLimits = false;
+  EventBookingLimit? _bookingLimit;
 
   @override
   void initState() {
@@ -34,32 +48,91 @@ class _EventReservationPageState extends State<EventReservationPage> {
         _event = event;
         _isLoading = false;
       });
+      await _loadBookingLimit();
     }
   }
 
+  Future<void> _loadBookingLimit() async {
+    final limitService = EventBookingLimitService(Supabase.instance.client);
+    final limit = await limitService.getBookingLimit(widget.eventId);
+    setState(() => _bookingLimit = limit);
+  }
+
+  double get _totalPrice {
+    if (widget.totalPrice != null) return widget.totalPrice!;
+    return _event.price * _quantity;
+  }
+
+  Future<bool> _checkBookingLimits() async {
+    setState(() => _isCheckingLimits = true);
+    
+    final limitService = EventBookingLimitService(Supabase.instance.client);
+    final result = await limitService.canUserBook(widget.eventId, _quantity);
+    
+    setState(() => _isCheckingLimits = false);
+    
+    if (!result['allowed']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['reason']), backgroundColor: Colors.red),
+      );
+      return false;
+    }
+    
+    return true;
+  }
+
   Future<void> _processReservation() async {
+    if (!await _checkBookingLimits()) return;
+    
     setState(() => _isProcessing = true);
     
-    final totalPrice = _event.price * _quantity;
-    
     final provider = context.read<EventProvider>();
-    final booking = await provider.bookTicket(
-      eventId: widget.eventId,
-      quantity: _quantity,
-      totalPrice: totalPrice,
-    );
+    String? bookingId;
     
-    setState(() => _isProcessing = false);
-    
-    if (booking != null && mounted) {
+    try {
+      if (widget.selectedSeats != null && widget.selectedSeats!.isNotEmpty) {
+        // Réservation avec places spécifiques
+        final seatService = EventSeatService(Supabase.instance.client);
+        
+        final booking = await provider.bookTicket(
+          eventId: widget.eventId,
+          quantity: widget.selectedSeats!.length,
+          totalPrice: widget.totalPrice ?? _totalPrice,
+        );
+        
+        if (booking != null) {
+          final seatIds = widget.selectedSeats!.map((s) => s.id).toList();
+          await seatService.confirmSeats(widget.eventId, seatIds, booking.id);
+          bookingId = booking.id;
+        }
+      } else {
+        // Réservation standard
+        final booking = await provider.bookTicket(
+          eventId: widget.eventId,
+          quantity: _quantity,
+          totalPrice: _totalPrice,
+        );
+        bookingId = booking?.id;
+      }
+      
+      if (bookingId != null && mounted) {
+        // Enregistrer la tentative de réservation
+        final limitService = EventBookingLimitService(Supabase.instance.client);
+        await limitService.recordBookingAttempt(widget.eventId, _quantity);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Réservation confirmée !'), backgroundColor: Colors.green),
+        );
+        context.go('/thix-event/my-tickets');
+      } else {
+        throw Exception('Erreur lors de la réservation');
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Réservation confirmée !'), backgroundColor: Colors.green),
+        SnackBar(content: Text('Erreur: ${e.toString()}'), backgroundColor: Colors.red),
       );
-      context.go('/thix-event/my-tickets');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de la réservation'), backgroundColor: Colors.red),
-      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -85,6 +158,7 @@ class _EventReservationPageState extends State<EventReservationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Informations événement
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -109,46 +183,54 @@ class _EventReservationPageState extends State<EventReservationPage> {
                       ],
                     ),
                     const Divider(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Prix unitaire', style: TextStyle(fontSize: 13)),
-                        Text(_event.formattedPrice, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Quantité', style: TextStyle(fontSize: 13)),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline, size: 24),
-                              onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
-                            ),
-                            Container(
-                              width: 40,
-                              alignment: Alignment.center,
-                              child: Text('$_quantity', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline, size: 24),
-                              onPressed: (_event.remainingTickets == null || _quantity < _event.remainingTickets!)
-                                  ? () => setState(() => _quantity++)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Divider(),
+                    if (widget.selectedSeats != null && widget.selectedSeats!.isNotEmpty) ...[
+                      _buildInfoRow('Places sélectionnées', widget.selectedSeats!.map((s) => s.displayName).join(', ')),
+                      const SizedBox(height: 8),
+                      _buildInfoRow('Catégorie', widget.selectedSeats!.first.category.toString().split('.').last),
+                      const Divider(),
+                    ],
+                    if (widget.selectedSeats == null) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Prix unitaire', style: TextStyle(fontSize: 13)),
+                          Text(_event.formattedPrice, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Quantité', style: TextStyle(fontSize: 13)),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, size: 24),
+                                onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
+                              ),
+                              Container(
+                                width: 40,
+                                alignment: Alignment.center,
+                                child: Text('$_quantity', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline, size: 24),
+                                onPressed: (_event.remainingTickets == null || _quantity < _event.remainingTickets!)
+                                    ? () => setState(() => _quantity++)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                    ],
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                         Text(
-                          '${(_event.price * _quantity).toStringAsFixed(0)} FC',
+                          '${NumberFormat('#,###').format(_totalPrice)} FC',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37)),
                         ),
                       ],
@@ -158,6 +240,7 @@ class _EventReservationPageState extends State<EventReservationPage> {
               ),
             ),
             const SizedBox(height: 16),
+            // Informations participant
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -200,15 +283,36 @@ class _EventReservationPageState extends State<EventReservationPage> {
               ),
             ),
             const SizedBox(height: 24),
+            if (_bookingLimit != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Maximum ${_bookingLimit!.maxPerPerson} places par personne.',
+                        style: TextStyle(fontSize: 11, color: Colors.blue[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _isProcessing ? null : _processReservation,
+              onPressed: (_isProcessing || _isCheckingLimits) ? null : _processReservation,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD4AF37),
                 foregroundColor: const Color(0xFF0B1B3D),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
-              child: _isProcessing
+              child: _isProcessing || _isCheckingLimits
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('CONFIRMER LA RÉSERVATION', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             ),
@@ -216,6 +320,16 @@ class _EventReservationPageState extends State<EventReservationPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }
