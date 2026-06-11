@@ -20,7 +20,6 @@ class NetworkService {
   // ==================== POSTS ====================
 
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-    Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
   try {
     final currentUserId = this.currentUserId;
     print('🔍 1. currentUserId: $currentUserId');
