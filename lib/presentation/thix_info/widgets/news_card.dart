@@ -42,7 +42,7 @@ class NewsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: CachedNetworkImage(
@@ -50,7 +50,11 @@ class NewsCard extends StatelessWidget {
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(height: 180, color: Colors.grey[200]),
+                  placeholder: (context, url) => Container(
+                    height: 180,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
                   errorWidget: (context, url, error) => Container(
                     height: 180,
                     color: Colors.grey[200],
@@ -133,7 +137,7 @@ class NewsCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
@@ -141,7 +145,18 @@ class NewsCard extends StatelessWidget {
                   width: 70,
                   height: 70,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(width: 70, height: 70, color: Colors.grey[200]),
+                  placeholder: (context, url) => Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                  ),
                 ),
               ),
             const SizedBox(width: 10),
