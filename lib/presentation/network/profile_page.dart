@@ -7,9 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
-import 'package:thix_id/models/network_story.dart';
 import 'widgets/pinned_post.dart';
-import 'widgets/story_highlights.dart';
+import 'widgets/story_highlights.dart' as highlights;
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -24,7 +23,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<Highlight> _highlights = [];
+  List<highlights.Highlight> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -65,13 +64,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final repostedPosts = await _networkService.getUserReposts(userId);
       
       // Convertir les highlights correctement
-      final List<Highlight> convertedHighlights = highlightsData.map((e) => Highlight(
-        id: e['id'],
-        name: e['name'],
-        coverImage: e['cover_image'],
-        storyIds: List<String>.from(e['story_ids']),
-        createdAt: DateTime.parse(e['created_at']),
-      )).toList();
+      final List<highlights.Highlight> convertedHighlights = [];
+      for (var e in highlightsData) {
+        convertedHighlights.add(highlights.Highlight(
+          id: e['id'],
+          name: e['name'],
+          coverImage: e['cover_image'],
+          storyIds: List<String>.from(e['story_ids']),
+          createdAt: DateTime.parse(e['created_at']),
+        ));
+      }
       
       setState(() {
         _user = userData;
@@ -149,13 +151,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
-  void _viewHighlight(Highlight highlight) {
-    // TODO: Naviguer vers la highlight
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Story en vedette: ${highlight.name}'), backgroundColor: Colors.blue),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
@@ -177,7 +172,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   // Story Highlights
                   if (_highlights.isNotEmpty || isOwnProfile)
                     SliverToBoxAdapter(
-                      child: StoryHighlights(
+                      child: highlights.StoryHighlights(
                         highlights: _highlights,
                         onAddHighlight: isOwnProfile ? () => _createHighlight() : null,
                       ),
