@@ -5,11 +5,13 @@ import 'package:flutter/gestures.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../services/network_service.dart';
+import '../../../providers/feed_provider.dart';  // ← AJOUTER CET IMPORT
 
 class CreatePostDialog extends StatefulWidget {
   final String? communityId;
+  final VoidCallback? onPostCreated;  // ← AJOUTER CALLBACK
   
-  const CreatePostDialog({super.key, this.communityId});
+  const CreatePostDialog({super.key, this.communityId, this.onPostCreated});
 
   @override
   State<CreatePostDialog> createState() => _CreatePostDialogState();
@@ -22,12 +24,14 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   final List<String> _uploadingFiles = [];
   bool _isUploading = false;
   String? _errorMessage;
-  int _selectedPostType = 0; // 0: Texte, 1: Image, 2: Vidéo
+  int _selectedPostType = 0;
   
-  // Pour les suggestions de mentions
   List<Map<String, dynamic>> _mentionSuggestions = [];
   bool _showMentions = false;
   String _currentMentionQuery = '';
+
+  // NE PLUS CRÉER D'INSTANCE ICI - on utilisera le Provider
+  // final NetworkService _networkService = NetworkService(Supabase.instance.client); ← SUPPRIMER
 
   @override
   void initState() {
@@ -67,9 +71,16 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   }
 
   Future<void> _searchUsers(String query) async {
-    final networkService = Provider.of<NetworkService>(context, listen: false);
-    final users = await networkService.searchUsers(query);
-    setState(() => _mentionSuggestions = users);
+    try {
+      // RÉCUPÉRER L'INSTANCE DEPUIS LE PROVIDER
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final users = await networkService.searchUsers(query);
+      if (mounted) {
+        setState(() => _mentionSuggestions = users);
+      }
+    } catch (e) {
+      debugPrint('Error searching users: $e');
+    }
   }
 
   void _insertMention(Map<String, dynamic> user) {
@@ -91,7 +102,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         allowMultiple: true,
       );
       
-      if (result != null && result.files.isNotEmpty) {
+      if (result != null && result.files.isNotEmpty && mounted) {
         setState(() {
           for (final file in result.files) {
             if (file.path != null) {
@@ -113,7 +124,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         allowMultiple: false,
       );
       
-      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null && mounted) {
         setState(() {
           _selectedVideos.add(File(result.files.first.path!));
           _selectedPostType = 2;
@@ -141,6 +152,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   }
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
@@ -162,6 +174,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     });
     
     try {
+      // RÉCUPÉRER L'INSTANCE DEPUIS LE PROVIDER
       final networkService = Provider.of<NetworkService>(context, listen: false);
       
       List<String> mediaUrls = [];
@@ -169,36 +182,43 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       // Upload des images
       for (int i = 0; i < _selectedImages.length; i++) {
         final image = _selectedImages[i];
-        setState(() {
-          _uploadingFiles.add('Image ${i + 1}');
-        });
+        if (mounted) {
+          setState(() {
+            _uploadingFiles.add('Image ${i + 1}');
+          });
+        }
         
         final url = await networkService.uploadImage(image.path);
         if (url != null) {
           mediaUrls.add(url);
         }
         
-        setState(() {
-          _uploadingFiles.remove('Image ${i + 1}');
-        });
+        if (mounted) {
+          setState(() {
+            _uploadingFiles.remove('Image ${i + 1}');
+          });
+        }
       }
       
-      // Upload des vidéos (utilisation de uploadImage pour vidéo aussi)
+      // Upload des vidéos
       for (int i = 0; i < _selectedVideos.length; i++) {
         final video = _selectedVideos[i];
-        setState(() {
-          _uploadingFiles.add('Vidéo ${i + 1}');
-        });
+        if (mounted) {
+          setState(() {
+            _uploadingFiles.add('Vidéo ${i + 1}');
+          });
+        }
         
-        // Pour les vidéos, on utilise le bucket post_images aussi
         final url = await networkService.uploadImage(video.path);
         if (url != null) {
           mediaUrls.add(url);
         }
         
-        setState(() {
-          _uploadingFiles.remove('Vidéo ${i + 1}');
-        });
+        if (mounted) {
+          setState(() {
+            _uploadingFiles.remove('Vidéo ${i + 1}');
+          });
+        }
       }
       
       // Création du post
@@ -215,17 +235,29 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         );
       }
       
+      // RAFRAÎCHIR LE FEED VIA LE PROVIDER
       if (mounted) {
+        // Récupérer le FeedProvider et recharger
+        final feedProvider = Provider.of<FeedProvider>(context, listen: false);
+        await feedProvider.loadFeed();  // Recharge le feed
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
         );
+        
+        // Appeler le callback si fourni
+        widget.onPostCreated?.call();
+        
         Navigator.pop(context, true);
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erreur: $e';
-        _isUploading = false;
-      });
+      debugPrint('Error creating post: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erreur: ${e.toString()}';
+          _isUploading = false;
+        });
+      }
     }
   }
 
@@ -274,7 +306,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             
             const SizedBox(height: 12),
             
-            // Zone de texte avec suggestions de mentions
+            // Zone de texte
             Stack(
               children: [
                 TextField(
