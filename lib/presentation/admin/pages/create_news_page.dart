@@ -1,8 +1,7 @@
-// lib/presentation/thix_info/admin/create_news_page.dart
+// lib/presentation/admin/pages/create_news_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/news_provider.dart';
@@ -70,10 +69,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     super.dispose();
   }
 
-  // ============================================================
-  // SÉLECTION DES FICHIERS
-  // ============================================================
-
   Future<void> _pickImage() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -105,10 +100,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     }
   }
 
-  // ============================================================
-  // UPLOAD DES FICHIERS
-  // ============================================================
-
   Future<String?> _uploadImage() async {
     if (_imageFile == null) return _imageUrl;
     
@@ -131,24 +122,18 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     return url;
   }
 
-  // ============================================================
-  // SAUVEGARDE
-  // ============================================================
-
   Future<void> _saveArticle() async {
     if (!_formKey.currentState!.validate()) return;
     
     setState(() => _isLoading = true);
     
     try {
-      // Upload des fichiers
       final uploadedImageUrl = await _uploadImage();
       final uploadedVideoUrl = await _uploadVideo();
       
       final provider = context.read<NewsProvider>();
       
       if (widget.article != null) {
-        // Mise à jour
         await provider.updateArticle(widget.article!.id, {
           'title': _titleController.text.trim(),
           'summary': _summaryController.text.trim(),
@@ -162,7 +147,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
         });
         _showSuccess('Article modifié avec succès');
       } else {
-        // Création
         await provider.createArticle(
           title: _titleController.text.trim(),
           summary: _summaryController.text.trim(),
@@ -183,10 +167,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  // ============================================================
-  // MESSAGES
-  // ============================================================
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -219,10 +199,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
       }
     }
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -258,15 +234,10 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Image
                     _buildImageSection(),
                     const SizedBox(height: 16),
-                    
-                    // Vidéo
                     _buildVideoSection(),
                     const SizedBox(height: 16),
-                    
-                    // Titre
                     TextFormField(
                       controller: _titleController,
                       maxLines: 2,
@@ -278,8 +249,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                       validator: (v) => v?.trim().isEmpty == true ? 'Titre requis' : null,
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Résumé
                     TextFormField(
                       controller: _summaryController,
                       maxLines: 2,
@@ -290,8 +259,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Contenu
                     TextFormField(
                       controller: _contentController,
                       maxLines: 15,
@@ -304,8 +271,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                       validator: (v) => v?.trim().isEmpty == true ? 'Contenu requis' : null,
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Catégorie
                     DropdownButtonFormField<String>(
                       value: _selectedCategory,
                       decoration: const InputDecoration(
@@ -321,8 +286,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                       onChanged: (v) => setState(() => _selectedCategory = v!),
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Options (À la une / Breaking)
                     Row(
                       children: [
                         Expanded(
@@ -346,8 +309,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Date de publication
                     ListTile(
                       leading: const Icon(Icons.calendar_today),
                       title: const Text('Date de publication', style: TextStyle(fontSize: 13)),
@@ -368,10 +329,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
             ),
     );
   }
-
-  // ============================================================
-  // SECTIONS IMAGE ET VIDÉO
-  // ============================================================
 
   Widget _buildImageSection() {
     return Column(
@@ -450,17 +407,7 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                           children: [
                             const Icon(Icons.videocam, size: 40, color: Colors.green),
                             const SizedBox(height: 8),
-                            Text(
-                              'Vidéo prête à être uploadée',
-                              style: TextStyle(fontSize: 12, color: Colors.green[700]),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _videoFile!.path.split('/').last,
-                              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            Text('Vidéo prête', style: TextStyle(fontSize: 12, color: Colors.green[700])),
                           ],
                         ),
                       )
