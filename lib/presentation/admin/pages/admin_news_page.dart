@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../providers/news_provider.dart';
 import '../../../services/news_service.dart';
-import '../../thix_info/admin/admin_news_dashboard.dart';
+import 'admin_news_dashboard.dart';  // ← Chemin corrigé (même dossier)
 
 class AdminNewsPage extends StatelessWidget {
   final String role;
