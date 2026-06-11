@@ -228,7 +228,12 @@ class NewsProvider extends ChangeNotifier {
   Future<String?> uploadVideo(String filePath) async {
     return await _newsService.uploadVideo(filePath);
   }
+// lib/providers/news_provider.dart
+// Ajoute cette méthode :
 
+Future<List<NewsArticle>> getSavedArticlesList() async {
+  return await _newsService.getSavedArticles();
+}
   // ============================================================
   // UTILITAIRES
   // ============================================================
