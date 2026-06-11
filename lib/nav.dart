@@ -353,7 +353,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.home,
           name: 'home',
-          pageBuilder: (context, state) => NoTransitionPage(child: HomePage()),
+          pageBuilder: (context, state) => NoTransitionPage(child:const HomePage()),
         ),
 
         // ==================== AUTHENTIFICATION ====================
