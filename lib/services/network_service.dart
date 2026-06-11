@@ -12,7 +12,7 @@ import '../models/network_story.dart';
 import 'dart:io';
 
 // ============================================================
-// CLASSE POSTSCORE (déclarée en dehors de NetworkService)
+// CLASSE POSTSCORE
 // ============================================================
 class PostScore {
   final NetworkPost post;
@@ -28,62 +28,63 @@ class NetworkService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ============================================================
-  // SECTION 1: POSTS - CRUD ET INTERACTIONS DE BASE
+  // SECTION 1: POSTS - GET FEED
   // ============================================================
-Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-  try {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return [];
-    
-    final response = await _supabase
-        .from('posts')
-        .select('''
-          *,
-          users:user_id (
-            display_name,
-            photo_url,
-            profession
-          )
-        ''')
-        .eq('is_public', true)
-        .order('created_at', ascending: false)
-        .limit(limit);
-    
-    final posts = <NetworkPost>[];
-    for (var e in response as List) {
-      final likesData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', e['id']);
+
+  Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
-      final commentsData = await _supabase
-          .from('comments')
-          .select('id')
-          .eq('post_id', e['id']);
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            *,
+            users:user_id (
+              display_name,
+              photo_url,
+              profession
+            )
+          ''')
+          .eq('is_public', true)
+          .order('created_at', ascending: false)
+          .limit(limit);
       
-      final likedData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', e['id'])
-          .eq('user_id', currentUserId);
+      final posts = <NetworkPost>[];
+      for (var e in response as List) {
+        final likesData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id']);
+        
+        final commentsData = await _supabase
+            .from('comments')
+            .select('id')
+            .eq('post_id', e['id']);
+        
+        final likedData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id'])
+            .eq('user_id', currentUserId);
+        
+        posts.add(NetworkPost.fromJson({
+          ...e,
+          'author_name': e['users']?['display_name'] ?? 'Utilisateur',
+          'author_avatar': e['users']?['photo_url'],
+          'author_title': e['users']?['profession'],
+          'likes_count': (likesData as List).length,
+          'comments_count': (commentsData as List).length,
+          'is_liked': (likedData as List).isNotEmpty,
+        }));
+      }
       
-      posts.add(NetworkPost.fromJson({
-        ...e,
-        'author_name': e['users']?['display_name'] ?? 'Utilisateur',
-        'author_avatar': e['users']?['photo_url'],
-        'author_title': e['users']?['profession'],
-        'likes_count': (likesData as List).length,
-        'comments_count': (commentsData as List).length,
-        'is_liked': (likedData as List).isNotEmpty,
-      }));
+      return posts;
+    } catch (e) {
+      debugPrint('❌ Error getFeedPosts: $e');
+      return [];
     }
-    
-    return posts;
-  } catch (e) {
-    debugPrint('❌ Error getFeedPosts: $e');
-    return [];  // ← IMPORTANT: retourner une liste vide en cas d'erreur
   }
-}
 
   // ============================================================
   // SECTION 2: FEED INTELLIGENT (IA & ALGORITHME)
@@ -195,65 +196,65 @@ Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
   // SECTION 3: POST INDIVIDUEL (GET, CREATE, UPDATE, DELETE)
   // ============================================================
 
-  // Cette méthode doit exister dans NetworkService
-Future<NetworkPost?> getPostById(String postId) async {
-  try {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return null;
-    
-    final response = await _supabase
-        .from('posts')
-        .select('''
-          *,
-          users:user_id (
-            display_name,
-            photo_url,
-            profession
-          )
-        ''')
-        .eq('id', postId)
-        .maybeSingle();
-    
-    if (response == null) return null;
-    
-    final likesData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final commentsData = await _supabase
-        .from('comments')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final userLikedData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', currentUserId);
-    
-    final userData = response['users'] as Map<String, dynamic>?;
-    
-    return NetworkPost.fromJson({
-      ...response,
-      'author_name': userData?['display_name'] ?? 'Utilisateur',
-      'author_avatar': userData?['photo_url'],
-      'author_title': userData?['profession'],
-      'likes_count': (likesData as List).length,
-      'comments_count': (commentsData as List).length,
-      'is_liked': (userLikedData as List).isNotEmpty,
-    });
-  } catch (e) {
-    debugPrint('❌ Error getPostById: $e');
-    return null;
+  Future<NetworkPost?> getPostById(String postId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+      
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            *,
+            users:user_id (
+              display_name,
+              photo_url,
+              profession
+            )
+          ''')
+          .eq('id', postId)
+          .maybeSingle();
+      
+      if (response == null) return null;
+      
+      final likesData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId);
+      
+      final commentsData = await _supabase
+          .from('comments')
+          .select('id')
+          .eq('post_id', postId);
+      
+      final userLikedData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId);
+      
+      final userData = response['users'] as Map<String, dynamic>?;
+      
+      return NetworkPost.fromJson({
+        ...response,
+        'author_name': userData?['display_name'] ?? 'Utilisateur',
+        'author_avatar': userData?['photo_url'],
+        'author_title': userData?['profession'],
+        'likes_count': (likesData as List).length,
+        'comments_count': (commentsData as List).length,
+        'is_liked': (userLikedData as List).isNotEmpty,
+      });
+    } catch (e) {
+      debugPrint('❌ Error getPostById: $e');
+      return null;
+    }
   }
-}
-  // ⭐ CORRIGÉ : retourne seulement l'ID du post créé
+
+  // ⭐ CORRIGÉ : retourne l'ID du post créé
   Future<String> createPost(String content, List<String> images) async {
     final currentUserId = this.currentUserId;
     if (currentUserId.isEmpty) throw Exception('User not logged in');
     
-    debugPrint('📝 createPost: création du post avec contenu: ${content.substring(0, content.length > 50 ? 50 : content.length)}...');
+    debugPrint('📝 createPost: création du post...');
     
     final response = await _supabase.from('posts').insert({
       'user_id': currentUserId,
@@ -270,7 +271,7 @@ Future<NetworkPost?> getPostById(String postId) async {
     return postId;
   }
 
-  // ⭐ VERSION CORRECTE POUR LES COMMUNAUTÉS (UNE SEULE FOIS)
+  // ⭐ CORRIGÉ : version pour les communautés
   Future<String> createCommunityPost({
     required String communityId,
     required String content,
@@ -362,39 +363,6 @@ Future<NetworkPost?> getPostById(String postId) async {
       'reported_at': DateTime.now().toIso8601String(),
     });
     debugPrint('🚨 reportPost: post $postId signalé pour: $reason');
-  }
-
-  // ============================================================
-  // SECTION: RECOMMANDATIONS IA
-  // ============================================================
-
-  Future<Map<String, int>> getRecommendationsCount() async {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) {
-      return {'people': 0, 'opportunities': 0, 'communities': 0};
-    }
-    
-    try {
-      final people = await _supabase
-          .from('users')
-          .select('id')
-          .neq('id', currentUserId)
-          .limit(10);
-      
-      final communities = await _supabase
-          .from('communities')
-          .select('id')
-          .limit(10);
-      
-      return {
-        'people': (people as List).length,
-        'opportunities': 0,
-        'communities': (communities as List).length,
-      };
-    } catch (e) {
-      debugPrint('Error getRecommendationsCount: $e');
-      return {'people': 0, 'opportunities': 0, 'communities': 0};
-    }
   }
 
   // ============================================================
@@ -493,11 +461,29 @@ Future<NetworkPost?> getPostById(String postId) async {
     await _supabase.from('comments').delete().eq('id', commentId);
   }
 
+  // ⭐ CORRIGÉ : sharePost sans RPC
   Future<void> sharePost(String postId) async {
     try {
-      await _supabase.rpc('increment_post_shares', params: {'post_id': postId});
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return;
+      
+      final post = await _supabase
+          .from('posts')
+          .select('shares_count')
+          .eq('id', postId)
+          .maybeSingle();
+      
+      if (post != null) {
+        int currentShares = post['shares_count'] ?? 0;
+        await _supabase
+            .from('posts')
+            .update({'shares_count': currentShares + 1})
+            .eq('id', postId);
+      }
+      
+      debugPrint('📤 sharePost: post $postId partagé');
     } catch (e) {
-      debugPrint('Error increment_post_shares: $e');
+      debugPrint('Error sharePost: $e');
     }
   }
 
@@ -564,22 +550,42 @@ Future<NetworkPost?> getPostById(String postId) async {
   // SECTION 6: SAUVEGARDER LES POSTS
   // ============================================================
 
+  // ⭐ CORRIGÉ : vérifie si déjà sauvegardé
   Future<void> savePost(String postId) async {
     final currentUserId = this.currentUserId;
-    await _supabase.from('saved_posts').insert({
-      'post_id': postId,
-      'user_id': currentUserId,
-      'saved_at': DateTime.now().toIso8601String(),
-    });
+    if (currentUserId.isEmpty) return;
+    
+    try {
+      final existing = await _supabase
+          .from('saved_posts')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      
+      if (existing == null) {
+        await _supabase.from('saved_posts').insert({
+          'post_id': postId,
+          'user_id': currentUserId,
+          'saved_at': DateTime.now().toIso8601String(),
+        });
+        debugPrint('💾 savePost: post $postId sauvegardé');
+      }
+    } catch (e) {
+      debugPrint('❌ Error savePost: $e');
+    }
   }
 
   Future<void> unsavePost(String postId) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase
         .from('saved_posts')
         .delete()
         .eq('post_id', postId)
         .eq('user_id', currentUserId);
+    debugPrint('🗑️ unsavePost: post $postId retiré');
   }
 
   Future<List<NetworkPost>> getSavedPosts() async {
@@ -1496,6 +1502,39 @@ Future<NetworkPost?> getPostById(String postId) async {
     } catch (e) {
       debugPrint('Error hasEventInterest: $e');
       return false;
+    }
+  }
+
+  // ============================================================
+  // SECTION 18: RECOMMANDATIONS IA
+  // ============================================================
+
+  Future<Map<String, int>> getRecommendationsCount() async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) {
+      return {'people': 0, 'opportunities': 0, 'communities': 0};
+    }
+    
+    try {
+      final people = await _supabase
+          .from('users')
+          .select('id')
+          .neq('id', currentUserId)
+          .limit(10);
+      
+      final communities = await _supabase
+          .from('communities')
+          .select('id')
+          .limit(10);
+      
+      return {
+        'people': (people as List).length,
+        'opportunities': 0,
+        'communities': (communities as List).length,
+      };
+    } catch (e) {
+      debugPrint('Error getRecommendationsCount: $e');
+      return {'people': 0, 'opportunities': 0, 'communities': 0};
     }
   }
 }
