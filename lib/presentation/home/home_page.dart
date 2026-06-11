@@ -1,3 +1,4 @@
+// lib/presentation/home/home_page_premium.dart
 import 'dart:async';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -205,7 +206,6 @@ class _HomePagePremiumState extends State<HomePagePremium>
   void _navigateToChat() {
     final auth = context.read<AuthController>();
     if (auth.isAuthenticated) {
-      // Navigation vers les messages du réseau pro
       context.push(AppRoutes.networkMessages);
     } else {
       context.go(AppRoutes.login);
@@ -219,7 +219,6 @@ class _HomePagePremiumState extends State<HomePagePremium>
       if (user?.accountType == AccountType.enterprise) {
         context.go(AppRoutes.enterpriseDashboard);
       } else {
-        // Navigation vers le profil du réseau pro
         context.push('/network/profile/${user?.id}');
       }
     } else {
@@ -229,6 +228,10 @@ class _HomePagePremiumState extends State<HomePagePremium>
 
   void _navigateToNetworkPro() {
     context.push(AppRoutes.networkPro);
+  }
+
+  void _navigateToThixInfo() {
+    context.push(AppRoutes.thixInfo);
   }
 
   void _showEmergencyOverlay() async {
@@ -512,13 +515,14 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               badgeCount: counts.jobs,
                               onTap: () => context.push(AppRoutes.jobs),
                             ),
+                            // ⭐ THIX INFO - CORRIGÉ ⭐
                             _ServiceCard(
                               icon: Icons.newspaper_rounded,
                               title: 'THIX INFO',
                               iconBackgroundColor: const Color(0xFFFFF3E6),
                               iconColor: const Color(0xFFFF9800),
                               badgeCount: counts.info,
-                              onTap: () => AlertInfoSheet.show(context),
+                              onTap: _navigateToThixInfo, // ← Navigation corrigée
                             ),
                             _ServiceCard(
                               icon: Icons.lightbulb_rounded,
