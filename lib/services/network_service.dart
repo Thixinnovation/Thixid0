@@ -85,182 +85,43 @@ class NetworkService {
       return [];
     }
   }
-// ============================================================
-// AJOUTER DANS LA SECTION CONNEXIONS
-// ============================================================
 
-// 1. Obtenir le statut de connexion entre deux utilisateurs
-Future<String?> getConnectionStatus(String userId) async {
-  try {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return null;
-    
-    // Vérifier d'abord si déjà connecté
-    final connection = await _supabase
-        .from('connections')
-        .select('status')
-        .or('user_id.eq.$currentUserId,connection_id.eq.$currentUserId')
-        .or('user_id.eq.$userId,connection_id.eq.$userId')
-        .eq('status', 'accepted')
-        .maybeSingle();
-    
-    if (connection != null) return 'accepted';
-    
-    // Vérifier s'il y a une demande en attente
-    const request = await _supabase
-        .from('connection_requests')
-        .select('status')
-        .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
-        .or('sender_id.eq.$userId,receiver_id.eq.$userId')
-        .eq('status', 'pending')
-        .maybeSingle();
-    
-    return request != null ? 'pending' : null;
-  } catch (e) {
-    debugPrint('Error getConnectionStatus: $e');
-    return null;
-  }
-}
-
-// ============================================================
-// AJOUTER DANS LA SECTION STORY HIGHLIGHTS
-// ============================================================
-
-// 2. Récupérer les highlights d'un utilisateur
-Future<List<Map<String, dynamic>>> getUserHighlights(String userId) async {
-  try {
-    final response = await _supabase
-        .from('story_highlights')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    
-    return response as List;
-  } catch (e) {
-    debugPrint('Error getUserHighlights: $e');
-    return [];
-  }
-}
-
-// 3. Créer un highlight
-Future<void> createHighlight(String name, List<String> storyIds, String? coverImage) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase.from('story_highlights').insert({
-    'user_id': currentUserId,
-    'name': name,
-    'cover_image': coverImage,
-    'story_ids': storyIds,
-    'created_at': DateTime.now().toIso8601String(),
-  });
-}
-
-// ============================================================
-// AJOUTER DANS LA SECTION POSTS
-// ============================================================
-
-// 4. Récupérer les posts épinglés d'un utilisateur
-Future<List<NetworkPost>> getPinnedPosts(String userId) async {
-  try {
-    final response = await _supabase
-        .from('posts')
-        .select('*, users:user_id(display_name, photo_url, profession)')
-        .eq('user_id', userId)
-        .eq('is_pinned', true)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => NetworkPost.fromJson(e)).toList();
-  } catch (e) {
-    debugPrint('Error getPinnedPosts: $e');
-    return [];
-  }
-}
-
-// 5. Désépingler un post
-Future<void> unpinPost(String postId) async {
-  await _supabase
-      .from('posts')
-      .update({'is_pinned': false})
-      .eq('id', postId);
-}
-
-// ============================================================
-// AJOUTER DANS LA SECTION SAUVEGARDES
-// ============================================================
-
-// 6. Récupérer les posts sauvegardés
-Future<List<NetworkPost>> getSavedPosts() async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return [];
-  
-  final response = await _supabase
-      .from('saved_posts')
-      .select('post:post_id(*)')
-      .eq('user_id', currentUserId)
-      .order('saved_at', ascending: false);
-  
-  return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
-}
-
-// 7. Sauvegarder un post
-Future<void> savePost(String postId) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase.from('saved_posts').insert({
-    'post_id': postId,
-    'user_id': currentUserId,
-    'saved_at': DateTime.now().toIso8601String(),
-  });
-}
-
-// 8. Retirer un post des sauvegardes
-Future<void> unsavePost(String postId) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase
-      .from('saved_posts')
-      .delete()
-      .eq('post_id', postId)
-      .eq('user_id', currentUserId);
-}
-
-// ============================================================
-// AJOUTER DANS LA SECTION REPOSTS
-// ============================================================
-
-// 9. Reposter un post
-Future<void> repost(String originalPostId, String? quote) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase.from('reposts').insert({
-    'original_post_id': originalPostId,
-    'user_id': currentUserId,
-    'quote': quote,
-    'created_at': DateTime.now().toIso8601String(),
-  });
-}
-
-// 10. Récupérer les reposts d'un utilisateur
-Future<List<NetworkPost>> getUserReposts(String userId) async {
-  try {
-    final response = await _supabase
-        .from('reposts')
-        .select('post:original_post_id(*)')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
-  } catch (e) {
-    debugPrint('Error getUserReposts: $e');
-    return [];
-  }
-}
   // ============================================================
-  // SECTION 2: FEED INTELLIGENT (IA & ALGORITHME)
+  // SECTION 2: CONNEXIONS (AJOUTÉ)
+  // ============================================================
+
+  Future<String?> getConnectionStatus(String userId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+      
+      final connection = await _supabase
+          .from('connections')
+          .select('status')
+          .or('user_id.eq.$currentUserId,connection_id.eq.$currentUserId')
+          .or('user_id.eq.$userId,connection_id.eq.$userId')
+          .eq('status', 'accepted')
+          .maybeSingle();
+      
+      if (connection != null) return 'accepted';
+      
+      final request = await _supabase
+          .from('connection_requests')
+          .select('status')
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .or('sender_id.eq.$userId,receiver_id.eq.$userId')
+          .eq('status', 'pending')
+          .maybeSingle();
+      
+      return request != null ? 'pending' : null;
+    } catch (e) {
+      debugPrint('Error getConnectionStatus: $e');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // SECTION 3: FEED INTELLIGENT (IA & ALGORITHME)
   // ============================================================
 
   Future<List<NetworkPost>> getSmartFeed({int limit = 20}) async {
@@ -340,17 +201,6 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
           else if (engagementRate > 1) score += 10;
         }
         
-        final previousLikes = await _supabase
-            .from('post_likes')
-            .select('id')
-            .eq('user_id', currentUserId)
-            .inFilter('post_id', 
-                (await _supabase.from('posts').select('id').eq('user_id', post.userId) as List)
-                    .map((p) => p['id'] as String).toList());
-        if ((previousLikes as List).isNotEmpty) {
-          score += 15 * previousLikes.length.clamp(0, 3);
-        }
-        
         final random = DateTime.now().millisecondsSinceEpoch % 100 / 100;
         score += random * 30;
         
@@ -366,7 +216,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 3: POST INDIVIDUEL (GET, CREATE, UPDATE, DELETE)
+  // SECTION 4: POST INDIVIDUEL (GET, CREATE, UPDATE, DELETE)
   // ============================================================
 
   Future<NetworkPost?> getPostById(String postId) async {
@@ -500,7 +350,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 4: INTERACTIONS (LIKES, COMMENTAIRES, PARTAGES)
+  // SECTION 5: INTERACTIONS (LIKES, COMMENTAIRES, PARTAGES)
   // ============================================================
 
   Future<void> likePost(String postId) async {
@@ -613,7 +463,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 5: ÉPINGLER LES POSTS
+  // SECTION 6: ÉPINGLER LES POSTS
   // ============================================================
 
   Future<void> pinPost(String postId) async {
@@ -632,27 +482,20 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
         .eq('id', postId);
   }
 
-  Future<NetworkPost?> getPinnedPost(String userId) async {
-    final response = await _supabase
-        .from('posts')
-        .select('*, users:user_id(display_name, photo_url, profession)')
-        .eq('user_id', userId)
-        .eq('is_pinned', true)
-        .maybeSingle();
-    
-    if (response == null) return null;
-    return NetworkPost.fromJson(response);
-  }
-
   Future<List<NetworkPost>> getPinnedPosts(String userId) async {
-    final response = await _supabase
-        .from('posts')
-        .select('*, users:user_id(display_name, photo_url, profession)')
-        .eq('user_id', userId)
-        .eq('is_pinned', true)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => NetworkPost.fromJson(e)).toList();
+    try {
+      final response = await _supabase
+          .from('posts')
+          .select('*, users:user_id(display_name, photo_url, profession)')
+          .eq('user_id', userId)
+          .eq('is_pinned', true)
+          .order('created_at', ascending: false);
+      
+      return (response as List).map((e) => NetworkPost.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error getPinnedPosts: $e');
+      return [];
+    }
   }
 
   Future<void> unpinPost(String postId) async {
@@ -663,7 +506,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 6: SAUVEGARDER LES POSTS
+  // SECTION 7: SAUVEGARDER LES POSTS
   // ============================================================
 
   Future<void> savePost(String postId) async {
@@ -686,6 +529,8 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
 
   Future<List<NetworkPost>> getSavedPosts() async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return [];
+    
     final response = await _supabase
         .from('saved_posts')
         .select('post:post_id(*)')
@@ -696,7 +541,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 7: REPOSTER
+  // SECTION 8: REPOSTER
   // ============================================================
 
   Future<void> repost(String originalPostId, String? quote) async {
@@ -710,17 +555,22 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   Future<List<NetworkPost>> getUserReposts(String userId) async {
-    final response = await _supabase
-        .from('reposts')
-        .select('post:original_post_id(*)')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
+    try {
+      final response = await _supabase
+          .from('reposts')
+          .select('post:original_post_id(*)')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      
+      return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
+    } catch (e) {
+      debugPrint('Error getUserReposts: $e');
+      return [];
+    }
   }
 
   // ============================================================
-  // SECTION 8: STORIES
+  // SECTION 9: STORIES
   // ============================================================
 
   Future<List<NetworkStory>> getActiveStories() async {
@@ -796,27 +646,28 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 9: STORY HIGHLIGHTS
+  // SECTION 10: STORY HIGHLIGHTS
   // ============================================================
 
-  Future<List<Highlight>> getUserHighlights(String userId) async {
-    final response = await _supabase
-        .from('story_highlights')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => Highlight(
-      id: e['id'],
-      name: e['name'],
-      coverImage: e['cover_image'],
-      storyIds: List<String>.from(e['story_ids']),
-      createdAt: DateTime.parse(e['created_at']),
-    )).toList();
+  Future<List<Map<String, dynamic>>> getUserHighlights(String userId) async {
+    try {
+      final response = await _supabase
+          .from('story_highlights')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      
+      return response as List;
+    } catch (e) {
+      debugPrint('Error getUserHighlights: $e');
+      return [];
+    }
   }
 
   Future<void> createHighlight(String name, List<String> storyIds, String? coverImage) async {
     final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
     await _supabase.from('story_highlights').insert({
       'user_id': currentUserId,
       'name': name,
@@ -827,7 +678,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 10: UPLOAD IMAGES & VIDEOS
+  // SECTION 11: UPLOAD IMAGES
   // ============================================================
 
   Future<String?> uploadImage(String filePath, {String bucket = 'post_images'}) async {
@@ -885,13 +736,8 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
     }
   }
 
-  Future<void> createPostWithImages(String content, List<String> imagePaths) async {
-    final imageUrls = await uploadMultipleImages(imagePaths);
-    await createPost(content, imageUrls);
-  }
-
   // ============================================================
-  // SECTION 11: COMMUNAUTÉS
+  // SECTION 12: COMMUNAUTÉS
   // ============================================================
 
   Future<NetworkCommunity> createCommunity({
@@ -924,39 +770,6 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
     });
     
     return NetworkCommunity.fromJson(response);
-  }
-
-  Future<List<NetworkCommunity>> getAllCommunities({int limit = 50}) async {
-    try {
-      final currentUserId = this.currentUserId;
-      
-      final response = await _supabase
-          .from('communities')
-          .select('*')
-          .order('members_count', ascending: false)
-          .limit(limit);
-      
-      final List<NetworkCommunity> communities = [];
-      for (var e in response as List) {
-        final isMemberData = await _supabase
-            .from('community_members')
-            .select('id')
-            .eq('community_id', e['id'])
-            .eq('user_id', currentUserId);
-        
-        final isMember = (isMemberData as List).isNotEmpty;
-        
-        communities.add(NetworkCommunity.fromJson({
-          ...e,
-          'is_member': isMember,
-        }));
-      }
-      
-      return communities;
-    } catch (e) {
-      debugPrint('Error getAllCommunities: $e');
-      return [];
-    }
   }
 
   Future<List<NetworkCommunity>> getSuggestedCommunities({int limit = 10}) async {
@@ -994,65 +807,6 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
     }
   }
 
-  Future<List<NetworkCommunity>> getMyCommunities() async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      final response = await _supabase
-          .from('community_members')
-          .select('community_id')
-          .eq('user_id', currentUserId);
-      
-      final List<NetworkCommunity> communities = [];
-      for (var member in response as List) {
-        final communityData = await _supabase
-            .from('communities')
-            .select('*')
-            .eq('id', member['community_id'])
-            .single();
-        
-        communities.add(NetworkCommunity.fromJson({
-          ...communityData,
-          'is_member': true,
-        }));
-      }
-      
-      return communities;
-    } catch (e) {
-      debugPrint('Error getMyCommunities: $e');
-      return [];
-    }
-  }
-
-  Future<NetworkCommunity?> getCommunityById(String communityId) async {
-    try {
-      final currentUserId = this.currentUserId;
-      
-      final response = await _supabase
-          .from('communities')
-          .select('*')
-          .eq('id', communityId)
-          .single();
-      
-      final isMemberData = await _supabase
-          .from('community_members')
-          .select('id')
-          .eq('community_id', communityId)
-          .eq('user_id', currentUserId);
-      
-      final isMember = (isMemberData as List).isNotEmpty;
-      
-      return NetworkCommunity.fromJson({
-        ...response,
-        'is_member': isMember,
-      });
-    } catch (e) {
-      debugPrint('Error getCommunityById: $e');
-      return null;
-    }
-  }
-
   Future<void> joinCommunity(String communityId) async {
     final currentUserId = this.currentUserId;
     if (currentUserId.isEmpty) return;
@@ -1073,239 +827,8 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
     }
   }
 
-  Future<void> leaveCommunity(String communityId) async {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return;
-    
-    final isAdmin = await _isCommunityAdmin(communityId, currentUserId);
-    if (isAdmin) {
-      throw Exception('Les administrateurs ne peuvent pas quitter la communauté');
-    }
-    
-    await _supabase
-        .from('community_members')
-        .delete()
-        .eq('community_id', communityId)
-        .eq('user_id', currentUserId);
-  }
-
-  Future<bool> _isCommunityAdmin(String communityId, String userId) async {
-    try {
-      final response = await _supabase
-          .from('community_members')
-          .select('role')
-          .eq('community_id', communityId)
-          .eq('user_id', userId);
-      
-      final list = response as List;
-      return list.isNotEmpty && list[0]['role'] == 'admin';
-    } catch (e) {
-      return false;
-    }
-  }
-
   // ============================================================
-  // SECTION 12: CONNEXIONS & SUGGESTIONS
-  // ============================================================
-
-  Future<List<NetworkConnection>> getSuggestedConnections({int limit = 10}) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      final response = await _supabase
-          .from('users')
-          .select('id, display_name, photo_url, profession')
-          .neq('id', currentUserId)
-          .limit(limit);
-      
-      final List<NetworkConnection> suggestions = [];
-      for (var user in response as List) {
-        final mutualData = await _supabase
-            .from('connections')
-            .select('id')
-            .eq('user_id', currentUserId)
-            .eq('connection_id', user['id']);
-        
-        final mutualCount = (mutualData as List).length;
-        
-        suggestions.add(NetworkConnection(
-          id: user['id'],
-          name: user['display_name'] ?? 'Utilisateur',
-          avatar: user['photo_url'],
-          title: user['profession'] ?? 'Membre THIX',
-          mutualConnections: mutualCount,
-        ));
-      }
-      
-      return suggestions;
-    } catch (e) {
-      debugPrint('Error getSuggestedConnections: $e');
-      return [];
-    }
-  }
-
-  Future<void> sendConnectionRequest(String targetUserId) async {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return;
-    
-    await _supabase.from('connection_requests').insert({
-      'sender_id': currentUserId,
-      'receiver_id': targetUserId,
-      'status': 'pending',
-      'created_at': DateTime.now().toIso8601String(),
-    });
-    
-    await _createNotification(
-      userId: targetUserId,
-      type: 'connection',
-    );
-  }
-
-  Future<void> acceptConnectionRequest(String requestId) async {
-    await _supabase
-        .from('connection_requests')
-        .update({'status': 'accepted'})
-        .eq('id', requestId);
-    
-    final request = await _supabase
-        .from('connection_requests')
-        .select('sender_id, receiver_id')
-        .eq('id', requestId)
-        .single();
-    
-    await _supabase.from('connections').insert({
-      'user_id': request['sender_id'],
-      'connection_id': request['receiver_id'],
-      'status': 'accepted',
-      'created_at': DateTime.now().toIso8601String(),
-    });
-  }
-
-  // ============================================================
-  // SECTION 13: MESSAGES PRIVÉS
-  // ============================================================
-
-  Future<List<Conversation>> getConversations() async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      final response = await _supabase
-          .from('messages')
-          .select('''
-            sender_id,
-            receiver_id,
-            content,
-            created_at,
-            is_read,
-            sender:users!messages_sender_id (
-              id, display_name, photo_url
-            ),
-            receiver:users!messages_receiver_id (
-              id, display_name, photo_url
-            )
-          ''')
-          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
-          .order('created_at', ascending: false);
-      
-      final Map<String, Conversation> conversations = {};
-      
-      for (var msg in response as List) {
-        final otherId = msg['sender_id'] == currentUserId 
-            ? msg['receiver_id'] 
-            : msg['sender_id'];
-        
-        final otherUser = msg['sender_id'] == currentUserId
-            ? msg['receiver']
-            : msg['sender'];
-        
-        if (!conversations.containsKey(otherId)) {
-          conversations[otherId] = Conversation(
-            id: otherId,
-            otherUserId: otherId,
-            otherUserName: otherUser?['display_name'] ?? 'Utilisateur',
-            otherUserAvatar: otherUser?['photo_url'],
-            lastMessage: msg['content'],
-            lastMessageAt: DateTime.parse(msg['created_at']),
-            lastMessageIsFromMe: msg['sender_id'] == currentUserId,
-            unreadCount: (msg['is_read'] == false && msg['receiver_id'] == currentUserId) ? 1 : 0,
-          );
-        }
-      }
-      
-      return conversations.values.toList();
-    } catch (e) {
-      debugPrint('Error getConversations: $e');
-      return [];
-    }
-  }
-
-  Future<Map<String, dynamic>> sendMessage(String receiverId, String content) async {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) throw Exception('User not logged in');
-    
-    final response = await _supabase
-        .from('messages')
-        .insert({
-          'sender_id': currentUserId,
-          'receiver_id': receiverId,
-          'content': content,
-          'is_read': false,
-          'created_at': DateTime.now().toIso8601String(),
-        })
-        .select()
-        .single();
-    
-    return {
-      'id': response['id'],
-      'content': response['content'],
-      'is_sent_by_me': true,
-      'created_at': DateTime.parse(response['created_at']),
-    };
-  }
-
-  Future<List<Map<String, dynamic>>> getMessages(String otherUserId) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      final response = await _supabase
-          .from('messages')
-          .select('*')
-          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
-          .or('sender_id.eq.$otherUserId,receiver_id.eq.$otherUserId')
-          .order('created_at', ascending: true);
-      
-      return (response as List).map((e) => ({
-        'id': e['id'],
-        'content': e['content'],
-        'is_sent_by_me': e['sender_id'] == currentUserId,
-        'created_at': DateTime.parse(e['created_at']),
-      })).toList();
-    } catch (e) {
-      debugPrint('Error getMessages: $e');
-      return [];
-    }
-  }
-
-  Future<void> markMessagesAsRead(String otherUserId) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return;
-      
-      await _supabase
-          .from('messages')
-          .update({'is_read': true})
-          .eq('receiver_id', currentUserId)
-          .eq('sender_id', otherUserId);
-    } catch (e) {
-      debugPrint('Error markMessagesAsRead: $e');
-    }
-  }
-
-  // ============================================================
-  // SECTION 14: NOTIFICATIONS
+  // SECTION 13: NOTIFICATIONS
   // ============================================================
 
   Future<List<NetworkNotification>> getNotifications() async {
@@ -1406,7 +929,7 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 15: PROFIL UTILISATEUR
+  // SECTION 14: PROFIL UTILISATEUR
   // ============================================================
 
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
@@ -1489,42 +1012,8 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
   }
 
   // ============================================================
-  // SECTION 16: RECHERCHE
+  // SECTION 15: RECHERCHE
   // ============================================================
-
-  Future<List<NetworkCommunity>> searchCommunities(String query) async {
-    try {
-      final currentUserId = this.currentUserId;
-      
-      final response = await _supabase
-          .from('communities')
-          .select('*')
-          .ilike('name', '%$query%')
-          .order('members_count', ascending: false)
-          .limit(20);
-      
-      final List<NetworkCommunity> communities = [];
-      for (var e in response as List) {
-        final isMemberData = await _supabase
-            .from('community_members')
-            .select('id')
-            .eq('community_id', e['id'])
-            .eq('user_id', currentUserId);
-        
-        final isMember = (isMemberData as List).isNotEmpty;
-        
-        communities.add(NetworkCommunity.fromJson({
-          ...e,
-          'is_member': isMember,
-        }));
-      }
-      
-      return communities;
-    } catch (e) {
-      debugPrint('Error searchCommunities: $e');
-      return [];
-    }
-  }
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
@@ -1541,63 +1030,115 @@ Future<List<NetworkPost>> getUserReposts(String userId) async {
     }
   }
 
-  Future<List<Map<String, dynamic>>> searchPosts(String query) async {
+  // ============================================================
+  // SECTION 16: MESSAGES PRIVÉS (VERSION SIMPLIFIÉE)
+  // ============================================================
+
+  Future<List<Conversation>> getConversations() async {
     try {
-      final response = await _supabase
-          .from('posts')
-          .select('''
-            id, content, created_at,
-            users!user_id (display_name, photo_url)
-          ''')
-          .ilike('content', '%$query%')
-          .order('created_at', ascending: false)
-          .limit(20);
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
-      return (response as List).cast<Map<String, dynamic>>();
+      final response = await _supabase
+          .from('messages')
+          .select('*')
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .order('created_at', ascending: false);
+      
+      final Map<String, Conversation> conversations = {};
+      
+      for (var msg in response as List) {
+        final otherId = msg['sender_id'] == currentUserId 
+            ? msg['receiver_id'] 
+            : msg['sender_id'];
+        
+        if (!conversations.containsKey(otherId)) {
+          final otherUser = await _supabase
+              .from('users')
+              .select('display_name, photo_url')
+              .eq('id', otherId)
+              .single();
+          
+          conversations[otherId] = Conversation(
+            id: otherId,
+            otherUserId: otherId,
+            otherUserName: otherUser['display_name'] ?? 'Utilisateur',
+            otherUserAvatar: otherUser['photo_url'],
+            lastMessage: msg['content'],
+            lastMessageAt: DateTime.parse(msg['created_at']),
+            lastMessageIsFromMe: msg['sender_id'] == currentUserId,
+            unreadCount: (msg['is_read'] == false && msg['receiver_id'] == currentUserId) ? 1 : 0,
+          );
+        }
+      }
+      
+      return conversations.values.toList();
     } catch (e) {
-      debugPrint('Error searchPosts: $e');
+      debugPrint('Error getConversations: $e');
       return [];
     }
   }
 
-  // ============================================================
-  // SECTION 17: ÉVÉNEMENTS
-  // ============================================================
-
-  Future<void> markEventInterest(String eventId) async {
+  Future<Map<String, dynamic>> sendMessage(String receiverId, String content) async {
     final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
     
-    final existing = await _supabase
-        .from('event_interests')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', currentUserId);
+    final response = await _supabase
+        .from('messages')
+        .insert({
+          'sender_id': currentUserId,
+          'receiver_id': receiverId,
+          'content': content,
+          'is_read': false,
+          'created_at': DateTime.now().toIso8601String(),
+        })
+        .select()
+        .single();
     
-    if ((existing as List).isEmpty) {
-      await _supabase.from('event_interests').insert({
-        'event_id': eventId,
-        'user_id': currentUserId,
-        'interested_at': DateTime.now().toIso8601String(),
-      });
+    return {
+      'id': response['id'],
+      'content': response['content'],
+      'is_sent_by_me': true,
+      'created_at': DateTime.parse(response['created_at']),
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getMessages(String otherUserId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
+      
+      final response = await _supabase
+          .from('messages')
+          .select('*')
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .or('sender_id.eq.$otherUserId,receiver_id.eq.$otherUserId')
+          .order('created_at', ascending: true);
+      
+      return (response as List).map((e) => ({
+        'id': e['id'],
+        'content': e['content'],
+        'is_sent_by_me': e['sender_id'] == currentUserId,
+        'created_at': DateTime.parse(e['created_at']),
+      })).toList();
+    } catch (e) {
+      debugPrint('Error getMessages: $e');
+      return [];
     }
   }
 
-  Future<bool> hasEventInterest(String eventId) async {
+  Future<void> markMessagesAsRead(String otherUserId) async {
     try {
       final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return false;
+      if (currentUserId.isEmpty) return;
       
-      final response = await _supabase
-          .from('event_interests')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('user_id', currentUserId);
-      
-      return (response as List).isNotEmpty;
+      await _supabase
+          .from('messages')
+          .update({'is_read': true})
+          .eq('receiver_id', currentUserId)
+          .eq('sender_id', otherUserId);
     } catch (e) {
-      debugPrint('Error hasEventInterest: $e');
-      return false;
+      debugPrint('Error markMessagesAsRead: $e');
     }
   }
 }
