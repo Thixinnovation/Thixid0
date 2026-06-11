@@ -28,7 +28,7 @@ class BreakingNewsWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 child: CachedNetworkImage(
@@ -36,7 +36,16 @@ class BreakingNewsWidget extends StatelessWidget {
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(height: 180, color: Colors.grey[800]),
+                  placeholder: (context, url) => Container(
+                    height: 180,
+                    color: Colors.grey[800],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 180,
+                    color: Colors.grey[800],
+                    child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                  ),
                 ),
               ),
             Padding(
