@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import '../../../services/network_service.dart';
 
 class CreatePostDialog extends StatefulWidget {
@@ -21,15 +21,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   final List<String> _uploadingImages = [];
   bool _isUploading = false;
   String? _errorMessage;
-  
-  late NetworkService _networkService;  // ✅ AJOUTÉ
-
-  @override
-  void initState() {
-    super.initState();
-    // ✅ Créer directement le service
-    _networkService = NetworkService(Supabase.instance.client);
-  }
 
   @override
   void dispose() {
@@ -39,49 +30,31 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
 
   Future<void> _pickImages() async {
     try {
+      print('🔍 Début sélection images');
+      
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: true,
       );
       
+      print('🔍 Résultat: ${result != null}');
+      
       if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          for (final file in result.files) {
-            if (file.path != null) {
+        for (final file in result.files) {
+          if (file.path != null) {
+            print('🔍 Image sélectionnée: ${file.path}');
+            setState(() {
               _selectedImages.add(File(file.path!));
-            }
+            });
           }
-        });
+        }
+        print('🔍 Total images: ${_selectedImages.length}');
+      } else {
+        print('⚠️ Aucune image sélectionnée');
       }
     } catch (e) {
-      debugPrint('Error picking images: $e');
+      print('❌ Error picking images: $e');
       _showError('Impossible de charger les images');
-    }
-  }
-
-  Future<void> _pickCamera() async {
-    _showError('Fonctionnalité caméra à venir. Utilisez "Ajouter des images" pour l\'instant');
-  }
-
-  Future<void> _pickFile() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: true,
-      );
-      
-      if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          for (final file in result.files) {
-            if (file.path != null) {
-              _selectedImages.add(File(file.path!));
-            }
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking files: $e');
-      _showError('Impossible de charger les fichiers');
     }
   }
 
@@ -111,7 +84,8 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     });
     
     try {
-      // Upload des images vers Supabase Storage
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      
       List<String> imageUrls = [];
       
       for (int i = 0; i < _selectedImages.length; i++) {
@@ -120,7 +94,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
           _uploadingImages.add('Image ${i + 1}');
         });
         
-        final url = await _networkService.uploadImage(image.path);
+        print('🔍 Upload image ${i + 1}: ${image.path}');
+        final url = await networkService.uploadImage(image.path);
+        print('🔍 URL retournée: $url');
+        
         if (url != null) {
           imageUrls.add(url);
         } else {
@@ -132,15 +109,14 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         });
       }
       
-      // Créer le post
       if (widget.communityId != null) {
-        await _networkService.createCommunityPost(
+        await networkService.createCommunityPost(
           communityId: widget.communityId!,
           content: _contentController.text.trim(),
           images: imageUrls,
         );
       } else {
-        await _networkService.createPost(
+        await networkService.createPost(
           _contentController.text.trim(),
           imageUrls,
         );
@@ -153,6 +129,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      print('❌ Erreur submit: $e');
       setState(() {
         _errorMessage = 'Erreur: $e';
         _isUploading = false;
@@ -182,7 +159,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
-                  tooltip: 'Fermer',
                 ),
               ],
             ),
@@ -313,16 +289,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   icon: const Icon(Icons.photo_library, color: Colors.green),
                   onPressed: _isUploading ? null : _pickImages,
                   tooltip: 'Ajouter des images',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.camera_alt, color: Colors.orange),
-                  onPressed: _isUploading ? null : _pickCamera,
-                  tooltip: 'Prendre une photo (bientôt disponible)',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.attach_file, color: Colors.blue),
-                  onPressed: _isUploading ? null : _pickFile,
-                  tooltip: 'Ajouter des fichiers',
                 ),
                 const Spacer(),
                 TextButton(
