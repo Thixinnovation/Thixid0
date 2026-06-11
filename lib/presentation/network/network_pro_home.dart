@@ -10,13 +10,6 @@ import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/models/network_connection.dart';
 import 'package:thix_id/models/network_community.dart';
 import 'package:thix_id/models/story.dart';
-import 'widgets/profile_header_card.dart';
-import 'widgets/stats_row.dart';
-import 'widgets/stories_list.dart';
-import 'widgets/post_card.dart';
-import 'widgets/suggestions_list.dart';
-import 'widgets/communities_list.dart';
-import 'widgets/recommendations_ia.dart';
 import 'widgets/create_post_dialog.dart';
 import 'widgets/edit_profile_dialog.dart';
 import 'widgets/create_story_dialog.dart';
@@ -29,8 +22,6 @@ class NetworkProHome extends StatefulWidget {
 }
 
 class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStateMixin {
-  late NetworkService _networkService;
-  late final SupabaseClient _supabase;
   late AnimationController _likeAnimationController;
   late AnimationController _fabAnimationController;
   
@@ -65,8 +56,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     );
     _fabAnimationController.repeat(reverse: true);
     
-    _supabase = Supabase.instance.client;
-    _networkService = NetworkService(_supabase);
     _loadAllData();
     _setupRealtimeSubscriptions();
   }
@@ -79,7 +68,9 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   }
 
   void _setupRealtimeSubscriptions() {
-    _supabase.channel('public:posts')
+    final supabase = Supabase.instance.client;
+    
+    supabase.channel('public:posts')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -90,7 +81,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
         )
         .subscribe();
 
-    _supabase.channel('public:stories')
+    supabase.channel('public:stories')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -101,9 +92,9 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
         )
         .subscribe();
 
-    final userId = _supabase.auth.currentUser?.id;
+    final userId = supabase.auth.currentUser?.id;
     if (userId != null) {
-      _supabase.channel('public:notifications:$userId')
+      supabase.channel('public:notifications:$userId')
           .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
@@ -122,38 +113,47 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       _loadSuggestions(),
       _loadCommunities(),
       _loadStories(),
+      _loadUnreadCount(),
     ]);
   }
 
   Future<void> _loadPosts() async {
+    if (!mounted) return;
     setState(() => _loadingPosts = true);
+    
     try {
+      final networkService = Provider.of<NetworkService>(context, listen: false);
       late List<NetworkPost> posts;
       
       switch (_feedType) {
         case 'smart':
-          posts = await _networkService.getSmartFeed();
+          posts = await networkService.getSmartFeed(limit: 20);
           break;
         case 'popular':
           posts = await _getPopularFeed();
           break;
         default:
-          posts = await _networkService.getFeedPosts();
+          posts = await networkService.getFeedPosts(limit: 20);
       }
       
-      setState(() {
-        _posts = posts;
-        _loadingPosts = false;
-      });
+      if (mounted) {
+        setState(() {
+          _posts = posts;
+          _loadingPosts = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading posts: $e');
-      setState(() => _loadingPosts = false);
+      if (mounted) {
+        setState(() => _loadingPosts = false);
+      }
     }
   }
 
   Future<List<NetworkPost>> _getPopularFeed() async {
     try {
-      final posts = await _networkService.getFeedPosts(limit: 50);
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final posts = await networkService.getFeedPosts(limit: 50);
       posts.sort((a, b) => b.likesCount.compareTo(a.likesCount));
       return posts.take(20).toList();
     } catch (e) {
@@ -162,62 +162,87 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   }
 
   Future<void> _loadSuggestions() async {
+    if (!mounted) return;
     setState(() => _loadingSuggestions = true);
+    
     try {
-      final suggestions = await _networkService.getSuggestedConnections(limit: 6);
-      setState(() {
-        _suggestions = suggestions;
-        _loadingSuggestions = false;
-      });
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final suggestions = await networkService.getSuggestedConnections(limit: 6);
+      if (mounted) {
+        setState(() {
+          _suggestions = suggestions;
+          _loadingSuggestions = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loadingSuggestions = false);
+      debugPrint('Error loading suggestions: $e');
+      if (mounted) {
+        setState(() => _loadingSuggestions = false);
+      }
     }
   }
 
   Future<void> _loadCommunities() async {
+    if (!mounted) return;
     setState(() => _loadingCommunities = true);
+    
     try {
-      final communities = await _networkService.getSuggestedCommunities(limit: 6);
-      setState(() {
-        _communities = communities;
-        _loadingCommunities = false;
-      });
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final communities = await networkService.getSuggestedCommunities(limit: 6);
+      if (mounted) {
+        setState(() {
+          _communities = communities;
+          _loadingCommunities = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loadingCommunities = false);
+      debugPrint('Error loading communities: $e');
+      if (mounted) {
+        setState(() => _loadingCommunities = false);
+      }
     }
   }
 
   Future<void> _loadStories() async {
+    if (!mounted) return;
     setState(() => _loadingStories = true);
+    
     try {
-      final networkStories = await _networkService.getActiveStories();
-      setState(() {
-        _stories = networkStories.map((networkStory) => Story(
-          id: networkStory.id,
-          userId: networkStory.userId,
-          userName: networkStory.userName,
-          userAvatar: networkStory.userAvatar,
-          userProfession: networkStory.userTitle,
-          mediaUrl: networkStory.imageUrl,
-          mediaType: 'image',
-          content: null,
-          createdAt: networkStory.createdAt,
-          expiresAt: networkStory.expiresAt,
-          isActive: networkStory.isActive,
-          isViewed: networkStory.isViewed,
-          viewsCount: 0,
-        )).toList();
-        _loadingStories = false;
-      });
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final networkStories = await networkService.getActiveStories();
+      if (mounted) {
+        setState(() {
+          _stories = networkStories.map((networkStory) => Story(
+            id: networkStory.id,
+            userId: networkStory.userId,
+            userName: networkStory.userName,
+            userAvatar: networkStory.userAvatar,
+            userProfession: networkStory.userTitle,
+            mediaUrl: networkStory.imageUrl,
+            mediaType: 'image',
+            content: null,
+            createdAt: networkStory.createdAt,
+            expiresAt: networkStory.expiresAt,
+            isActive: networkStory.isActive,
+            isViewed: networkStory.isViewed,
+            viewsCount: 0,
+          )).toList();
+          _loadingStories = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loadingStories = false);
+      debugPrint('Error loading stories: $e');
+      if (mounted) {
+        setState(() => _loadingStories = false);
+      }
     }
   }
 
   Future<void> _loadUnreadCount() async {
     try {
-      final unreadNotifications = await _networkService.getUnreadNotificationsCount();
-      final unreadMessages = await _networkService.getUnreadMessagesCount();
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      final unreadNotifications = await networkService.getUnreadNotificationsCount();
+      final unreadMessages = await networkService.getUnreadMessagesCount();
       
       if (mounted) {
         setState(() {
@@ -235,7 +260,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     setState(() => _isRefreshing = true);
     HapticFeedback.lightImpact();
     await _loadAllData();
-    await _loadUnreadCount();
     setState(() => _isRefreshing = false);
   }
 
@@ -243,9 +267,11 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     HapticFeedback.mediumImpact();
     showDialog(
       context: context,
-      builder: (_) => const CreatePostDialog(),
+      builder: (context) => const CreatePostDialog(),
     ).then((refresh) {
-      if (refresh == true) _loadPosts();
+      if (refresh == true && mounted) {
+        _loadPosts();
+      }
     });
   }
 
@@ -266,12 +292,12 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
 
     final result = await showDialog(
       context: context,
-      builder: (_) => const EditProfileDialog(
-        userId: '',
-        currentName: '',
-        currentTitle: '',
-        currentBio: '',
-        currentAvatarUrl: '',
+      builder: (_) => EditProfileDialog(
+        userId: user.id,
+        currentName: user.displayName ?? '',
+        currentTitle: user.profession ?? '',
+        currentBio: user.bio ?? '',
+        currentAvatarUrl: user.photoUrl ?? '',
         currentSkills: [],
       ),
     );
@@ -327,8 +353,8 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     context.push('/network/story/$storyId');
   }
 
-  void _likePost(NetworkPost post, int index) async {
-    final userId = _supabase.auth.currentUser?.id;
+  Future<void> _likePost(NetworkPost post, int index) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
     
     _likeAnimationController.forward(from: 0.0);
@@ -344,19 +370,45 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     });
     
     try {
+      final networkService = Provider.of<NetworkService>(context, listen: false);
       if (post.isLikedByCurrentUser) {
-        await _networkService.unlikePost(post.id);
+        await networkService.unlikePost(post.id);
       } else {
-        await _networkService.likePost(post.id);
+        await networkService.likePost(post.id);
       }
     } catch (e) {
       final revertedPost = post.copyWith(
         likesCount: post.likesCount,
         isLikedByCurrentUser: post.isLikedByCurrentUser,
       );
-      setState(() {
-        _posts[index] = revertedPost;
-      });
+      if (mounted) {
+        setState(() {
+          _posts[index] = revertedPost;
+        });
+      }
+    }
+  }
+
+  Future<void> _savePost(String postId) async {
+    try {
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      await networkService.savePost(postId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publication sauvegardée'), duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving post: $e');
+    }
+  }
+
+  Future<void> _sharePost(String postId) async {
+    try {
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      await networkService.sharePost(postId);
+    } catch (e) {
+      debugPrint('Error sharing post: $e');
     }
   }
 
@@ -369,7 +421,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -413,16 +465,16 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                   child: ElevatedButton(
                     onPressed: () async {
                       if (commentController.text.trim().isNotEmpty) {
-                        await _networkService.addComment(post.id, commentController.text.trim());
+                        final networkService = Provider.of<NetworkService>(context, listen: false);
+                        await networkService.addComment(post.id, commentController.text.trim());
                         
                         final updatedPost = post.copyWith(
                           commentsCount: post.commentsCount + 1,
                         );
-                        setState(() {
-                          _posts[postIndex] = updatedPost;
-                        });
-                        
                         if (mounted) {
+                          setState(() {
+                            _posts[postIndex] = updatedPost;
+                          });
                           Navigator.pop(context);
                         }
                       }
@@ -441,6 +493,20 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
         ),
       ),
     );
+  }
+
+  Future<void> _sendConnectionRequest(String userId) async {
+    try {
+      final networkService = Provider.of<NetworkService>(context, listen: false);
+      await networkService.sendConnectionRequest(userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande de connexion envoyée'), duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending connection request: $e');
+    }
   }
 
   @override
@@ -468,35 +534,38 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          CustomScrollView(
-            controller: ScrollController(),
-            slivers: [
-              SliverToBoxAdapter(child: _buildModernHeader()),
-              SliverToBoxAdapter(child: _buildStoriesSection()),
-              SliverToBoxAdapter(child: _buildFilterChips()),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              
-              if (_loadingPosts)
-                const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-              else if (_posts.isEmpty)
-                SliverToBoxAdapter(child: _buildEmptyState())
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildModernPostCard(_posts[index], index),
-                    childCount: _posts.length,
+          RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: CustomScrollView(
+              controller: ScrollController(),
+              slivers: [
+                SliverToBoxAdapter(child: _buildModernHeader(auth)),
+                SliverToBoxAdapter(child: _buildStoriesSection()),
+                SliverToBoxAdapter(child: _buildFilterChips()),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                
+                if (_loadingPosts)
+                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+                else if (_posts.isEmpty)
+                  SliverToBoxAdapter(child: _buildEmptyState())
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildModernPostCard(_posts[index], index),
+                      childCount: _posts.length,
+                    ),
                   ),
-                ),
-              
-              if (!_loadingSuggestions && _suggestions.isNotEmpty)
-                SliverToBoxAdapter(child: _buildSuggestionsSection()),
-              
-              if (!_loadingCommunities && _communities.isNotEmpty)
-                SliverToBoxAdapter(child: _buildCommunitiesSection()),
-              
-              SliverToBoxAdapter(child: _buildIARecommendations()),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+                
+                if (!_loadingSuggestions && _suggestions.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildSuggestionsSection()),
+                
+                if (!_loadingCommunities && _communities.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildCommunitiesSection()),
+                
+                SliverToBoxAdapter(child: _buildIARecommendations()),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              ],
+            ),
           ),
           
           Positioned(bottom: 0, left: 0, right: 0, child: _buildModernBottomNav()),
@@ -506,16 +575,15 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     );
   }
 
-  Widget _buildModernHeader() {
-    final auth = Provider.of<AuthController>(context);
+  Widget _buildModernHeader(AuthController auth) {
     final user = auth.currentUser;
     
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
+          colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)],
         ),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
@@ -537,7 +605,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                     child: const Text('THIX', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                   const Spacer(),
-                  _buildIconButton(Icons.search, () => _goToSearch()),
+                  _buildIconButton(Icons.search, _goToSearch),
                   const SizedBox(width: 8),
                   _buildIconButton(Icons.notifications_outlined, _showNotifications, count: _unreadNotifications),
                   const SizedBox(width: 8),
@@ -598,9 +666,9 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatItem('Connexions', '0'),
+                  _buildStatItem('Connexions', _suggestions.length.toString()),
                   _buildStatItem('Publications', _posts.length.toString()),
-                  _buildStatItem('Communautés', '0'),
+                  _buildStatItem('Communautés', _communities.length.toString()),
                   _buildStatItem('Messages', _unreadMessages.toString()),
                 ],
               ),
@@ -672,18 +740,24 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 90,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _stories.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return _buildAddStoryButton();
-                return _buildStoryItem(_stories[index - 1]);
-              },
+          if (_loadingStories)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            SizedBox(
+              height: 90,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _stories.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) return _buildAddStoryButton();
+                  return _buildStoryItem(_stories[index - 1]);
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -777,7 +851,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 children: [
                   Icon(filter['icon'] as IconData, size: 16, color: isSelected ? const Color(0xFFD4AF37) : Colors.grey),
                   const SizedBox(width: 6),
-                  Text(filter['label'] as String, style: TextStyle(fontSize: 13)),
+                  Text(filter['label'] as String, style: const TextStyle(fontSize: 13)),
                 ],
               ),
               onSelected: (selected) {
@@ -841,6 +915,11 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                     const PopupMenuItem(value: 'save', child: Text('Sauvegarder')),
                     const PopupMenuItem(value: 'report', child: Text('Signaler')),
                   ],
+                  onSelected: (value) {
+                    if (value == 'save') {
+                      _savePost(post.id);
+                    }
+                  },
                 ),
               ],
             ),
@@ -855,7 +934,18 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               padding: const EdgeInsets.only(top: 12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(post.mediaUrl!, width: double.infinity, fit: BoxFit.cover),
+                child: Image.network(
+                  post.mediaUrl!,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      color: Colors.grey[200],
+                      child: const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey)),
+                    );
+                  },
+                ),
               ),
             ),
           Padding(
@@ -878,13 +968,13 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 _buildPostAction(
                   icon: Icons.bookmark_border,
                   label: '',
-                  onTap: () => _networkService.savePost(post.id),
+                  onTap: () => _savePost(post.id),
                 ),
                 const SizedBox(width: 16),
                 _buildPostAction(
                   icon: Icons.share_outlined,
                   label: '',
-                  onTap: () async => _networkService.sharePost(post.id),
+                  onTap: () => _sharePost(post.id),
                 ),
               ],
             ),
@@ -921,7 +1011,10 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Suggestions pour vous', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                TextButton(onPressed: () {}, child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12))),
+                TextButton(
+                  onPressed: _goToConnexions,
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
               ],
             ),
           ),
@@ -948,13 +1041,17 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                       Text(suggestion.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       GestureDetector(
-                        onTap: () => _networkService.sendConnectionRequest(suggestion.id),
+                        onTap: () => _sendConnectionRequest(suggestion.id),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [Icon(Icons.person_add, size: 10, color: Color(0xFFD4AF37)), SizedBox(width: 2), Text('+', style: TextStyle(fontSize: 10, color: Color(0xFFD4AF37)))],
+                            children: [
+                              Icon(Icons.person_add, size: 10, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 2),
+                              Text('+', style: TextStyle(fontSize: 10, color: Color(0xFFD4AF37))),
+                            ],
                           ),
                         ),
                       ),
@@ -981,7 +1078,10 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Communautés populaires', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                TextButton(onPressed: () {}, child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12))),
+                TextButton(
+                  onPressed: _goToGroups,
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
               ],
             ),
           ),
@@ -1029,9 +1129,18 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildIAItem(Icons.people, '9', 'Personnes'),
-          _buildIAItem(Icons.work, '3', 'Opportunités'),
-          _buildIAItem(Icons.groups, '5', 'Communautés'),
+          GestureDetector(
+            onTap: _goToConnexions,
+            child: _buildIAItem(Icons.people, _suggestions.length.toString(), 'Personnes'),
+          ),
+          GestureDetector(
+            onTap: _goToOpportunities,
+            child: _buildIAItem(Icons.work, '3', 'Opportunités'),
+          ),
+          GestureDetector(
+            onTap: _goToGroups,
+            child: _buildIAItem(Icons.groups, _communities.length.toString(), 'Communautés'),
+          ),
         ],
       ),
     );
@@ -1103,11 +1212,21 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
           setState(() => _selectedNavIndex = index);
           HapticFeedback.lightImpact();
           switch (index) {
-            case 0: break;
-            case 1: _goToConnexions(); break;
-            case 2: _showCreatePostDialog(); break;
-            case 3: _goToMessages(); break;
-            case 4: break;
+            case 0:
+              // Accueil - déjà sur cette page
+              break;
+            case 1:
+              _goToConnexions();
+              break;
+            case 2:
+              _showCreatePostDialog();
+              break;
+            case 3:
+              _goToMessages();
+              break;
+            case 4:
+              // Profil - déjà sur cette page
+              break;
           }
         },
         items: const [
