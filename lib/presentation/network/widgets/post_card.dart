@@ -14,6 +14,7 @@ class PostCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onShare;
   final VoidCallback? onRefresh;
+  final VoidCallback? onPin;  // NOUVEAU
 
   const PostCard({
     super.key,
@@ -23,28 +24,40 @@ class PostCard extends StatefulWidget {
     required this.onTap,
     required this.onShare,
     this.onRefresh,
+    this.onPin,
   });
 
   @override
   State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> {
+class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin {
   late NetworkService _networkService;
   late NetworkPost _post;
+  late AnimationController _likeAnimationController;
+  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
     _networkService = NetworkService(Supabase.instance.client);
     _post = widget.post;
+    _likeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _likeAnimationController.dispose();
+    super.dispose();
   }
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
     
-    // CORRIGÉ : utilisation de >= au lieu de >
     if (difference.inDays > 7) {
       return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
     } else if (difference.inDays >= 1) {
@@ -55,6 +68,24 @@ class _PostCardState extends State<PostCard> {
       return 'il y a ${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''}';
     } else {
       return 'à l\'instant';
+    }
+  }
+
+  Future<void> _pinPost() async {
+    try {
+      await _networkService.pinPost(_post.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post épinglé sur votre profil'), backgroundColor: Colors.green),
+        );
+        widget.onRefresh?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -121,10 +152,26 @@ class _PostCardState extends State<PostCard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(onTap: () => Navigator.pop(context, 'Spam'), title: const Text('Spam'), leading: const Icon(Icons.warning)),
-            ListTile(onTap: () => Navigator.pop(context, 'Contenu inapproprié'), title: const Text('Contenu inapproprié'), leading: const Icon(Icons.block)),
-            ListTile(onTap: () => Navigator.pop(context, 'Harcèlement'), title: const Text('Harcèlement'), leading: const Icon(Icons.person_off)),
-            ListTile(onTap: () => Navigator.pop(context, 'Fausse information'), title: const Text('Fausse information'), leading: const Icon(Icons.info_outline)),
+            ListTile(
+              leading: const Icon(Icons.warning, color: Colors.orange),
+              title: const Text('Spam'),
+              onTap: () => Navigator.pop(context, 'Spam'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: Colors.red),
+              title: const Text('Contenu inapproprié'),
+              onTap: () => Navigator.pop(context, 'Contenu inapproprié'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_off, color: Colors.purple),
+              title: const Text('Harcèlement'),
+              onTap: () => Navigator.pop(context, 'Harcèlement'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.blue),
+              title: const Text('Fausse information'),
+              onTap: () => Navigator.pop(context, 'Fausse information'),
+            ),
           ],
         ),
       ),
@@ -202,245 +249,291 @@ class _PostCardState extends State<PostCard> {
     final hasUserTitle = _post.authorTitle != null && _post.authorTitle!.isNotEmpty;
     final hasImage = _post.mediaUrl != null && _post.mediaUrl!.isNotEmpty;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () {
-          print('🔍 Clic sur le post ID: ${_post.id}');
-          widget.onTap();
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: _post.authorAvatar != null && _post.authorAvatar!.isNotEmpty
-                        ? NetworkImage(_post.authorAvatar!)
-                        : null,
-                    child: _post.authorAvatar == null || _post.authorAvatar!.isEmpty
-                        ? const Icon(Icons.person, size: 20)
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _post.authorName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (hasUserTitle)
-                          Text(
-                            _post.authorTitle!,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        elevation: _isPressed ? 0 : 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: InkWell(
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          onTap: () {
+            print('🔍 Clic sur le post ID: ${_post.id}');
+            widget.onTap();
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _post.authorAvatar != null && _post.authorAvatar!.isNotEmpty
+                          ? NetworkImage(_post.authorAvatar!)
+                          : null,
+                      child: _post.authorAvatar == null || _post.authorAvatar!.isEmpty
+                          ? const Icon(Icons.person, size: 20)
+                          : null,
                     ),
-                  ),
-                  Text(
-                    _getTimeAgo(_post.createdAt),
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 8),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 18),
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _editPost();
-                          break;
-                        case 'delete':
-                          _deletePost();
-                          break;
-                        case 'hide':
-                          _hidePost();
-                          break;
-                        case 'report':
-                          _reportPost();
-                          break;
-                        case 'share':
-                          widget.onShare();
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (isOwner) 
-                        const PopupMenuItem<String>(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 18),
-                              SizedBox(width: 8),
-                              Text('Modifier'),
-                            ],
-                          ),
-                        ),
-                      if (isOwner) 
-                        const PopupMenuItem<String>(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 18, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Supprimer', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      const PopupMenuItem<String>(
-                        value: 'hide',
-                        child: Row(
-                          children: [
-                            Icon(Icons.visibility_off, size: 18),
-                            SizedBox(width: 8),
-                            Text('Masquer'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: 'report',
-                        child: Row(
-                          children: [
-                            Icon(Icons.flag, size: 18),
-                            SizedBox(width: 8),
-                            Text('Signaler'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: 'share',
-                        child: Row(
-                          children: [
-                            Icon(Icons.share, size: 18),
-                            SizedBox(width: 8),
-                            Text('Partager'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Contenu
-              if (_post.content != null && _post.content!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _post.content!,
-                    style: const TextStyle(fontSize: 14, height: 1.4),
-                  ),
-                ),
-              
-              // Image unique avec NetworkImage
-              if (hasImage)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    _post.mediaUrl!,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 200,
-                        color: Colors.grey.shade200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 200,
-                      color: Colors.grey.shade200,
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                          SizedBox(height: 8),
-                          Text('Image non disponible', style: TextStyle(color: Colors.grey)),
+                          Row(
+                            children: [
+                              Text(
+                                _post.authorName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (_post.isPinned) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFD4AF37).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.push_pin, size: 10, color: Color(0xFFD4AF37)),
+                                      SizedBox(width: 2),
+                                      Text('Épinglé', style: TextStyle(fontSize: 9, color: Color(0xFFD4AF37))),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (hasUserTitle)
+                            Text(
+                              _post.authorTitle!,
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              
-              if (hasImage) const SizedBox(height: 12),
-
-              // Actions
-              Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      widget.onLike();
-                      setState(() {
-                        if (_post.isLikedByCurrentUser) {
-                          _post = _post.copyWith(
-                            likesCount: _post.likesCount - 1,
-                            isLikedByCurrentUser: false,
-                          );
-                        } else {
-                          _post = _post.copyWith(
-                            likesCount: _post.likesCount + 1,
-                            isLikedByCurrentUser: true,
-                          );
+                    Text(
+                      _getTimeAgo(_post.createdAt),
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 18),
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _editPost();
+                            break;
+                          case 'pin':
+                            _pinPost();
+                            break;
+                          case 'delete':
+                            _deletePost();
+                            break;
+                          case 'hide':
+                            _hidePost();
+                            break;
+                          case 'report':
+                            _reportPost();
+                            break;
+                          case 'share':
+                            widget.onShare();
+                            break;
                         }
-                      });
-                    },
-                    child: Row(
-                      children: [
-                        Icon(
-                          _post.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
-                          color: _post.isLikedByCurrentUser ? Colors.red : Colors.grey,
-                          size: 20,
+                      },
+                      itemBuilder: (context) => [
+                        if (isOwner) ...[
+                          const PopupMenuItem<String>(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(width: 8),
+                                Text('Modifier'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'pin',
+                            child: Row(
+                              children: [
+                                Icon(Icons.push_pin, size: 18, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 8),
+                                Text('Épingler sur le profil'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 18, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Supprimer', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const PopupMenuItem<String>(
+                          value: 'hide',
+                          child: Row(
+                            children: [
+                              Icon(Icons.visibility_off, size: 18),
+                              SizedBox(width: 8),
+                              Text('Masquer'),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        Text(_formatCount(_post.likesCount), style: const TextStyle(fontSize: 12)),
+                        const PopupMenuItem<String>(
+                          value: 'report',
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag, size: 18),
+                              SizedBox(width: 8),
+                              Text('Signaler'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'share',
+                          child: Row(
+                            children: [
+                              Icon(Icons.share, size: 18),
+                              SizedBox(width: 8),
+                              Text('Partager'),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  InkWell(
-                    onTap: widget.onComment,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(_formatCount(_post.commentsCount), style: const TextStyle(fontSize: 12)),
-                      ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Contenu
+                if (_post.content != null && _post.content!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      _post.content!,
+                      style: const TextStyle(fontSize: 14, height: 1.4),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  InkWell(
-                    onTap: widget.onShare,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.share, size: 20, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text('Partager', style: TextStyle(fontSize: 12)),
-                      ],
+                
+                // Image unique avec animation
+                if (hasImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      _post.mediaUrl!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 200,
+                          color: Colors.grey.shade200,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 200,
+                        color: Colors.grey.shade200,
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text('Image non disponible', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ],
+                
+                if (hasImage) const SizedBox(height: 12),
+
+                // Actions avec animation like
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        _likeAnimationController.forward(from: 0.0);
+                        widget.onLike();
+                        setState(() {
+                          if (_post.isLikedByCurrentUser) {
+                            _post = _post.copyWith(
+                              likesCount: _post.likesCount - 1,
+                              isLikedByCurrentUser: false,
+                            );
+                          } else {
+                            _post = _post.copyWith(
+                              likesCount: _post.likesCount + 1,
+                              isLikedByCurrentUser: true,
+                            );
+                          }
+                        });
+                      },
+                      child: Row(
+                        children: [
+                          ScaleTransition(
+                            scale: _likeAnimationController,
+                            child: Icon(
+                              _post.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
+                              color: _post.isLikedByCurrentUser ? Colors.red : Colors.grey,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(_formatCount(_post.likesCount), style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    InkWell(
+                      onTap: widget.onComment,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(_formatCount(_post.commentsCount), style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    InkWell(
+                      onTap: widget.onShare,
+                      child: const Row(
+                        children: [
+                          Icon(Icons.share, size: 20, color: Colors.grey),
+                          SizedBox(width: 4),
+                          Text('Partager', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
