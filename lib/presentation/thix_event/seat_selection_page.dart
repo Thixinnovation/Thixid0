@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../providers/event_provider.dart';
-import '../../../services/event_seat_service.dart';
-import '../../../models/event_seat.dart';
-import 'widgets/seat_map_widget.dart';
-import 'widgets/seat_legend.dart';
+import '../../providers/event_provider.dart';
+import '../../models/event_model.dart';
+import '../../models/event_seat.dart';
+import '../../services/event_seat_service.dart';
+import 'event_reservation_page.dart';
 
 class SeatSelectionPage extends StatefulWidget {
   final String eventId;
@@ -123,14 +123,10 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                   ),
                 ),
                 // Légende
-                const SeatLegend(),
+                _buildLegend(),
                 // Plan de salle
                 Expanded(
-                  child: SeatMapWidget(
-                    seats: _seats,
-                    selectedSeats: _selectedSeats,
-                    onSeatTap: _onSeatSelected,
-                  ),
+                  child: _buildSeatMap(),
                 ),
                 // Résumé et validation
                 Container(
@@ -173,6 +169,144 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: [
+          _legendItem(Colors.green, 'Disponible'),
+          _legendItem(const Color(0xFFD4AF37), 'Sélectionnée'),
+          _legendItem(Colors.orange, 'Réservée (15min)'),
+          _legendItem(Colors.red, 'Vendue'),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            border: Border.all(color: color, width: 1.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 10)),
+      ],
+    );
+  }
+
+  Widget _buildSeatMap() {
+    // Grouper les places par rangée
+    final Map<String, List<EventSeat>> rows = {};
+    for (var seat in _seats) {
+      rows.putIfAbsent(seat.row, () => []).add(seat);
+    }
+
+    final sortedRows = rows.keys.toList()..sort();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Scène
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Text('SCÈNE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            ),
+          ),
+          // Plan des places
+          for (var row in sortedRows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      row,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: rows[row]!.map((seat) {
+                        final isSelected = _selectedSeats.contains(seat);
+                        final isAvailable = seat.isAvailable;
+                        final isReserved = seat.isReserved;
+                        final isSold = seat.isSold;
+                        
+                        Color seatColor;
+                        if (isSelected) seatColor = const Color(0xFFD4AF37);
+                        else if (isSold) seatColor = Colors.red;
+                        else if (isReserved) seatColor = Colors.orange;
+                        else seatColor = Colors.green;
+                        
+                        return GestureDetector(
+                          onTap: isAvailable || isSelected ? () => _onSeatSelected(seat) : null,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: seatColor.withOpacity(0.15),
+                              border: Border.all(color: seatColor, width: 1.5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Center(
+                              child: Text(
+                                seat.number.toString(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: seatColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Couloir central
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            height: 20,
+            color: Colors.grey[200],
+            child: const Center(
+              child: Text('COULOIR', style: TextStyle(fontSize: 10, color: Colors.grey)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
