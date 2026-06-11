@@ -13,7 +13,7 @@ class NewsService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ============================================================
-  // LECTURE DES ARTICLES
+  // LECTURE DES ARTICLES - CORRIGÉ
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
@@ -22,6 +22,7 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
+      // ✅ CORRECTION : Ne pas typer la variable comme PostgrestFilterBuilder
       var query = _supabase
           .from('news_articles')
           .select('*')
