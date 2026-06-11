@@ -727,7 +727,25 @@ Future<void> createHighlight(String name, List<String> storyIds, String? coverIm
     
     await _supabase.from('communities').delete().eq('id', communityId);
   }
+Future<void> repost(String originalPostId, String? quote) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('reposts').insert({
+    'original_post_id': originalPostId,
+    'user_id': currentUserId,
+    'quote': quote,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+}
 
+Future<List<Repost>> getUserReposts(String userId) async {
+  final response = await _supabase
+      .from('reposts')
+      .select('*, post:original_post_id(*)')
+      .eq('user_id', userId)
+      .order('created_at', ascending: false);
+  
+  return (response as List).map((e) => Repost.fromJson(e)).toList();
+}
   // ==================== MEMBRES ====================
 
   Future<void> joinCommunity(String communityId) async {
