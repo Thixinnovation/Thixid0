@@ -17,55 +17,99 @@ class NewsService {
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
-  String? category,
-  int limit = 50,
-  bool onlyPublished = true,
-}) async {
-  try {
-    var query = _supabase
-        .from('news_articles')
-        .select('*');
+    String? category,
+    int limit = 50,
+    bool onlyPublished = true,
+  }) async {
+    try {
+      // ✅ SOLUTION : Construire la requête avec des Map pour les filtres
+      Map<String, dynamic> filters = {};
+      
+      if (onlyPublished) {
+        filters['status'] = 'published';
+      }
+      if (category != null && category != 'featured') {
+        filters['category'] = category;
+      }
+      if (category == 'featured') {
+        filters['is_featured'] = true;
+      }
 
-    if (onlyPublished) {
-      query = query.eq('status', 'published');
-    }
+      // Exécuter la requête
+      final response = await _supabase
+          .from('news_articles')
+          .select('*')
+          .order('published_at', ascending: false)
+          .limit(limit)
+          .match(filters);  // ← Utiliser match() au lieu de eq() multiple
 
-    if (category != null && category != 'featured') {
-      query = query.eq('category', category);
-    }
-
-    if (category == 'featured') {
-      query = query.eq('is_featured', true);
-    }
-
-    final response = await query
-        .order('published_at', ascending: false)
-        .limit(limit);
-
-    final articles = <NewsArticle>[];
-
-    for (final e in response) {
-      final isLiked = await _isArticleLiked(e['id']);
-      final isSaved = await _isArticleSaved(e['id']);
-
-      articles.add(
-        NewsArticle.fromJson({
+      final articles = <NewsArticle>[];
+      
+      for (var e in response as List) {
+        final isLiked = await _isArticleLiked(e['id']);
+        final isSaved = await _isArticleSaved(e['id']);
+        
+        articles.add(NewsArticle.fromJson({
           ...e,
           'is_liked': isLiked,
           'is_saved': isSaved,
-        }),
-      );
+        }));
+      }
+      
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getArticles: $e');
+      return [];
     }
-
-    return articles;
-  } catch (e) {
-    debugPrint('❌ Error getArticles: $e');
-    return [];
   }
-}
+
+  // Alternative avec filter() si match() ne fonctionne pas
+  Future<List<NewsArticle>> getArticlesAlt({
+    String? category,
+    int limit = 50,
+    bool onlyPublished = true,
+  }) async {
+    try {
+      var query = _supabase
+          .from('news_articles')
+          .select('*')
+          .order('published_at', ascending: false)
+          .limit(limit);
+
+      // Appliquer les filtres un par un avec filter()
+      if (onlyPublished) {
+        query = query.filter('status', 'eq', 'published');
+      }
+      if (category != null && category != 'featured') {
+        query = query.filter('category', 'eq', category);
+      }
+      if (category == 'featured') {
+        query = query.filter('is_featured', 'eq', true);
+      }
+
+      final response = await query;
+      final articles = <NewsArticle>[];
+      
+      for (var e in response as List) {
+        final isLiked = await _isArticleLiked(e['id']);
+        final isSaved = await _isArticleSaved(e['id']);
+        
+        articles.add(NewsArticle.fromJson({
+          ...e,
+          'is_liked': isLiked,
+          'is_saved': isSaved,
+        }));
+      }
+      
+      return articles;
+    } catch (e) {
+      debugPrint('❌ Error getArticlesAlt: $e');
+      return [];
+    }
+  }
 
   // ============================================================
-  // AUTRES MÉTHODES (inchangées)
+  // AUTRES MÉTHODES
   // ============================================================
 
   Future<NewsArticle?> getArticleById(String articleId) async {
