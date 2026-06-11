@@ -1,4 +1,4 @@
-// lib/presentation/admin/pages/create_news_page.dart
+// lib/presentation/thix_info/admin/create_news_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -30,7 +30,10 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
   String? _imageUrl;
   String? _videoUrl;
   File? _imageFile;
+  File? _videoFile;
   bool _isLoading = false;
+  bool _isUploadingImage = false;
+  bool _isUploadingVideo = false;
 
   final List<Map<String, String>> _categories = [
     {'value': 'featured', 'label': 'À la une'},
@@ -67,6 +70,10 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     super.dispose();
   }
 
+  // ============================================================
+  // SÉLECTION DES FICHIERS
+  // ============================================================
+
   Future<void> _pickImage() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -82,13 +89,51 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     }
   }
 
-  Future<void> _uploadImage() async {
-    if (_imageFile == null) return null;
+  Future<void> _pickVideo() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.video,
+        allowMultiple: false,
+      );
+      
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+        setState(() => _videoFile = File(result.files.first.path!));
+        _showSuccess('Vidéo sélectionnée : ${result.files.first.name}');
+      }
+    } catch (e) {
+      _showError('Erreur lors de la sélection de la vidéo');
+    }
+  }
+
+  // ============================================================
+  // UPLOAD DES FICHIERS
+  // ============================================================
+
+  Future<String?> _uploadImage() async {
+    if (_imageFile == null) return _imageUrl;
     
+    setState(() => _isUploadingImage = true);
     final provider = context.read<NewsProvider>();
     final url = await provider.uploadImage(_imageFile!.path);
+    setState(() => _isUploadingImage = false);
+    
     return url;
   }
+
+  Future<String?> _uploadVideo() async {
+    if (_videoFile == null) return _videoUrl;
+    
+    setState(() => _isUploadingVideo = true);
+    final provider = context.read<NewsProvider>();
+    final url = await provider.uploadVideo(_videoFile!.path);
+    setState(() => _isUploadingVideo = false);
+    
+    return url;
+  }
+
+  // ============================================================
+  // SAUVEGARDE
+  // ============================================================
 
   Future<void> _saveArticle() async {
     if (!_formKey.currentState!.validate()) return;
@@ -96,10 +141,9 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     setState(() => _isLoading = true);
     
     try {
-      String? uploadedImageUrl = _imageUrl;
-      if (_imageFile != null) {
-        uploadedImageUrl = await _uploadImage();
-      }
+      // Upload des fichiers
+      final uploadedImageUrl = await _uploadImage();
+      final uploadedVideoUrl = await _uploadVideo();
       
       final provider = context.read<NewsProvider>();
       
@@ -111,7 +155,7 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
           'content': _contentController.text.trim(),
           'category': _selectedCategory,
           'image_url': uploadedImageUrl,
-          'video_url': _videoUrl,
+          'video_url': uploadedVideoUrl,
           'is_featured': _isFeatured,
           'is_breaking': _isBreaking,
           'published_at': _publishDate.toIso8601String(),
@@ -125,20 +169,24 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
           content: _contentController.text.trim(),
           category: _selectedCategory,
           imageUrl: uploadedImageUrl,
-          videoUrl: _videoUrl,
+          videoUrl: uploadedVideoUrl,
           isFeatured: _isFeatured,
           isBreaking: _isBreaking,
         );
         _showSuccess('Article créé avec succès');
       }
       
-      Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showError('Erreur: ${e.toString()}');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // ============================================================
+  // MESSAGES
+  // ============================================================
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -159,7 +207,7 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );
-    if (date != null) {
+    if (date != null && mounted) {
       final time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(_publishDate),
@@ -171,6 +219,10 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
       }
     }
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -208,6 +260,10 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                   children: [
                     // Image
                     _buildImageSection(),
+                    const SizedBox(height: 16),
+                    
+                    // Vidéo
+                    _buildVideoSection(),
                     const SizedBox(height: 16),
                     
                     // Titre
@@ -266,7 +322,7 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Options
+                    // Options (À la une / Breaking)
                     Row(
                       children: [
                         Expanded(
@@ -305,18 +361,6 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
                         side: BorderSide(color: Colors.grey[300]!),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    
-                    // URL Vidéo (optionnel)
-                    TextFormField(
-                      controller: TextEditingController(text: _videoUrl),
-                      onChanged: (v) => _videoUrl = v,
-                      decoration: const InputDecoration(
-                        labelText: 'URL Vidéo (optionnel)',
-                        hintText: 'https://youtube.com/...',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -325,35 +369,136 @@ class _CreateNewsPageState extends State<CreateNewsPage> {
     );
   }
 
+  // ============================================================
+  // SECTIONS IMAGE ET VIDÉO
+  // ============================================================
+
   Widget _buildImageSection() {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: Container(
-        height: 180,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Image à la une', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _isUploadingImage ? null : _pickImage,
+          child: Container(
+            height: 180,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: _isUploadingImage
+                ? const Center(child: CircularProgressIndicator())
+                : _imageFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity),
+                      )
+                    : _imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(_imageUrl!, fit: BoxFit.cover, width: double.infinity),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey[400]),
+                              const SizedBox(height: 8),
+                              Text('Ajouter une image', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            ],
+                          ),
+          ),
         ),
-        child: _imageFile != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity),
-              )
-            : _imageUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(_imageUrl!, fit: BoxFit.cover, width: double.infinity),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey[400]),
-                      const SizedBox(height: 8),
-                      Text('Ajouter une image', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                    ],
-                  ),
-      ),
+        if (_imageFile != null || _imageUrl != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                _imageFile = null;
+                _imageUrl = null;
+              }),
+              icon: const Icon(Icons.delete, size: 16),
+              label: const Text('Supprimer l\'image', style: TextStyle(fontSize: 12)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVideoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Vidéo (optionnel)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _isUploadingVideo ? null : _pickVideo,
+          child: Container(
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: _isUploadingVideo
+                ? const Center(child: CircularProgressIndicator())
+                : _videoFile != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.videocam, size: 40, color: Colors.green),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Vidéo prête à être uploadée',
+                              style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _videoFile!.path.split('/').last,
+                              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      )
+                    : _videoUrl != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.play_circle, size: 40, color: Color(0xFFD4AF37)),
+                                const SizedBox(height: 8),
+                                Text('Vidéo existante', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.video_library, size: 40, color: Colors.grey[400]),
+                              const SizedBox(height: 8),
+                              Text('Ajouter une vidéo', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                              Text('MP4, MOV, AVI', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                            ],
+                          ),
+          ),
+        ),
+        if (_videoFile != null || _videoUrl != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                _videoFile = null;
+                _videoUrl = null;
+              }),
+              icon: const Icon(Icons.delete, size: 16),
+              label: const Text('Supprimer la vidéo', style: TextStyle(fontSize: 12)),
+            ),
+          ),
+      ],
     );
   }
 }
