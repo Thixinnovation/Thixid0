@@ -18,53 +18,64 @@ class NetworkService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ==================== POSTS ====================
-Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+Future<NetworkPost?> getPostById(String postId) async {
   try {
-    print('🔍 === TEST ULTRA SIMPLE ===');
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return null;
     
-    // Requête la plus simple possible
+    print('🔍 getPostById - postId: $postId');
+    
+    // Version simplifiée qui fonctionne
     final response = await _supabase
         .from('posts')
-        .select('*')
-        .limit(limit);
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        .eq('id', postId)
+        .maybeSingle();  // Utilise maybeSingle au lieu de single
     
-    print('🔍 Nombre de posts trouvés: ${(response as List).length}');
-    
-    if (response.isEmpty) {
-      print('🔍 AUCUN POST !!!');
-      return [];
+    if (response == null) {
+      print('❌ Post non trouvé: $postId');
+      return null;
     }
     
-    // Afficher le premier post
-    print('🔍 Premier post: ${response[0]}');
+    print('🔍 Post trouvé: ${response['id']}');
     
-    // Convertir manuellement
-    final posts = <NetworkPost>[];
-    for (var e in response) {
-      posts.add(NetworkPost(
-        id: e['id'],
-        userId: e['user_id'],
-        authorName: 'Test',
-        authorAvatar: null,
-        authorTitle: null,
-        content: e['content'],
-        mediaUrl: e['media_url'],
-        mediaType: e['media_type'] ?? 'none',
-        isPublic: e['is_public'] ?? true,
-        likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        createdAt: DateTime.parse(e['created_at']),
-        isLikedByCurrentUser: false,
-        isSavedByCurrentUser: false,
-      ));
-    }
+    final likesData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId);
     
-    print('🔍 Posts convertis: ${posts.length}');
-    return posts;
+    final commentsData = await _supabase
+        .from('comments')
+        .select('id')
+        .eq('post_id', postId);
+    
+    final userLikedData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', currentUserId);
+    
+    final userData = response['users'] as Map<String, dynamic>?;
+    
+    return NetworkPost.fromJson({
+      ...response,
+      'author_name': userData?['display_name'] ?? 'Utilisateur',
+      'author_avatar': userData?['photo_url'],
+      'author_title': userData?['profession'],
+      'likes_count': (likesData as List).length,
+      'comments_count': (commentsData as List).length,
+      'is_liked': (userLikedData as List).isNotEmpty,
+    });
   } catch (e) {
-    print('❌ ERREUR: $e');
-    return [];
+    print('❌ Error getPostById: $e');
+    return null;
   }
 }
 
@@ -82,58 +93,69 @@ Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
   }
 
   Future<NetworkPost?> getPostById(String postId) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return null;
-      
-      final response = await _supabase
-          .from('posts')
-          .select('''
-            *,
-            users!user_id (
-              id,
-              display_name,
-              photo_url,
-              profession
-            )
-          ''')
-          .eq('id', postId)
-          .single();
-      
-      final likesData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', postId);
-      
-      final commentsData = await _supabase
-          .from('comments')
-          .select('id')
-          .eq('post_id', postId);
-      
-      final userLikedData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId);
-      
-      final likesCount = (likesData as List).length;
-      final commentsCount = (commentsData as List).length;
-      final userLiked = (userLikedData as List).isNotEmpty;
-      
-      return NetworkPost.fromJson({
-        ...response,
-        'author_name': response['users']?['display_name'],
-        'author_avatar': response['users']?['photo_url'],
-        'author_title': response['users']?['profession'],
-        'likes_count': likesCount,
-        'comments_count': commentsCount,
-        'is_liked': userLiked,
-      });
-    } catch (e) {
-      debugPrint('Error getPostById: $e');
+  try {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return null;
+    
+    print('🔍 getPostById - postId: $postId');
+    
+    // Version corrigée avec users:user_id (sans le !)
+    final response = await _supabase
+        .from('posts')
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        .eq('id', postId)
+        .maybeSingle();  // Utilise maybeSingle au lieu de single
+    
+    if (response == null) {
+      print('❌ Post non trouvé: $postId');
       return null;
     }
+    
+    print('🔍 Post trouvé: ${response['id']}');
+    
+    final likesData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId);
+    
+    final commentsData = await _supabase
+        .from('comments')
+        .select('id')
+        .eq('post_id', postId);
+    
+    final userLikedData = await _supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', currentUserId);
+    
+    final likesCount = (likesData as List).length;
+    final commentsCount = (commentsData as List).length;
+    final userLiked = (userLikedData as List).isNotEmpty;
+    
+    final userData = response['users'] as Map<String, dynamic>?;
+    
+    return NetworkPost.fromJson({
+      ...response,
+      'author_name': userData?['display_name'] ?? 'Utilisateur',
+      'author_avatar': userData?['photo_url'],
+      'author_title': userData?['profession'],
+      'likes_count': likesCount,
+      'comments_count': commentsCount,
+      'is_liked': userLiked,
+    });
+  } catch (e) {
+    print('❌ Error getPostById: $e');
+    return null;
   }
+}
 
   Future<void> createPost(String content, List<String> images) async {
     final currentUserId = this.currentUserId;
