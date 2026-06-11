@@ -19,64 +19,64 @@ class NetworkService {
 
   // ==================== POSTS ====================
 
-Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-  try {
-    final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return [];
-    
-    // Requête simple sans fonction SQL
-    final response = await _supabase
-        .from('posts')
-        .select('''
-          *,
-          users:user_id (
-            display_name,
-            photo_url,
-            profession
-          )
-        ''')
-        .eq('is_public', true)
-        .order('created_at', ascending: false)
-        .limit(limit);
-    
-    final posts = <NetworkPost>[];
-    for (var e in response as List) {
-      // Compter les likes
-      final likesResult = await _supabase
-          .from('post_likes')
-          .select('id', count: CountOption.exact)
-          .eq('post_id', e['id']);
+  Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return [];
       
-      // Compter les commentaires
-      final commentsResult = await _supabase
-          .from('comments')
-          .select('id', count: CountOption.exact)
-          .eq('post_id', e['id']);
+      // Requête simple sans fonction SQL
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            *,
+            users:user_id (
+              display_name,
+              photo_url,
+              profession
+            )
+          ''')
+          .eq('is_public', true)
+          .order('created_at', ascending: false)
+          .limit(limit);
       
-      // Vérifier si l'utilisateur a liké
-      final likedResult = await _supabase
-          .from('post_likes')
-          .select('id', count: CountOption.exact)
-          .eq('post_id', e['id'])
-          .eq('user_id', currentUserId);
+      final posts = <NetworkPost>[];
+      for (var e in response as List) {
+        // Compter les likes - Version sans CountOption
+        final likesData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id']);
+        
+        // Compter les commentaires - Version sans CountOption
+        final commentsData = await _supabase
+            .from('comments')
+            .select('id')
+            .eq('post_id', e['id']);
+        
+        // Vérifier si l'utilisateur a liké - Version sans CountOption
+        final likedData = await _supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', e['id'])
+            .eq('user_id', currentUserId);
+        
+        posts.add(NetworkPost.fromJson({
+          ...e,
+          'author_name': e['users']?['display_name'] ?? 'Utilisateur',
+          'author_avatar': e['users']?['photo_url'],
+          'author_title': e['users']?['profession'],
+          'likes_count': (likesData as List).length,
+          'comments_count': (commentsData as List).length,
+          'is_liked': (likedData as List).isNotEmpty,
+        }));
+      }
       
-      posts.add(NetworkPost.fromJson({
-        ...e,
-        'author_name': e['users']?['display_name'] ?? 'Utilisateur',
-        'author_avatar': e['users']?['photo_url'],
-        'author_title': e['users']?['profession'],
-        'likes_count': likesResult.count ?? 0,
-        'comments_count': commentsResult.count ?? 0,
-        'is_liked': (likedResult.count ?? 0) > 0,
-      }));
+      return posts;
+    } catch (e) {
+      debugPrint('❌ Error getFeedPosts: $e');
+      return [];
     }
-    
-    return posts;
-  } catch (e) {
-    debugPrint('❌ Error getFeedPosts: $e');
-    return [];
   }
-}
 
   Future<bool> _hasUserLikedPost(String postId, String userId) async {
     try {
@@ -873,7 +873,6 @@ Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
       final currentUserId = this.currentUserId;
       if (currentUserId.isEmpty) return [];
       
-      // Version simplifiée sans RPC
       final response = await _supabase
           .from('users')
           .select('id, display_name, photo_url, profession')
