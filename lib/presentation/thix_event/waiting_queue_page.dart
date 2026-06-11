@@ -29,11 +29,13 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
   bool _isProcessing = false;
   Timer? _timer;
   String? _error;
+  Event? _event;
 
   @override
   void initState() {
     super.initState();
     _queueService = EventQueueService(Supabase.instance.client);
+    _loadEvent();
     _joinQueue();
     _startPolling();
   }
@@ -42,6 +44,14 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadEvent() async {
+    final provider = context.read<EventProvider>();
+    final event = await provider.fetchEventById(widget.eventId);
+    if (event != null && mounted) {
+      setState(() => _event = event);
+    }
   }
 
   Future<void> _joinQueue() async {
@@ -85,7 +95,7 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
       await _updateQueueInfo();
       
       // Vérifier si c'est au tour de l'utilisateur
-      if (_position == 1) {
+      if (_position == 1 && !_isProcessing) {
         _timer?.cancel();
         _onYourTurn();
       }
@@ -144,7 +154,6 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
   Future<void> _proceedToBooking() async {
     setState(() => _isProcessing = true);
     
-    // Rediriger vers la page de réservation
     if (mounted) {
       context.push('/thix-event/reservation/${widget.eventId}');
       _leaveQueue();
@@ -157,7 +166,6 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
 
   String _formatEstimatedTime() {
     if (_position <= 0) return 'Calcul...';
-    // Estimation: 30 secondes par personne
     final minutes = ((_position - 1) * 0.5).round();
     if (minutes < 1) return 'Moins d\'une minute';
     if (minutes == 1) return 'Environ 1 minute';
@@ -207,7 +215,6 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
           ),
           child: Column(
             children: [
-              // Animation
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -303,7 +310,7 @@ class _WaitingQueuePageState extends State<WaitingQueuePage> {
             children: [
               const Text('Récapitulatif', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              _buildInfoRow('Événement', 'Chargement...'),
+              _buildInfoRow('Événement', _event?.title ?? 'Chargement...'),
               const SizedBox(height: 8),
               _buildInfoRow('Quantité demandée', '${widget.requestedQuantity} place(s)'),
               const SizedBox(height: 8),
