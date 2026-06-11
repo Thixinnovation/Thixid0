@@ -1,3 +1,4 @@
+// lib/app/routes/app_router.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ import 'presentation/thix_reservation/pages/profil.dart';
 
 // ==================== IMPORTS EXISTANTS ====================
 import 'presentation/home/home_page.dart';
+import 'presentation/home/home_page_premium.dart';
 import 'presentation/auth/login_page.dart';
 import 'presentation/auth/personal_registration_page.dart';
 import 'presentation/auth/enterprise_registration_page.dart';
@@ -45,8 +47,8 @@ import 'presentation/payment/activation_receipt_page.dart';
 import 'presentation/profile/public_profile_page.dart';
 import 'presentation/dashboard/user_dashboard_page.dart';
 import 'presentation/enterprise/enterprise_dashboard_page.dart';
-import 'package:thix_id/presentation/enterprise/enterprise_portal_page.dart';
-import 'package:thix_id/presentation/enterprise/enterprise_dashboard_shell_page.dart';
+import 'presentation/enterprise/enterprise_portal_page.dart';
+import 'presentation/enterprise/enterprise_dashboard_shell_page.dart';
 import 'presentation/chat/thix_chat_page.dart';
 import 'presentation/vault/document_vault_page.dart';
 import 'presentation/settings/settings_page.dart';
@@ -65,6 +67,14 @@ import 'presentation/network/messages/chat_screen.dart';
 import 'presentation/network/notifications/notifications_page.dart';
 import 'presentation/network/connections_list_page.dart';
 import 'presentation/network/my_posts_page.dart';
+import 'presentation/network/reels_page.dart';
+import 'presentation/network/hashtag_page.dart';
+import 'presentation/network/saved_posts_page.dart';
+import 'presentation/network/reposted_posts_page.dart';
+import 'presentation/network/profile_settings_page.dart';
+import 'presentation/network/followers_list_page.dart';
+import 'presentation/network/following_list_page.dart';
+import 'presentation/network/liked_posts_page.dart';
 
 // ==================== THIX SANTÉ ====================
 import 'presentation/thix_sante/thix_sante_home.dart';
@@ -109,31 +119,31 @@ import 'presentation/thix_money/thix_money_history.dart';
 
 // ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
-import 'package:thix_id/presentation/jobs/job_apply_page.dart';
-import 'package:thix_id/presentation/jobs/job_details_page.dart';
-import 'package:thix_id/presentation/jobs/job_dashboard_page.dart';
-import 'package:thix_id/presentation/recruiter/recruiter_portal_page.dart';
-import 'package:thix_id/presentation/opportunities/opportunities_page.dart';
-import 'package:thix_id/presentation/opportunities/opportunity_apply_page.dart';
-import 'package:thix_id/presentation/opportunities/opportunity_details_page.dart';
+import 'presentation/jobs/job_apply_page.dart';
+import 'presentation/jobs/job_details_page.dart';
+import 'presentation/jobs/job_dashboard_page.dart';
+import 'presentation/recruiter/recruiter_portal_page.dart';
+import 'presentation/opportunities/opportunities_page.dart';
+import 'presentation/opportunities/opportunity_apply_page.dart';
+import 'presentation/opportunities/opportunity_details_page.dart';
 import 'presentation/events/events_page.dart';
-import 'package:thix_id/presentation/events/event_details_page.dart';
-import 'package:thix_id/presentation/events/event_register_page.dart';
-import 'package:thix_id/presentation/events/event_ticket_page.dart';
-import 'package:thix_id/presentation/events/user_event_dashboard_page.dart';
+import 'presentation/events/event_details_page.dart';
+import 'presentation/events/event_register_page.dart';
+import 'presentation/events/event_ticket_page.dart';
+import 'presentation/events/user_event_dashboard_page.dart';
 import 'presentation/education/education_page.dart';
-import 'package:thix_id/presentation/training/training_home_page.dart';
-import 'package:thix_id/presentation/training/training_details_page.dart';
-import 'package:thix_id/presentation/training/learning_dashboard_page.dart';
-import 'package:thix_id/presentation/training/lesson_player_page.dart';
-import 'package:thix_id/presentation/admin/admin_page.dart';
-import 'package:thix_id/presentation/admin/admin_routes.dart';
-import 'package:thix_id/presentation/thix_market/thix_market_page.dart';
-import 'package:thix_id/presentation/thix_market/cart_page.dart';
-import 'package:thix_id/presentation/thix_market/checkout_page.dart';
-import 'package:thix_id/presentation/thix_market/order_history_page.dart';
-import 'package:thix_id/presentation/thix_media/thix_media_page.dart';
-import 'package:thix_id/presentation/admin/pages/admin_media_page.dart';
+import 'presentation/training/training_home_page.dart';
+import 'presentation/training/training_details_page.dart';
+import 'presentation/training/learning_dashboard_page.dart';
+import 'presentation/training/lesson_player_page.dart';
+import 'presentation/admin/admin_page.dart';
+import 'presentation/admin/admin_routes.dart';
+import 'presentation/thix_market/thix_market_page.dart';
+import 'presentation/thix_market/cart_page.dart';
+import 'presentation/thix_market/checkout_page.dart';
+import 'presentation/thix_market/order_history_page.dart';
+import 'presentation/thix_media/thix_media_page.dart';
+import 'presentation/admin/pages/admin_media_page.dart';
 
 /// Page sans transition (indispensable pour GoRouter)
 class NoTransitionPage<T> extends Page<T> {
@@ -162,7 +172,7 @@ class AppRoutes {
   static const String vault = '/vault';
   static const String settings = '/settings';
   
-  // Réseau Pro
+  // ==================== RÉSEAU PRO ====================
   static const String networkPro = '/network-pro';
   static const String networkProfile = '/network/profile/:userId';
   static const String networkPost = '/network/post/:postId';
@@ -176,8 +186,16 @@ class AppRoutes {
   static const String networkNotifications = '/network/notifications';
   static const String networkConnections = '/network/connections';
   static const String networkMyPosts = '/network/my-posts';
+  static const String networkReels = '/network/reels';
+  static const String networkHashtag = '/hashtag/:tag';
+  static const String networkSaved = '/network/saved';
+  static const String networkReposted = '/network/reposted';
+  static const String networkProfileSettings = '/network/profile-settings';
+  static const String networkFollowers = '/network/followers/:userId';
+  static const String networkFollowing = '/network/following/:userId';
+  static const String networkLiked = '/network/liked';
   
-  // THIX SANTÉ
+  // ==================== THIX SANTÉ ====================
   static const String thixSante = '/sante';
   static const String santeConsultations = '/sante/consultations';
   static const String santeExamens = '/sante/examens';
@@ -195,7 +213,7 @@ class AppRoutes {
   static const String santeArticle = '/sante/article/:articleId';
   static const String santeRechercheMedicament = '/sante/recherche-medicament';
   
-  // THIX MONEY
+  // ==================== THIX MONEY ====================
   static const String thixMoney = '/thix-money';
   static const String thixMoneyTransactions = '/thix-money/transactions';
   static const String thixMoneyScanner = '/thix-money/scanner';
@@ -219,7 +237,7 @@ class AppRoutes {
   static const String thixMoneyNotifications = '/thix-money/notifications';
   static const String thixMoneyHistory = '/thix-money/history';
 
-  // THIX RESERVATION
+  // ==================== THIX RESERVATION ====================
   static const String reservation = '/reservation';
   static const String reservationVols = '/reservation/vols';
   static const String reservationVolsRecherche = '/reservation/vols/recherche';
@@ -249,7 +267,7 @@ class AppRoutes {
   static const String reservationFavoris = '/reservation/favoris';
   static const String reservationProfil = '/reservation/profil';
   
-  // Autres services
+  // ==================== AUTRES SERVICES ====================
   static const String jobs = '/jobs';
   static const String jobDashboard = '/jobs/dashboard';
   static const String recruiter = '/recruiter';
@@ -259,7 +277,7 @@ class AppRoutes {
   static const String trainingHome = '/training';
   static const String trainingDetails = '/training/:trainingId';
   static const String learningDashboard = '/learn';
-  static const String lessonPlayer = '/learn/player';
+  static const String lessonPlayer = '/lesson/:enrollmentId';
   static const String admin = '/admin';
   static const String thixMarket = '/market';
   static const String thixMarketCart = '/market/cart';
@@ -296,7 +314,8 @@ class AppRouter {
             location == AppRoutes.trainingHome ||
             location.startsWith('/training/') ||
             location.startsWith('/sante/') ||
-            location.startsWith('/reservation');
+            location.startsWith('/reservation') ||
+            location.startsWith('/hashtag/');
 
         final isProtected = !isPublic && !isAuthPage;
         if (!isLoggedIn && isProtected) return AppRoutes.login;
@@ -331,12 +350,11 @@ class AppRouter {
       },
       routes: [
         // ==================== PAGE D'ACCUEIL ====================
-        // ==================== PAGE D'ACCUEIL ====================
-GoRoute(
-  path: AppRoutes.home,
-  name: 'home',
-  pageBuilder: (context, state) => NoTransitionPage(child: const HomePagePremium()),
-),
+        GoRoute(
+          path: AppRoutes.home,
+          name: 'home',
+          pageBuilder: (context, state) => NoTransitionPage(child: const HomePagePremium()),
+        ),
 
         // ==================== AUTHENTIFICATION ====================
         GoRoute(
@@ -540,6 +558,57 @@ GoRoute(
           path: AppRoutes.networkMyPosts,
           name: 'network-my-posts',
           pageBuilder: (context, state) => NoTransitionPage(child: const MyPostsPage()),
+        ),
+        
+        // ==================== NOUVELLES ROUTES RÉSEAU PRO ====================
+        GoRoute(
+          path: AppRoutes.networkReels,
+          name: 'network-reels',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ReelsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkHashtag,
+          name: 'network-hashtag',
+          pageBuilder: (context, state) {
+            final tag = state.pathParameters['tag']!;
+            return NoTransitionPage(child: HashtagPage(tag: tag));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkSaved,
+          name: 'network-saved',
+          pageBuilder: (context, state) => NoTransitionPage(child: const SavedPostsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkReposted,
+          name: 'network-reposted',
+          pageBuilder: (context, state) => NoTransitionPage(child: const RepostedPostsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkProfileSettings,
+          name: 'network-profile-settings',
+          pageBuilder: (context, state) => NoTransitionPage(child: const ProfileSettingsPage()),
+        ),
+        GoRoute(
+          path: AppRoutes.networkFollowers,
+          name: 'network-followers',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            return NoTransitionPage(child: FollowersListPage(userId: userId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkFollowing,
+          name: 'network-following',
+          pageBuilder: (context, state) {
+            final userId = state.pathParameters['userId']!;
+            return NoTransitionPage(child: FollowingListPage(userId: userId));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.networkLiked,
+          name: 'network-liked',
+          pageBuilder: (context, state) => NoTransitionPage(child: const LikedPostsPage()),
         ),
 
         // ==================== THIX SANTÉ ====================
