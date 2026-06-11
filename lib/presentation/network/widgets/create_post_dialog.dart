@@ -30,37 +30,53 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   }
 
   Future<void> _pickImages() async {
-    final picker = ImagePicker();
-    final List<XFile>? images = await picker.pickMultiImage();
-    
-    if (images != null && images.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(images.map((img) => File(img.path)));
-      });
+    try {
+      final ImagePicker picker = ImagePicker();
+      final List<XFile> images = await picker.pickMultiImage();
+      
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(images.map((img) => File(img.path)));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking images: $e');
     }
   }
 
   Future<void> _pickCamera() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
-    
-    if (image != null) {
-      setState(() {
-        _selectedImages.add(File(image.path));
-      });
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(File(image.path));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error taking photo: $e');
     }
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-    );
-    
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(result.paths.map((path) => File(path!)));
-      });
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+      
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          for (final file in result.files) {
+            if (file.path != null) {
+              _selectedImages.add(File(file.path!));
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking files: $e');
     }
   }
 
