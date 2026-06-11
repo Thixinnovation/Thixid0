@@ -410,13 +410,15 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   width: double.infinity,
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 140,
-                      color: Colors.grey[200],
-                      child: Center(child: const CircularProgressIndicator())
-                    );
-                  },
+  if (loadingProgress == null) return child;
+  return Container(
+    height: 140,
+    color: Colors.grey[200],
+    child: Center(
+      child: CircularProgressIndicator(),  // ← PAS de const
+    ),
+  );
+},
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 140,
                     color: Colors.grey[200],
