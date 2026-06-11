@@ -58,7 +58,6 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
     
     switch (index) {
       case 0:
-        // Déjà sur l'accueil
         break;
       case 1:
         context.push('/thix-info/categories');
@@ -106,7 +105,6 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
           
           // Recent News Section
           SliverToBoxAdapter(child: _buildSectionHeader('Actualités récentes', '/thix-info/recent')),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
           if (isLoading && recentArticles.isEmpty)
@@ -128,7 +126,6 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
           
           // Videos Section
           SliverToBoxAdapter(child: _buildSectionHeader('Vidéos à la une', '/thix-info/videos')),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
           if (isLoading && videos.isEmpty)
@@ -288,7 +285,7 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (article.imageUrl != null)
+          if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: CachedNetworkImage(
@@ -296,8 +293,16 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(height: 180, color: Colors.grey[200]),
-                errorWidget: (context, url, error) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.image, size: 40)),
+                placeholder: (context, url) => Container(
+                  height: 180,
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 180,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                ),
               ),
             ),
           Padding(
@@ -352,7 +357,7 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
         ),
         child: Row(
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
@@ -360,7 +365,18 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   width: 60,
                   height: 60,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(width: 60, height: 60, color: Colors.grey[200]),
+                  placeholder: (context, url) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                  ),
                 ),
               ),
             const SizedBox(width: 10),
@@ -425,15 +441,25 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   height: 140,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(height: 140, color: Colors.grey[200]),
+                  placeholder: (context, url) => Container(
+                    height: 140,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 140,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.videocam, size: 40, color: Colors.grey),
+                  ),
                 ),
               ),
-              Positioned(
-                center: true,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
+              const Positioned(
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                    child: Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                  ),
                 ),
               ),
             ],
@@ -602,7 +628,6 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
   }
 
   void _requestNotificationPermission() async {
-    // Implémentation des notifications
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Notifications activées'), duration: Duration(seconds: 1)),
     );
