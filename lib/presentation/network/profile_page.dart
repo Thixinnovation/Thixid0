@@ -129,8 +129,13 @@ if (_pinnedPosts.isNotEmpty)
     child: PinnedPost(
       post: _pinnedPosts.first,
       onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-      onUnpin: isOwnProfile ? () async { 
-        await _unpinPost(_pinnedPosts.first.id); 
+      onUnpin: isOwnProfile ? () { 
+        // Appel sans await
+        _networkService.unpinPost(_pinnedPosts.first.id);
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post désépinglé'), backgroundColor: Colors.orange),
+        );
       } : null,
     ),
   ),
