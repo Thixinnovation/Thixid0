@@ -5,11 +5,11 @@ import 'package:flutter/gestures.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../services/network_service.dart';
-import '../../../providers/feed_provider.dart';  // ← AJOUTER CET IMPORT
+import '../../../providers/feed_provider.dart';
 
 class CreatePostDialog extends StatefulWidget {
   final String? communityId;
-  final VoidCallback? onPostCreated;  // ← AJOUTER CALLBACK
+  final VoidCallback? onPostCreated;
   
   const CreatePostDialog({super.key, this.communityId, this.onPostCreated});
 
@@ -29,9 +29,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   List<Map<String, dynamic>> _mentionSuggestions = [];
   bool _showMentions = false;
   String _currentMentionQuery = '';
-
-  // NE PLUS CRÉER D'INSTANCE ICI - on utilisera le Provider
-  // final NetworkService _networkService = NetworkService(Supabase.instance.client); ← SUPPRIMER
 
   @override
   void initState() {
@@ -72,7 +69,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
 
   Future<void> _searchUsers(String query) async {
     try {
-      // RÉCUPÉRER L'INSTANCE DEPUIS LE PROVIDER
       final networkService = Provider.of<NetworkService>(context, listen: false);
       final users = await networkService.searchUsers(query);
       if (mounted) {
@@ -158,6 +154,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     );
   }
 
+  // ⭐⭐⭐ MÉTHODE CORRIGÉE ⭐⭐⭐
   Future<void> _submitPost() async {
     if (_contentController.text.trim().isEmpty && 
         _selectedImages.isEmpty && 
@@ -174,8 +171,8 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     });
     
     try {
-      // RÉCUPÉRER L'INSTANCE DEPUIS LE PROVIDER
       final networkService = Provider.of<NetworkService>(context, listen: false);
+      final feedProvider = Provider.of<FeedProvider>(context, listen: false);
       
       List<String> mediaUrls = [];
       
@@ -221,37 +218,41 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         }
       }
       
-      // Création du post
+      bool success = false;
+      
+      // Création du post avec les nouvelles méthodes qui retournent String
       if (widget.communityId != null) {
-        await networkService.createCommunityPost(
+        final postId = await networkService.createCommunityPost(
           communityId: widget.communityId!,
           content: _contentController.text.trim(),
           images: mediaUrls,
         );
+        success = postId.isNotEmpty;
+        if (success) {
+          debugPrint('✅ Post créé dans la communauté avec ID: $postId');
+          await feedProvider.loadFeed(); // Recharger le feed
+        }
       } else {
-        await networkService.createPost(
+        // Utiliser le FeedProvider qui appelle createPost et recharge le feed
+        success = await feedProvider.createPost(
           _contentController.text.trim(),
           mediaUrls,
         );
       }
       
-      // RAFRAÎCHIR LE FEED VIA LE PROVIDER
-      if (mounted) {
-        // Récupérer le FeedProvider et recharger
-        final feedProvider = Provider.of<FeedProvider>(context, listen: false);
-        await feedProvider.loadFeed();  // Recharge le feed
-        
+      if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
         );
         
-        // Appeler le callback si fourni
         widget.onPostCreated?.call();
-        
         Navigator.pop(context, true);
+      } else if (mounted) {
+        throw Exception('Échec de la création de la publication');
       }
+      
     } catch (e) {
-      debugPrint('Error creating post: $e');
+      debugPrint('❌ Error creating post: $e');
       if (mounted) {
         setState(() {
           _errorMessage = 'Erreur: ${e.toString()}';
