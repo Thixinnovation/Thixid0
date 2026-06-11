@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/network_service.dart';
 
 class CreatePostDialog extends StatefulWidget {
@@ -21,6 +21,15 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   final List<String> _uploadingImages = [];
   bool _isUploading = false;
   String? _errorMessage;
+  
+  late NetworkService _networkService;  // ✅ AJOUTÉ
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Créer directement le service
+    _networkService = NetworkService(Supabase.instance.client);
+  }
 
   @override
   void dispose() {
@@ -28,7 +37,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     super.dispose();
   }
 
-  // Utiliser uniquement FilePicker (pas besoin d'image_picker)
   Future<void> _pickImages() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -51,8 +59,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     }
   }
 
-  // Pas de caméra sans image_picker, on utilise file_picker aussi
-  // ou on désactive cette option
   Future<void> _pickCamera() async {
     _showError('Fonctionnalité caméra à venir. Utilisez "Ajouter des images" pour l\'instant');
   }
@@ -105,8 +111,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     });
     
     try {
-      final networkService = Provider.of<NetworkService>(context, listen: false);
-      
       // Upload des images vers Supabase Storage
       List<String> imageUrls = [];
       
@@ -116,7 +120,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
           _uploadingImages.add('Image ${i + 1}');
         });
         
-        final url = await networkService.uploadImage(image.path);
+        final url = await _networkService.uploadImage(image.path);
         if (url != null) {
           imageUrls.add(url);
         } else {
@@ -128,29 +132,25 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         });
       }
       
-      // Créer le post même si certaines images ont échoué
-      if (imageUrls.isNotEmpty || _contentController.text.trim().isNotEmpty) {
-        if (widget.communityId != null) {
-          await networkService.createCommunityPost(
-            communityId: widget.communityId!,
-            content: _contentController.text.trim(),
-            images: imageUrls,
-          );
-        } else {
-          await networkService.createPost(
-            _contentController.text.trim(),
-            imageUrls,
-          );
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
-          );
-          Navigator.pop(context, true);
-        }
+      // Créer le post
+      if (widget.communityId != null) {
+        await _networkService.createCommunityPost(
+          communityId: widget.communityId!,
+          content: _contentController.text.trim(),
+          images: imageUrls,
+        );
       } else {
-        throw Exception('Aucune image téléchargée avec succès');
+        await _networkService.createPost(
+          _contentController.text.trim(),
+          imageUrls,
+        );
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
       setState(() {
@@ -171,7 +171,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Titre
             Row(
               children: [
                 const Expanded(
@@ -190,7 +189,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             
             const Divider(),
             
-            // Champ de texte
             const Text(
               'Que voulez-vous partager ?',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -212,7 +210,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             
             const SizedBox(height: 16),
             
-            // Indicateur de upload
             if (_uploadingImages.isNotEmpty)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -242,7 +239,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
               ),
             
-            // Aperçu des images sélectionnées
             if (_selectedImages.isNotEmpty)
               Container(
                 height: 120,
@@ -289,7 +285,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
               ),
             
-            // Message d'erreur
             if (_errorMessage != null)
               Container(
                 padding: const EdgeInsets.all(8),
@@ -312,7 +307,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
               ),
             
-            // Boutons d'ajout
             Row(
               children: [
                 IconButton(
@@ -355,7 +349,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             
             const SizedBox(height: 8),
             
-            // Info
             Center(
               child: Text(
                 'Les images sont stockées de façon sécurisée',
