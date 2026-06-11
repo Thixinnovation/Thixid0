@@ -10,16 +10,9 @@ import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/models/network_connection.dart';
 import 'package:thix_id/models/network_community.dart';
 import 'package:thix_id/models/story.dart';
-import 'widgets/profile_header_card.dart';
-import 'widgets/stats_row.dart';
-import 'widgets/stories_list.dart';
-import 'widgets/post_card.dart';
-import 'widgets/suggestions_list.dart';
-import 'widgets/communities_list.dart';
-import 'widgets/recommendations_ia.dart';
-import 'widgets/create_post_dialog.dart';
-import 'widgets/edit_profile_dialog.dart';
-import 'widgets/create_story_dialog.dart';
+import 'package:thix_id/models/hashtag.dart';
+import 'widgets/reel_player.dart';
+import 'widgets/trending_hashtags.dart';
 
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
@@ -38,30 +31,27 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   List<NetworkConnection> _suggestions = [];
   List<NetworkCommunity> _communities = [];
   List<Story> _stories = [];
+  List<Hashtag> _trendingHashtags = [];
+  List<dynamic> _reels = [];
   
   bool _loadingPosts = true;
   bool _loadingSuggestions = true;
   bool _loadingCommunities = true;
   bool _loadingStories = true;
+  bool _loadingHashtags = true;
   
   int _unreadNotifications = 0;
   int _unreadMessages = 0;
   bool _isRefreshing = false;
-  bool _isFabExpanded = false;
   
   String _feedType = 'smart';
   int _selectedNavIndex = 0;
-  double _scrollOffset = 0;
-  
-  // Animation controllers
-  late Animation<double> _fabScaleAnimation;
-  late Animation<double> _fabRotateAnimation;
+  bool _showReels = false;
 
   @override
   void initState() {
     super.initState();
     
-    // Animations
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -70,14 +60,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
-    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
-    );
-    _fabRotateAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
-    );
-    
     _fabAnimationController.repeat(reverse: true);
     
     _supabase = Supabase.instance.client;
@@ -137,6 +119,8 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       _loadSuggestions(),
       _loadCommunities(),
       _loadStories(),
+      _loadTrendingHashtags(),
+      _loadReels(),
     ]);
   }
 
@@ -173,6 +157,28 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       return posts.take(20).toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<void> _loadTrendingHashtags() async {
+    setState(() => _loadingHashtags = true);
+    try {
+      final hashtags = await _networkService.getTrendingHashtags();
+      setState(() {
+        _trendingHashtags = hashtags;
+        _loadingHashtags = false;
+      });
+    } catch (e) {
+      setState(() => _loadingHashtags = false);
+    }
+  }
+
+  Future<void> _loadReels() async {
+    try {
+      final reels = await _networkService.getReels();
+      setState(() => _reels = reels);
+    } catch (e) {
+      debugPrint('Error loading reels: $e');
     }
   }
 
@@ -342,11 +348,18 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     context.push('/network/story/$storyId');
   }
 
+  void _viewHashtag(String hashtag) {
+    context.push('/hashtag/$hashtag');
+  }
+
+  void _viewAllReels() {
+    context.push('/reels');
+  }
+
   void _likePost(NetworkPost post, int index) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     
-    // Animation du cœur
     _likeAnimationController.forward(from: 0.0);
     HapticFeedback.lightImpact();
     
@@ -459,8 +472,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     );
   }
 
-  // ==================== UI MODERNE ====================
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
@@ -486,36 +497,27 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          // Contenu principal avec CustomScrollView
           CustomScrollView(
             controller: ScrollController(),
             slivers: [
-              // Header fixe
-              SliverToBoxAdapter(
-                child: _buildModernHeader(),
-              ),
+              SliverToBoxAdapter(child: _buildModernHeader()),
+              SliverToBoxAdapter(child: _buildStoriesSection()),
               
-              // Stories section
-              SliverToBoxAdapter(
-                child: _buildStoriesSection(),
-              ),
+              // Section Reels
+              if (_reels.isNotEmpty)
+                SliverToBoxAdapter(child: _buildReelsSection()),
               
-              // Filtres
-              SliverToBoxAdapter(
-                child: _buildFilterChips(),
-              ),
+              // Hashtags tendances
+              if (_trendingHashtags.isNotEmpty)
+                SliverToBoxAdapter(child: _buildTrendingHashtags()),
               
+              SliverToBoxAdapter(child: _buildFilterChips()),
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
               
-              // Posts
               if (_loadingPosts)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
+                const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
               else if (_posts.isEmpty)
-                SliverToBoxAdapter(
-                  child: _buildEmptyState(),
-                )
+                SliverToBoxAdapter(child: _buildEmptyState())
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
@@ -524,47 +526,23 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                   ),
                 ),
               
-              // Suggestions
               if (!_loadingSuggestions && _suggestions.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: _buildSuggestionsSection(),
-                ),
+                SliverToBoxAdapter(child: _buildSuggestionsSection()),
               
-              // Communautés
               if (!_loadingCommunities && _communities.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: _buildCommunitiesSection(),
-                ),
+                SliverToBoxAdapter(child: _buildCommunitiesSection()),
               
-              // IA Recommendations
-              SliverToBoxAdapter(
-                child: _buildIARecommendations(),
-              ),
-              
+              SliverToBoxAdapter(child: _buildIARecommendations()),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
           
-          // Bottom Navigation Bar fixe
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildModernBottomNav(),
-          ),
-          
-          // Floating Action Button
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: _buildFloatingActionButton(),
-          ),
+          Positioned(bottom: 0, left: 0, right: 0, child: _buildModernBottomNav()),
+          Positioned(bottom: 80, right: 16, child: _buildFloatingActionButton()),
         ],
       ),
     );
   }
-
-  // ==================== COMPOSANTS MODERNES ====================
 
   Widget _buildModernHeader() {
     final auth = Provider.of<AuthController>(context);
@@ -572,26 +550,22 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
+          colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)],
         ),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // Ligne des icônes
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  // Logo
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -601,7 +575,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                     child: const Text('THIX', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                   const Spacer(),
-                  // Icônes
                   _buildIconButton(Icons.search, () => _goToSearch()),
                   const SizedBox(width: 8),
                   _buildIconButton(Icons.notifications_outlined, _showNotifications, count: _unreadNotifications),
@@ -619,8 +592,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 ],
               ),
             ),
-            
-            // Profil
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
@@ -656,8 +627,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 ],
               ),
             ),
-            
-            // Stats
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
@@ -684,10 +653,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     return Stack(
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
           child: IconButton(
             icon: Icon(icon, color: Colors.white, size: 20),
             onPressed: onPressed,
@@ -717,15 +683,9 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white70, fontSize: 10),
-        ),
+        Text(label, style: TextStyle(color: Colors.white70, fontSize: 10)),
       ],
     );
   }
@@ -757,11 +717,8 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _stories.length + 1,
               itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _buildAddStoryButton();
-                }
-                final story = _stories[index - 1];
-                return _buildStoryItem(story);
+                if (index == 0) return _buildAddStoryButton();
+                return _buildStoryItem(_stories[index - 1]);
               },
             ),
           ),
@@ -784,11 +741,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)]),
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.add, size: 30, color: Color(0xFFD4AF37)),
-              ),
+              child: const CircleAvatar(radius: 30, backgroundColor: Colors.white, child: Icon(Icons.add, size: 30, color: Color(0xFFD4AF37))),
             ),
             const SizedBox(height: 4),
             const Text('Ajouter', style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
@@ -811,9 +764,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: !story.isViewed
-                        ? const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)])
-                        : null,
+                    gradient: !story.isViewed ? const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)]) : null,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: CircleAvatar(
@@ -826,23 +777,128 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                   Positioned(
                     bottom: 0,
                     right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-                    ),
+                    child: Container(width: 12, height: 12, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
                   ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              story.userName,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(story.userName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReelsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.slow_motion_video, color: Color(0xFFD4AF37), size: 20),
+                    SizedBox(width: 8),
+                    Text('Reels', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                  ],
+                ),
+                TextButton(
+                  onPressed: _viewAllReels,
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _reels.length,
+              itemBuilder: (context, index) => Container(
+                width: 120,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  image: DecorationImage(
+                    image: NetworkImage(_reels[index]['thumbnail_url'] ?? ''),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    const Center(child: Icon(Icons.play_circle_filled, color: Colors.white, size: 40)),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.favorite, size: 12, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text('${_reels[index]['likes_count'] ?? 0}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendingHashtags() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text('🔥 Tendances', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _trendingHashtags.length,
+              itemBuilder: (context, index) {
+                final hashtag = _trendingHashtags[index];
+                return GestureDetector(
+                  onTap: () => _viewHashtag(hashtag.name),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4AF37).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tag, size: 14, color: Color(0xFFD4AF37)),
+                        const SizedBox(width: 6),
+                        Text('#${hashtag.name}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        const SizedBox(width: 6),
+                        Text('${hashtag.postsCount}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -894,19 +950,18 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   }
 
   Widget _buildModernPostCard(NetworkPost post, int index) {
+    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -921,16 +976,10 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        post.authorName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
+                      Text(post.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       Row(
                         children: [
-                          Text(
-                            _formatTimeAgo(post.createdAt),
-                            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                          ),
+                          Text(_formatTimeAgo(post.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                           const SizedBox(width: 4),
                           Icon(Icons.public, size: 10, color: Colors.grey[400]),
                         ],
@@ -941,38 +990,26 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 PopupMenuButton(
                   icon: const Icon(Icons.more_horiz, size: 18, color: Colors.grey),
                   itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'save', child: Text('Sauvegarder')),
                     const PopupMenuItem(value: 'report', child: Text('Signaler')),
                   ],
                 ),
               ],
             ),
           ),
-          
-          // Contenu
           if (post.content != null && post.content!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                post.content!,
-                style: const TextStyle(fontSize: 13, height: 1.4),
-              ),
+              child: Text(post.content!, style: const TextStyle(fontSize: 13, height: 1.4)),
             ),
-          
-          // Image
-          if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty)
+          if (hasImage)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  post.mediaUrl!,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.network(post.mediaUrl!, width: double.infinity, fit: BoxFit.cover),
               ),
             ),
-          
-          // Actions
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -991,8 +1028,14 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                 ),
                 const Spacer(),
                 _buildPostAction(
+                  icon: Icons.bookmark_border,
+                  label: '',
+                  onTap: () => _networkService.savePost(post.id),
+                ),
+                const SizedBox(width: 16),
+                _buildPostAction(
                   icon: Icons.share_outlined,
-                  label: 'Partager',
+                  label: '',
                   onTap: () async => _networkService.sharePost(post.id),
                 ),
               ],
@@ -1009,8 +1052,10 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       child: Row(
         children: [
           Icon(icon, size: 20, color: color ?? Colors.grey[600]),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 12, color: color ?? Colors.grey[600])),
+          if (label.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(fontSize: 12, color: color ?? Colors.grey[600])),
+          ],
         ],
       ),
     );
@@ -1028,10 +1073,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Suggestions pour vous', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
-                ),
+                TextButton(onPressed: () {}, child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12))),
               ],
             ),
           ),
@@ -1055,28 +1097,16 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                         child: suggestion.avatar == null ? const Icon(Icons.person, size: 28) : null,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        suggestion.name,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(suggestion.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       GestureDetector(
                         onTap: () => _networkService.sendConnectionRequest(suggestion.id),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD4AF37).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.person_add, size: 10, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 2),
-                              Text('+', style: TextStyle(fontSize: 10, color: Color(0xFFD4AF37))),
-                            ],
+                            children: [Icon(Icons.person_add, size: 10, color: Color(0xFFD4AF37)), SizedBox(width: 2), Text('+', style: TextStyle(fontSize: 10, color: Color(0xFFD4AF37)))],
                           ),
                         ),
                       ),
@@ -1103,10 +1133,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Communautés populaires', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
-                ),
+                TextButton(onPressed: () {}, child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12))),
               ],
             ),
           ),
@@ -1127,22 +1154,11 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
                       CircleAvatar(
                         radius: 28,
                         backgroundColor: const Color(0xFFD4AF37).withOpacity(0.1),
-                        child: Text(
-                          community.name.isNotEmpty ? community.name[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 24, color: Color(0xFFD4AF37)),
-                        ),
+                        child: Text(community.name.isNotEmpty ? community.name[0].toUpperCase() : '?', style: const TextStyle(fontSize: 24, color: Color(0xFFD4AF37))),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        community.name,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${community.membersCount} membres',
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
+                      Text(community.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('${community.membersCount} membres', style: const TextStyle(fontSize: 9, color: Colors.grey)),
                     ],
                   ),
                 );
@@ -1159,11 +1175,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
-        ),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)]),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1182,21 +1194,12 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       children: [
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
           child: Icon(icon, color: const Color(0xFFD4AF37), size: 24),
         ),
         const SizedBox(height: 8),
-        Text(
-          count,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white70, fontSize: 10),
-        ),
+        Text(count, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(label, style: TextStyle(color: Colors.white70, fontSize: 10)),
       ],
     );
   }
@@ -1209,22 +1212,13 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
               child: const Icon(Icons.post_add, size: 48, color: Colors.grey),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Aucune publication',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF4B5563)),
-            ),
+            const Text('Aucune publication', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF4B5563))),
             const SizedBox(height: 8),
-            const Text(
-              'Soyez le premier à partager quelque chose',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-            ),
+            const Text('Soyez le premier à partager quelque chose', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _showCreatePostDialog,
@@ -1246,9 +1240,7 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -1283,35 +1275,22 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
 
   Widget _buildFloatingActionButton() {
     return ScaleTransition(
-      scale: _fabScaleAnimation,
+      scale: _fabAnimationController.drive(Tween<double>(begin: 1.0, end: 1.1)),
       child: FloatingActionButton(
         onPressed: _showCreatePostDialog,
         backgroundColor: const Color(0xFFD4AF37),
-        child: RotationTransition(
-          turns: _fabRotateAnimation,
-          child: const Icon(Icons.edit, color: Color(0xFF0B1B3D)),
-        ),
+        child: const Icon(Icons.edit, color: Color(0xFF0B1B3D)),
       ),
     );
   }
 
-  // ==================== MÉTHODES UTILITAIRES ====================
-
   String _formatTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 7) {
-      return '${dateTime.day}/${dateTime.month}';
-    } else if (difference.inDays >= 1) {
-      return 'il y a ${difference.inDays}j';
-    } else if (difference.inHours >= 1) {
-      return 'il y a ${difference.inHours}h';
-    } else if (difference.inMinutes >= 1) {
-      return 'il y a ${difference.inMinutes}min';
-    } else {
-      return 'maintenant';
-    }
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 7) return '${dateTime.day}/${dateTime.month}';
+    if (diff.inDays >= 1) return 'il y a ${diff.inDays}j';
+    if (diff.inHours >= 1) return 'il y a ${diff.inHours}h';
+    if (diff.inMinutes >= 1) return 'il y a ${diff.inMinutes}min';
+    return 'maintenant';
   }
 
   String _formatCount(int count) {
