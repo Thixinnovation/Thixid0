@@ -1,13 +1,13 @@
 // lib/services/admin_news_service.dart
 import 'dart:async';
+import 'dart:io';  // ← AJOUTER CET IMPORT pour File
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/supabase/supabase_config.dart';
 
 class AdminNewsService {
-  // ⚠️ Table corrigée pour correspondre à ton système
-  static const String table = 'news_articles';  // ← au lieu de 'thix_news'
+  static const String table = 'news_articles';  // ← table corrigée
   static const String coverBucketDefault = 'news_images';  // ← bucket corrigé
 
   final SupabaseClient _client;
@@ -20,7 +20,7 @@ class AdminNewsService {
       final res = await _client
           .from(table)
           .select('*')
-          .order('published_at', ascending: false);  // ← order par published_at
+          .order('published_at', ascending: false);
       return (res is List) ? res.cast<Map<String, dynamic>>() : [];
     } catch (e) {
       debugPrint('AdminNewsService.listNews error: $e');
@@ -31,26 +31,26 @@ class AdminNewsService {
   Future<String> upsertNews({
     String? id,
     required String title,
-    String? summary,           // ← renamed (était subtitle)
+    String? summary,
     required String category,
-    String? source,            // ← optionnel
-    String? severity,          // ← optionnel
+    String? source,
+    String? severity,
     required String content,
-    bool isFeatured = false,   // ← default false
-    String? imageUrl,          // ← nouvelle propriété
-    String? videoUrl,          // ← nouvelle propriété
-    bool isBreaking = false,   // ← nouvelle propriété
-    String status = 'published', // ← default published
+    bool isFeatured = false,
+    String? imageUrl,
+    String? videoUrl,
+    bool isBreaking = false,
+    String status = 'published',
   }) async {
     try {
       final now = DateTime.now().toUtc().toIso8601String();
       final data = {
         'title': title,
-        'summary': summary,              // ← au lieu de subtitle
+        'summary': summary,
         'category': category,
         'content': content,
         'is_featured': isFeatured,
-        'is_breaking': isBreaking,       // ← nouveau
+        'is_breaking': isBreaking,
         'status': status,
         'updated_at': now,
         if (source != null && source.isNotEmpty) 'source': source,
@@ -61,7 +61,7 @@ class AdminNewsService {
 
       if (id == null || id.isEmpty) {
         data['created_at'] = now;
-        data['published_at'] = now;      // ← ajouté
+        data['published_at'] = now;
         final res = await _client.from(table).insert(data).select().single();
         return res['id'].toString();
       } else {
@@ -74,14 +74,12 @@ class AdminNewsService {
     }
   }
 
-  // ⚠️ Méthode à adapter pour ton système
   Future<void> updateCoverImage({
     required String newsId,
     required String bucket,
     required String storagePath,
   }) async {
     try {
-      // Dans ton système, l'image est stockée dans image_url
       await _client.from(table).update({
         'image_url': _getPublicUrl(bucket, storagePath),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
