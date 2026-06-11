@@ -1,14 +1,30 @@
 // lib/presentation/network/widgets/story_highlights.dart
 import 'package:flutter/material.dart';
 
+class Highlight {
+  final String id;
+  final String name;
+  final String? coverImage;
+  final List<String> storyIds;
+  final DateTime createdAt;
+
+  Highlight({
+    required this.id,
+    required this.name,
+    this.coverImage,
+    required this.storyIds,
+    required this.createdAt,
+  });
+}
+
 class StoryHighlights extends StatelessWidget {
   final List<Highlight> highlights;
-  final VoidCallback onAddHighlight;
+  final VoidCallback? onAddHighlight;  // Type correct
 
   const StoryHighlights({
     super.key,
     required this.highlights,
-    required this.onAddHighlight,
+    this.onAddHighlight,
   });
 
   @override
@@ -28,12 +44,13 @@ class StoryHighlights extends StatelessWidget {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: highlights.length + 1,
+              itemCount: highlights.length + (onAddHighlight != null ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == 0) {
+                if (onAddHighlight != null && index == 0) {
                   return _buildAddHighlightButton();
                 }
-                final highlight = highlights[index - 1];
+                final highlightIndex = onAddHighlight != null ? index - 1 : index;
+                final highlight = highlights[highlightIndex];
                 return _buildHighlightItem(highlight);
               },
             ),
@@ -126,22 +143,6 @@ class StoryHighlights extends StatelessWidget {
   }
 
   void _viewHighlight(Highlight highlight) {
-    // Naviguer vers la highlight
+    // TODO: Naviguer vers la highlight
   }
-}
-
-class Highlight {
-  final String id;
-  final String name;
-  final String? coverImage;
-  final List<String> storyIds;
-  final DateTime createdAt;
-
-  Highlight({
-    required this.id,
-    required this.name,
-    this.coverImage,
-    required this.storyIds,
-    required this.createdAt,
-  });
 }
