@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -94,12 +93,24 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_article.imageUrl != null)
-              CachedNetworkImage(
-                imageUrl: _article.imageUrl!,
+            if (_article.imageUrl != null && _article.imageUrl!.isNotEmpty)
+              Image.network(
+                _article.imageUrl!,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(height: 200, color: Colors.grey[200]),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                ),
               ),
             Padding(
               padding: const EdgeInsets.all(16),
