@@ -8,6 +8,7 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'widgets/pinned_post.dart';
+import 'dart:async';
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -129,14 +130,7 @@ if (_pinnedPosts.isNotEmpty)
     child: PinnedPost(
       post: _pinnedPosts.first,
       onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-      onUnpin: isOwnProfile ? () { 
-        // Appel sans await
-        _networkService.unpinPost(_pinnedPosts.first.id);
-        _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post désépinglé'), backgroundColor: Colors.orange),
-        );
-      } : null,
+      onUnpin: isOwnProfile ? () => unawaited(_unpinPost(_pinnedPosts.first.id)) : null,
     ),
   ),
                   
