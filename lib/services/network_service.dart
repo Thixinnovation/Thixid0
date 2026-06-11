@@ -18,14 +18,19 @@ class NetworkService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ==================== POSTS ====================
-Future<NetworkPost?> getPostById(String postId) async {
+class PostScore {
+  final NetworkPost post;
+  double score;
+  
+  PostScore(this.post, this.score);
+}
+
+Future<List<NetworkPost>> getSmartFeed({int limit = 20}) async {
   try {
     final currentUserId = this.currentUserId;
-    if (currentUserId.isEmpty) return null;
+    if (currentUserId.isEmpty) return [];
     
-    print('🔍 getPostById - postId: $postId');
-    
-    // Version simplifiée qui fonctionne
+    // Récupérer les posts
     final response = await _supabase
         .from('posts')
         .select('''
@@ -36,46 +41,103 @@ Future<NetworkPost?> getPostById(String postId) async {
             profession
           )
         ''')
-        .eq('id', postId)
-        .maybeSingle();  // Utilise maybeSingle au lieu de single
+        .eq('is_public', true)
+        .limit(100);
     
-    if (response == null) {
-      print('❌ Post non trouvé: $postId');
-      return null;
+    // Récupérer les connexions de l'utilisateur pour le poids des relations
+    final connections = await _supabase
+        .from('connections')
+        .select('connection_id')
+        .eq('user_id', currentUserId)
+        .eq('status', 'accepted');
+    
+    final connectedUserIds = (connections as List)
+        .map((c) => c['connection_id'] as String)
+        .toSet();
+    
+    final postsWithScores = <PostScore>[];
+    
+    for (var e in response as List) {
+      final likesData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', e['id']);
+      
+      final commentsData = await _supabase
+          .from('comments')
+          .select('id')
+          .eq('post_id', e['id']);
+      
+      final userLikedData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', e['id'])
+          .eq('user_id', currentUserId);
+      
+      final userData = e['users'] as Map<String, dynamic>?;
+      
+      final post = NetworkPost.fromJson({
+        ...e,
+        'author_name': userData?['display_name'] ?? 'Utilisateur',
+        'author_avatar': userData?['photo_url'],
+        'author_title': userData?['profession'],
+        'likes_count': (likesData as List).length,
+        'comments_count': (commentsData as List).length,
+        'is_liked': (userLikedData as List).isNotEmpty,
+      });
+      
+      // Calcul du score intelligent
+      double score = 0;
+      
+      // Facteur 1: Engagement pondéré
+      score += post.likesCount * 1.0;
+      score += post.commentsCount * 3.0; // Les commentaires valent plus
+      
+      // Facteur 2: Récence (exponentiel)
+      final ageInMinutes = DateTime.now().difference(post.createdAt).inMinutes;
+      final recencyScore = 100.0 / (ageInMinutes + 10);
+      score += recencyScore;
+      
+      // Facteur 3: Connexion (les posts des connexions sont prioritaires)
+      if (connectedUserIds.contains(post.userId)) {
+        score += 50;
+      }
+      
+      // Facteur 4: Viralité (engagement rapide)
+      final hoursSincePost = ageInMinutes / 60;
+      if (hoursSincePost > 0) {
+        final engagementRate = (post.likesCount + post.commentsCount) / hoursSincePost;
+        if (engagementRate > 10) score += 40;
+        else if (engagementRate > 5) score += 20;
+        else if (engagementRate > 1) score += 10;
+      }
+      
+      // Facteur 5: Si l'utilisateur a déjà liké des posts de cet auteur
+      final previousLikes = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('user_id', currentUserId)
+          .inFilter('post_id', 
+              (await _supabase.from('posts').select('id').eq('user_id', post.userId) as List)
+                  .map((p) => p['id'] as String).toList());
+      if ((previousLikes as List).isNotEmpty) {
+        score += 15 * previousLikes.length.clamp(0, 3);
+      }
+      
+      // Facteur 6: Diversité (10% d'aléatoire pour éviter la chambre d'écho)
+      final random = DateTime.now().millisecondsSinceEpoch % 100 / 100;
+      score += random * 30;
+      
+      postsWithScores.add(PostScore(post, score));
     }
     
-    print('🔍 Post trouvé: ${response['id']}');
+    // Trier par score
+    postsWithScores.sort((a, b) => b.score.compareTo(a.score));
     
-    final likesData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final commentsData = await _supabase
-        .from('comments')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final userLikedData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', currentUserId);
-    
-    final userData = response['users'] as Map<String, dynamic>?;
-    
-    return NetworkPost.fromJson({
-      ...response,
-      'author_name': userData?['display_name'] ?? 'Utilisateur',
-      'author_avatar': userData?['photo_url'],
-      'author_title': userData?['profession'],
-      'likes_count': (likesData as List).length,
-      'comments_count': (commentsData as List).length,
-      'is_liked': (userLikedData as List).isNotEmpty,
-    });
+    return postsWithScores.take(limit).map((e) => e.post).toList();
   } catch (e) {
-    print('❌ Error getPostById: $e');
-    return null;
+    debugPrint('❌ Error getSmartFeed: $e');
+    return [];
   }
 }
 
