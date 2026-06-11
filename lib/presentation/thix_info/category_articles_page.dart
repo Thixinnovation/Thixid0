@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/news_provider.dart';
 import '../../models/news_article.dart';
@@ -86,15 +85,29 @@ class _CategoryArticlesPageState extends State<CategoryArticlesPage> {
         ),
         child: Row(
           children: [
-            if (article.imageUrl != null)
+            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
+                child: Image.network(
+                  article.imageUrl!,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(width: 80, height: 80, color: Colors.grey[200]),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                  ),
                 ),
               ),
             const SizedBox(width: 12),
