@@ -1,7 +1,6 @@
 // lib/presentation/network/widgets/create_post_dialog.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../services/network_service.dart';
@@ -154,7 +153,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     );
   }
 
-  // ⭐⭐⭐ MÉTHODE CORRIGÉE ⭐⭐⭐
   Future<void> _submitPost() async {
     if (_contentController.text.trim().isEmpty && 
         _selectedImages.isEmpty && 
@@ -180,20 +178,14 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       for (int i = 0; i < _selectedImages.length; i++) {
         final image = _selectedImages[i];
         if (mounted) {
-          setState(() {
-            _uploadingFiles.add('Image ${i + 1}');
-          });
+          setState(() => _uploadingFiles.add('Image ${i + 1}'));
         }
         
         final url = await networkService.uploadImage(image.path);
-        if (url != null) {
-          mediaUrls.add(url);
-        }
+        if (url != null) mediaUrls.add(url);
         
         if (mounted) {
-          setState(() {
-            _uploadingFiles.remove('Image ${i + 1}');
-          });
+          setState(() => _uploadingFiles.remove('Image ${i + 1}'));
         }
       }
       
@@ -201,26 +193,19 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       for (int i = 0; i < _selectedVideos.length; i++) {
         final video = _selectedVideos[i];
         if (mounted) {
-          setState(() {
-            _uploadingFiles.add('Vidéo ${i + 1}');
-          });
+          setState(() => _uploadingFiles.add('Vidéo ${i + 1}'));
         }
         
         final url = await networkService.uploadImage(video.path);
-        if (url != null) {
-          mediaUrls.add(url);
-        }
+        if (url != null) mediaUrls.add(url);
         
         if (mounted) {
-          setState(() {
-            _uploadingFiles.remove('Vidéo ${i + 1}');
-          });
+          setState(() => _uploadingFiles.remove('Vidéo ${i + 1}'));
         }
       }
       
       bool success = false;
       
-      // Création du post avec les nouvelles méthodes qui retournent String
       if (widget.communityId != null) {
         final postId = await networkService.createCommunityPost(
           communityId: widget.communityId!,
@@ -229,11 +214,9 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         );
         success = postId.isNotEmpty;
         if (success) {
-          debugPrint('✅ Post créé dans la communauté avec ID: $postId');
-          await feedProvider.loadFeed(); // Recharger le feed
+          await feedProvider.loadFeed();
         }
       } else {
-        // Utiliser le FeedProvider qui appelle createPost et recharge le feed
         success = await feedProvider.createPost(
           _contentController.text.trim(),
           mediaUrls,
@@ -244,11 +227,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
         );
-        
         widget.onPostCreated?.call();
         Navigator.pop(context, true);
       } else if (mounted) {
-        throw Exception('Échec de la création de la publication');
+        throw Exception('Échec de la création');
       }
       
     } catch (e) {
@@ -273,14 +255,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 const Expanded(
-                  child: Text(
-                    'Nouvelle publication',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text('Nouvelle publication', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -288,10 +266,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
               ],
             ),
-            
             const Divider(),
-            
-            // Types de post
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
@@ -304,87 +279,36 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ],
               ),
             ),
-            
             const SizedBox(height: 12),
-            
-            // Zone de texte
-            Stack(
-              children: [
-                TextField(
-                  controller: _contentController,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText: 'Écrivez votre publication... Utilisez #hashtag ou @mention',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                ),
-                if (_showMentions && _mentionSuggestions.isNotEmpty)
-                  Positioned(
-                    bottom: 50,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                      ),
-                      child: Column(
-                        children: _mentionSuggestions.map((user) => ListTile(
-                          leading: CircleAvatar(
-                            radius: 16,
-                            backgroundImage: user['photo_url'] != null 
-                                ? NetworkImage(user['photo_url']) 
-                                : null,
-                            child: user['photo_url'] == null ? const Icon(Icons.person, size: 16) : null,
-                          ),
-                          title: Text(user['display_name']),
-                          subtitle: Text('@${user['display_name']}'),
-                          onTap: () => _insertMention(user),
-                        )).toList(),
-                      ),
-                    ),
-                  ),
-              ],
+            TextField(
+              controller: _contentController,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Écrivez votre publication... Utilisez #hashtag ou @mention',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
             ),
-            
             const SizedBox(height: 16),
-            
-            // Upload progress
             if (_uploadingFiles.isNotEmpty)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
                 child: Column(
-                  children: [
-                    for (var text in _uploadingFiles)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(text),
-                          ],
-                        ),
-                      ),
-                  ],
+                  children: _uploadingFiles.map((text) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                        const SizedBox(width: 12),
+                        Text(text),
+                      ],
+                    ),
+                  )).toList(),
                 ),
               ),
-            
-            // Images preview
             if (_selectedImages.isNotEmpty)
               Container(
                 height: 120,
@@ -392,108 +316,45 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _selectedImages.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          width: 120,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(_selectedImages[index]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 12,
-                          child: GestureDetector(
-                            onTap: () => _removeImage(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.close, size: 18, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            
-            // Video preview
-            if (_selectedVideos.isNotEmpty)
-              Container(
-                height: 200,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.black,
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.videocam, size: 48, color: Colors.white54),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Vidéo prête à être publiée',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: _removeVideo,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close, size: 18, color: Colors.white),
+                  itemBuilder: (context, index) => Stack(
+                    children: [
+                      Container(
+                        width: 120,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: DecorationImage(image: FileImage(_selectedImages[index]), fit: BoxFit.cover),
                         ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        top: 4,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: () => _removeImage(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                            child: const Icon(Icons.close, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            
-            // Error message
             if (_errorMessage != null)
               Container(
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     const Icon(Icons.error_outline, color: Colors.red, size: 18),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    ),
+                    Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12))),
                   ],
                 ),
               ),
-            
-            // Actions
             Row(
               children: [
                 IconButton(
@@ -507,10 +368,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   tooltip: 'Ajouter une vidéo',
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: _isUploading ? null : () => Navigator.pop(context),
-                  child: const Text('Annuler'),
-                ),
+                TextButton(onPressed: _isUploading ? null : () => Navigator.pop(context), child: const Text('Annuler')),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _isUploading ? null : _submitPost,
@@ -520,19 +378,12 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                   child: _isUploading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('PUBLIER'),
                 ),
               ],
             ),
-            
             const SizedBox(height: 8),
-            
-            // Info
             Center(
               child: Text(
                 'Utilisez #hashtag pour les tendances | @mention pour taguer',
@@ -549,31 +400,19 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     final isSelected = _selectedPostType == type;
     return Flexible(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedPostType = type;
-          });
-        },
+        onTap: () => setState(() => _selectedPostType = type),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFFD4AF37).withOpacity(0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? const Color(0xFFD4AF37) : Colors.grey[300]!,
-            ),
+            border: Border.all(color: isSelected ? const Color(0xFFD4AF37) : Colors.grey[300]!),
           ),
           child: Column(
             children: [
               Icon(icon, color: isSelected ? const Color(0xFFD4AF37) : Colors.grey),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
-                ),
-              ),
+              Text(label, style: TextStyle(fontSize: 11, color: isSelected ? const Color(0xFFD4AF37) : Colors.grey)),
             ],
           ),
         ),
