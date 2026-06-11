@@ -148,23 +148,23 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadStories() async {
     setState(() => _loadingStories = true);
     try {
-      final stories = await _networkService.getActiveStories();
+      final networkStories = await _networkService.getActiveStories();
       // Convert NetworkStory to Story
       setState(() {
-        _stories = stories.map((networkStory) => Story(
+        _stories = networkStories.map((networkStory) => Story(
           id: networkStory.id,
           userId: networkStory.userId,
           userName: networkStory.userName,
           userAvatar: networkStory.userAvatar,
-          userProfession: networkStory.userProfession,
-          mediaUrl: networkStory.mediaUrl,
-          mediaType: networkStory.mediaType,
+          userProfession: networkStory.userTitle,
+          mediaUrl: networkStory.imageUrl,
+          mediaType: 'image',
           content: null,
           createdAt: networkStory.createdAt,
           expiresAt: networkStory.expiresAt,
           isActive: networkStory.isActive,
           isViewed: networkStory.isViewed,
-          viewsCount: networkStory.viewsCount,
+          viewsCount: 0,
         )).toList();
         _loadingStories = false;
       });
@@ -307,7 +307,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     
-    // Optimistic update - créer une copie modifiable
     final updatedPost = post.copyWith(
       likesCount: post.isLikedByCurrentUser ? post.likesCount - 1 : post.likesCount + 1,
       isLikedByCurrentUser: !post.isLikedByCurrentUser,
@@ -324,7 +323,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         await _networkService.likePost(post.id);
       }
     } catch (e) {
-      // Revert en cas d'erreur
       final revertedPost = post.copyWith(
         likesCount: post.likesCount,
         isLikedByCurrentUser: post.isLikedByCurrentUser,
@@ -374,7 +372,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                         if (commentController.text.trim().isNotEmpty) {
                           await _networkService.addComment(post.id, commentController.text.trim());
                           
-                          // Incrémenter le compteur - créer une copie modifiable
                           final updatedPost = post.copyWith(
                             commentsCount: post.commentsCount + 1,
                           );
