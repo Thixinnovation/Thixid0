@@ -7,6 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
+import 'package:thix_id/models/network_story.dart';
+import 'widgets/pinned_post.dart';
+import 'widgets/story_highlights.dart';
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -20,15 +23,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   late NetworkService _networkService;
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
+  List<NetworkPost> _pinnedPosts = [];
+  List<Highlight> _highlights = [];
   bool _loading = true;
   bool _isFollowing = false;
   int _selectedTab = 0;
+  bool _isGridView = true;
   
   final List<String> _tabs = ['Posts', 'Photos', 'Vidéos', 'Reels', 'J\'aime'];
   
-  // Animation
   late AnimationController _levelUpController;
-  
+
   @override
   void initState() {
     super.initState();
@@ -52,10 +57,14 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final userId = widget.userId ?? _networkService.currentUserId;
       final userData = await _networkService.getUserProfile(userId);
       final posts = await _networkService.getUserPosts(userId);
+      final pinnedPosts = await _networkService.getPinnedPosts(userId);
+      final highlights = await _networkService.getUserHighlights(userId);
       
       setState(() {
         _user = userData;
         _posts = posts;
+        _pinnedPosts = pinnedPosts;
+        _highlights = highlights;
         _loading = false;
       });
     } catch (e) {
@@ -68,10 +77,54 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     if (widget.userId == null) return;
     await _networkService.sendConnectionRequest(widget.userId!);
     setState(() => _isFollowing = true);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Demande envoyée'), backgroundColor: Colors.green),
+    );
   }
 
   void _sendMessage() {
     context.push('/network/chat/${widget.userId}');
+  }
+
+  Future<void> _unpinPost(String postId) async {
+    await _networkService.unpinPost(postId);
+    await _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post désépinglé'), backgroundColor: Colors.orange),
+      );
+    }
+  }
+
+  Future<void> _createHighlight() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nouvelle story en vedette'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Nom de la collection',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('Créer'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true && nameController.text.isNotEmpty) {
+      await _networkService.createHighlight(nameController.text, [], null);
+      await _loadData();
+    }
   }
 
   @override
@@ -95,6 +148,25 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   child: _buildProfileHeader(isOwnProfile),
                 ),
                 
+                // Story Highlights
+                if (_highlights.isNotEmpty || isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: StoryHighlights(
+                      highlights: _highlights,
+                      onAddHighlight: isOwnProfile ? _createHighlight : null,
+                    ),
+                  ),
+                
+                // Post épinglé
+                if (_pinnedPosts.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: PinnedPost(
+                      post: _pinnedPosts.first,
+                      onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
+                      onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
+                    ),
+                  ),
+                
                 // Barre de progression XP
                 SliverToBoxAdapter(
                   child: _buildXpBar(),
@@ -116,9 +188,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     child: _buildAboutSection(),
                   ),
                 
-                // Tabs
+                // Tabs et vue switch
                 SliverToBoxAdapter(
-                  child: _buildTabs(),
+                  child: _buildTabsAndSwitch(),
                 ),
                 
                 // Posts
@@ -126,7 +198,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   const SliverToBoxAdapter(
                     child: _buildEmptyPosts(),
                   )
-                else
+                else if (_isGridView)
                   SliverGrid(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
@@ -136,6 +208,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => _buildPostGridItem(_posts[index]),
+                      childCount: _posts.length,
+                    ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildPostListItem(_posts[index]),
                       childCount: _posts.length,
                     ),
                   ),
@@ -150,7 +229,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     return Stack(
       children: [
         Container(
-          height: 180,
+          height: 160,
           width: double.infinity,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -162,20 +241,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             image: _user?['cover_url'] != null
                 ? DecorationImage(image: NetworkImage(_user!['cover_url']), fit: BoxFit.cover)
                 : null,
-          ),
-          child: Stack(
-            children: [
-              // Pattern décoratif
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.1,
-                  child: Image.network(
-                    'https://images.unsplash.com/photo-1557682250-33bd709cbe85',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
         Positioned(
@@ -201,7 +266,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         children: [
           const SizedBox(height: 40),
           
-          // Avatar et boutons
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -271,7 +335,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           
           const SizedBox(height: 12),
           
-          // Nom et bio
           Text(
             _user?['display_name'] ?? 'Utilisateur',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -294,7 +357,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             ),
           const SizedBox(height: 8),
           
-          // Localisation et date
           Wrap(
             spacing: 12,
             children: [
@@ -320,7 +382,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           
           const SizedBox(height: 12),
           
-          // Liens
           if (_user?['website'] != null)
             GestureDetector(
               onTap: () => _openUrl(_user!['website']),
@@ -341,7 +402,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     final level = _user?['level'] ?? 1;
     final xp = _user?['xp'] ?? 0;
     final xpNeeded = level * 100;
-    final progress = xp / xpNeeded;
+    final progress = (xp / xpNeeded).clamp(0.0, 1.0);
     
     return Container(
       margin: const EdgeInsets.all(16),
@@ -556,35 +617,46 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabsAndSwitch() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_tabs.length, (index) {
-          final isSelected = _selectedTab == index;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedTab = index),
-            child: Column(
-              children: [
-                Text(
-                  _tabs[index],
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
+        children: [
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(_tabs.length, (index) {
+                final isSelected = _selectedTab == index;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedTab = index),
+                  child: Column(
+                    children: [
+                      Text(
+                        _tabs[index],
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 2,
+                        width: 30,
+                        color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  height: 2,
-                  width: 30,
-                  color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent,
-                ),
-              ],
+                );
+              }),
             ),
-          );
-        }),
+          ),
+          IconButton(
+            icon: Icon(_isGridView ? Icons.grid_view : Icons.view_list),
+            onPressed: () => setState(() => _isGridView = !_isGridView),
+            color: const Color(0xFFD4AF37),
+          ),
+        ],
       ),
     );
   }
@@ -623,6 +695,72 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               ),
             ),
           ),
+          if (post.isPinned)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4AF37).withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.push_pin, size: 12, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostListItem(NetworkPost post) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          if (post.mediaUrl != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                post.mediaUrl!,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+              ),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  post.content ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.favorite, size: 14, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Text(_formatNumber(post.likesCount), style: const TextStyle(fontSize: 11)),
+                    const SizedBox(width: 12),
+                    Icon(Icons.comment, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(_formatNumber(post.commentsCount), style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (post.isPinned)
+            const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
         ],
       ),
     );
@@ -643,7 +781,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
-  // Actions
   void _editProfile() {
     // Ouvrir dialogue d'édition
   }
