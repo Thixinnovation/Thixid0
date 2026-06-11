@@ -963,7 +963,27 @@ Future<Map<String, int>> getRecommendationsCount() async {
       return false;
     }
   }
+// ============================================================
+// SECTION: POSTS DANS COMMUNAUTÉ
+// ============================================================
 
+Future<void> createCommunityPost({
+  required String communityId,
+  required String content,
+  List<String> images = const [],
+}) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) throw Exception('User not logged in');
+  
+  await _supabase.from('posts').insert({
+    'user_id': currentUserId,
+    'community_id': communityId,
+    'content': content,
+    'media_url': images.isNotEmpty ? images[0] : null,
+    'media_type': images.isNotEmpty ? 'image' : 'none',
+    'created_at': DateTime.now().toIso8601String(),
+  });
+}
   // ============================================================
   // SECTION 12: CONNEXIONS & SUGGESTIONS
   // ============================================================
