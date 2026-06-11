@@ -17,49 +17,52 @@ class NewsService {
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
-    String? category,
-    int limit = 50,
-    bool onlyPublished = true,
-  }) async {
-    try {
-      // ✅ SOLUTION : Utiliser select directement et enchaîner les conditions
-      var query = _supabase
-          .from('news_articles')
-          .select('*')
-          .order('published_at', ascending: false)
-          .limit(limit);
+  String? category,
+  int limit = 50,
+  bool onlyPublished = true,
+}) async {
+  try {
+    var query = _supabase
+        .from('news_articles')
+        .select('*');
 
-      // Appliquer les filtres un par un
-      if (onlyPublished) {
-        query = query.eq('status', 'published');
-      }
-      if (category != null && category != 'featured') {
-        query = query.eq('category', category);
-      }
-      if (category == 'featured') {
-        query = query.eq('is_featured', true);
-      }
+    if (onlyPublished) {
+      query = query.eq('status', 'published');
+    }
 
-      final response = await query;
-      final articles = <NewsArticle>[];
-      
-      for (var e in response as List) {
-        final isLiked = await _isArticleLiked(e['id']);
-        final isSaved = await _isArticleSaved(e['id']);
-        
-        articles.add(NewsArticle.fromJson({
+    if (category != null && category != 'featured') {
+      query = query.eq('category', category);
+    }
+
+    if (category == 'featured') {
+      query = query.eq('is_featured', true);
+    }
+
+    final response = await query
+        .order('published_at', ascending: false)
+        .limit(limit);
+
+    final articles = <NewsArticle>[];
+
+    for (final e in response) {
+      final isLiked = await _isArticleLiked(e['id']);
+      final isSaved = await _isArticleSaved(e['id']);
+
+      articles.add(
+        NewsArticle.fromJson({
           ...e,
           'is_liked': isLiked,
           'is_saved': isSaved,
-        }));
-      }
-      
-      return articles;
-    } catch (e) {
-      debugPrint('❌ Error getArticles: $e');
-      return [];
+        }),
+      );
     }
+
+    return articles;
+  } catch (e) {
+    debugPrint('❌ Error getArticles: $e');
+    return [];
   }
+}
 
   // ============================================================
   // AUTRES MÉTHODES (inchangées)
