@@ -8,14 +8,12 @@ class FeedProvider extends ChangeNotifier {
   
   List<NetworkPost> _posts = [];
   bool _isLoading = false;
-  bool _hasMore = true;
   String _currentFeedType = 'smart';
   
   FeedProvider(this._networkService);
   
   List<NetworkPost> get posts => _posts;
   bool get isLoading => _isLoading;
-  bool get hasMore => _hasMore;
   String get currentFeedType => _currentFeedType;
   
   Future<void> loadFeed({String? feedType, int limit = 20}) async {
@@ -25,9 +23,7 @@ class FeedProvider extends ChangeNotifier {
     notifyListeners();
     
     try {
-      if (feedType != null) {
-        _currentFeedType = feedType;
-      }
+      if (feedType != null) _currentFeedType = feedType;
       
       late List<NetworkPost> newPosts;
       
@@ -45,8 +41,6 @@ class FeedProvider extends ChangeNotifier {
       }
       
       _posts = newPosts;
-      _hasMore = newPosts.length >= limit;
-      
     } catch (e) {
       debugPrint('FeedProvider loadFeed error: $e');
     } finally {
@@ -58,15 +52,12 @@ class FeedProvider extends ChangeNotifier {
   Future<NetworkPost?> createPost(String content, List<String> images) async {
     try {
       final createdData = await _networkService.createPost(content, images);
-      
-      // Récupérer le post complet
       final newPost = await _networkService.getPostById(createdData['id']);
       
       if (newPost != null) {
         _posts.insert(0, newPost);
         notifyListeners();
       }
-      
       return newPost;
     } catch (e) {
       debugPrint('FeedProvider createPost error: $e');
@@ -96,54 +87,9 @@ class FeedProvider extends ChangeNotifier {
       }
     } catch (e) {
       // Revert on error
-      _posts[index] = post.copyWith(
-        isLikedByCurrentUser: wasLiked,
-        likesCount: post.likesCount,
-      );
+      _posts[index] = post;
       notifyListeners();
       debugPrint('FeedProvider toggleLike error: $e');
-    }
-  }
-  
-  Future<void> addComment(String postId, String comment) async {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index == -1) return;
-    
-    final post = _posts[index];
-    
-    // Optimistic update
-    _posts[index] = post.copyWith(
-      commentsCount: post.commentsCount + 1,
-    );
-    notifyListeners();
-    
-    try {
-      await _networkService.addComment(postId, comment);
-    } catch (e) {
-      // Revert on error
-      _posts[index] = post.copyWith(
-        commentsCount: post.commentsCount,
-      );
-      notifyListeners();
-      debugPrint('FeedProvider addComment error: $e');
-    }
-  }
-  
-  Future<void> savePost(String postId) async {
-    try {
-      await _networkService.savePost(postId);
-    } catch (e) {
-      debugPrint('FeedProvider savePost error: $e');
-      rethrow;
-    }
-  }
-  
-  Future<void> sharePost(String postId) async {
-    try {
-      await _networkService.sharePost(postId);
-    } catch (e) {
-      debugPrint('FeedProvider sharePost error: $e');
-      rethrow;
     }
   }
   
