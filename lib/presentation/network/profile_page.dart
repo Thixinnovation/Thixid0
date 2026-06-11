@@ -19,26 +19,33 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin, SingleTickerProviderStateMixin {
   late NetworkService _networkService;
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
   List<Highlight> _highlights = [];
+  List<NetworkPost> _savedPosts = [];
+  List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
   bool _isFollowing = false;
   int _selectedTab = 0;
   bool _isGridView = true;
   
-  final List<String> _tabs = ['Posts', 'Photos', 'Vidéos', 'Reels', 'J\'aime'];
-  
   late AnimationController _levelUpController;
+  late AnimationController _refreshController;
+  
+  final List<String> _tabs = ['Posts', 'Photos', 'Vidéos', 'Reels', 'J\'aime', 'Sauvegardés'];
 
   @override
   void initState() {
     super.initState();
     _levelUpController = AnimationController(
       duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+    _refreshController = AnimationController(
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
     _networkService = NetworkService(Supabase.instance.client);
@@ -48,6 +55,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   @override
   void dispose() {
     _levelUpController.dispose();
+    _refreshController.dispose();
     super.dispose();
   }
 
@@ -59,12 +67,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final posts = await _networkService.getUserPosts(userId);
       final pinnedPosts = await _networkService.getPinnedPosts(userId);
       final highlights = await _networkService.getUserHighlights(userId);
+      final savedPosts = await _networkService.getSavedPosts();
+      final repostedPosts = await _networkService.getUserReposts(userId);
       
       setState(() {
         _user = userData;
         _posts = posts;
         _pinnedPosts = pinnedPosts;
         _highlights = highlights;
+        _savedPosts = savedPosts;
+        _repostedPosts = repostedPosts;
         _loading = false;
       });
     } catch (e) {
@@ -127,6 +139,14 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     }
   }
 
+  void _shareProfile() {
+    final shareText = 'Découvrez le profil de ${_user?['display_name']} sur THIX Réseau Pro !';
+    // Share.share(shareText);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Partage bientôt disponible'), backgroundColor: Colors.orange),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
@@ -136,91 +156,70 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       backgroundColor: const Color(0xFFF8F9FA),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                // Bannière de couverture
-                SliverToBoxAdapter(
-                  child: _buildCoverBanner(),
-                ),
-                
-                // En-tête du profil
-                SliverToBoxAdapter(
-                  child: _buildProfileHeader(isOwnProfile),
-                ),
-                
-                // Story Highlights
-                if (_highlights.isNotEmpty || isOwnProfile)
-                  SliverToBoxAdapter(
-                    child: StoryHighlights(
-                      highlights: _highlights,
-                      onAddHighlight: isOwnProfile ? _createHighlight : null,
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              color: const Color(0xFFD4AF37),
+              child: CustomScrollView(
+                controller: ScrollController(),
+                slivers: [
+                  // Bannière de couverture
+                  SliverToBoxAdapter(child: _buildCoverBanner()),
+                  
+                  // En-tête du profil
+                  SliverToBoxAdapter(child: _buildProfileHeader(isOwnProfile)),
+                  
+                  // Story Highlights
+                  if (_highlights.isNotEmpty || isOwnProfile)
+                    SliverToBoxAdapter(
+                      child: StoryHighlights(
+                        highlights: _highlights,
+                        onAddHighlight: isOwnProfile ? _createHighlight : null,
+                      ),
                     ),
-                  ),
-                
-                // Post épinglé
-                if (_pinnedPosts.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: PinnedPost(
-                      post: _pinnedPosts.first,
-                      onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-                      onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
+                  
+                  // Post épinglé
+                  if (_pinnedPosts.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: PinnedPost(
+                        post: _pinnedPosts.first,
+                        onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
+                        onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
+                      ),
                     ),
-                  ),
-                
-                // Barre de progression XP
-                SliverToBoxAdapter(
-                  child: _buildXpBar(),
-                ),
-                
-                // Statistiques
-                SliverToBoxAdapter(
-                  child: _buildStatsGrid(),
-                ),
-                
-                // Badges
-                SliverToBoxAdapter(
-                  child: _buildBadgesSection(),
-                ),
-                
-                // À propos
-                if (_user?['bio'] != null || _user?['skills'] != null)
-                  SliverToBoxAdapter(
-                    child: _buildAboutSection(),
-                  ),
-                
-                // Tabs et vue switch
-                SliverToBoxAdapter(
-                  child: _buildTabsAndSwitch(),
-                ),
-                
-                // Posts
-                if (_posts.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: _buildEmptyPosts(),
-                  )
-                else if (_isGridView)
-                  SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                      childAspectRatio: 1,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildPostGridItem(_posts[index]),
-                      childCount: _posts.length,
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildPostListItem(_posts[index]),
-                      childCount: _posts.length,
-                    ),
-                  ),
-                
-                const SliverToBoxAdapter(child: SizedBox(height: 80)),
-              ],
+                  
+                  // Barre de progression XP
+                  SliverToBoxAdapter(child: _buildXpBar()),
+                  
+                  // Statistiques
+                  SliverToBoxAdapter(child: _buildStatsGrid()),
+                  
+                  // Badges
+                  SliverToBoxAdapter(child: _buildBadgesSection()),
+                  
+                  // À propos
+                  if (_user?['bio'] != null || _user?['skills'] != null)
+                    SliverToBoxAdapter(child: _buildAboutSection()),
+                  
+                  // Tabs et vue switch
+                  SliverToBoxAdapter(child: _buildTabsAndSwitch()),
+                  
+                  // Posts selon l'onglet sélectionné
+                  if (_selectedTab == 0)
+                    _buildPostsContent(_posts)
+                  else if (_selectedTab == 1)
+                    _buildPhotosContent()
+                  else if (_selectedTab == 2)
+                    _buildVideosContent()
+                  else if (_selectedTab == 3)
+                    _buildReelsContent()
+                  else if (_selectedTab == 4)
+                    _buildLikedContent()
+                  else if (_selectedTab == 5)
+                    _buildSavedContent(),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                ],
+              ),
             ),
     );
   }
@@ -298,13 +297,26 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               ),
               const Spacer(),
               if (isOwnProfile)
-                OutlinedButton.icon(
-                  onPressed: () => _editProfile(),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Modifier'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _shareProfile,
+                      icon: const Icon(Icons.share, size: 18),
+                      label: const Text('Partager'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => _editProfile(),
+                      icon: const Icon(Icons.edit, size: 18),
+                      label: const Text('Modifier'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                    ),
+                  ],
                 )
               else
                 Row(
@@ -410,9 +422,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,10 +466,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            '$xp / $xpNeeded XP',
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
+          Text('$xp / $xpNeeded XP', style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
       ),
     );
@@ -481,9 +488,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
       ),
       child: GridView.builder(
         shrinkWrap: true,
@@ -502,14 +507,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             children: [
               Icon(stat['icon'] as IconData, size: 24, color: const Color(0xFFD4AF37)),
               const SizedBox(height: 4),
-              Text(
-                _formatNumber(stat['value'] as int),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                stat['label'] as String,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
+              Text(_formatNumber(stat['value'] as int), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(stat['label'] as String, style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           );
         },
@@ -564,11 +563,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                         child: Icon(badge['icon'] as IconData, color: badge['color'] as Color, size: 24),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        badge['name'] as String,
-                        style: const TextStyle(fontSize: 10),
-                        textAlign: TextAlign.center,
-                      ),
+                      Text(badge['name'] as String, style: const TextStyle(fontSize: 10), textAlign: TextAlign.center),
                     ],
                   ),
                 );
@@ -606,10 +601,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   color: const Color(0xFFD4AF37).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  skill.toString(),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFD4AF37)),
-                ),
+                child: Text(skill.toString(), style: const TextStyle(fontSize: 12, color: Color(0xFFD4AF37))),
               )).toList(),
             ),
         ],
@@ -623,32 +615,37 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       child: Row(
         children: [
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_tabs.length, (index) {
-                final isSelected = _selectedTab == index;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedTab = index),
-                  child: Column(
-                    children: [
-                      Text(
-                        _tabs[index],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
-                        ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(_tabs.length, (index) {
+                  final isSelected = _selectedTab == index;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedTab = index),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 24),
+                      child: Column(
+                        children: [
+                          Text(
+                            _tabs[index],
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            height: 2,
+                            width: 30,
+                            color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 2,
-                        width: 30,
-                        color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent,
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                    ),
+                  );
+                }),
+              ),
             ),
           ),
           IconButton(
@@ -659,6 +656,56 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         ],
       ),
     );
+  }
+
+  Widget _buildPostsContent(List<NetworkPost> posts) {
+    if (posts.isEmpty) return const SliverToBoxAdapter(child: _buildEmptyPosts());
+    
+    if (_isGridView) {
+      return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: 1,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildPostGridItem(posts[index]),
+          childCount: posts.length,
+        ),
+      );
+    } else {
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildPostListItem(posts[index]),
+          childCount: posts.length,
+        ),
+      );
+    }
+  }
+
+  Widget _buildPhotosContent() {
+    final photoPosts = _posts.where((p) => p.mediaType == 'image' && p.mediaUrl != null).toList();
+    return _buildPostsContent(photoPosts);
+  }
+
+  Widget _buildVideosContent() {
+    final videoPosts = _posts.where((p) => p.mediaType == 'video' && p.mediaUrl != null).toList();
+    return _buildPostsContent(videoPosts);
+  }
+
+  Widget _buildReelsContent() {
+    final reels = _posts.where((p) => p.mediaType == 'reel' && p.mediaUrl != null).toList();
+    return _buildPostsContent(reels);
+  }
+
+  Widget _buildLikedContent() {
+    final likedPosts = _posts.where((p) => p.isLikedByCurrentUser).toList();
+    return _buildPostsContent(likedPosts);
+  }
+
+  Widget _buildSavedContent() {
+    return _buildPostsContent(_savedPosts);
   }
 
   Widget _buildPostGridItem(NetworkPost post) {
@@ -687,10 +734,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 children: [
                   const Icon(Icons.favorite, size: 12, color: Colors.white),
                   const SizedBox(width: 4),
-                  Text(
-                    _formatNumber(post.likesCount),
-                    style: const TextStyle(fontSize: 10, color: Colors.white),
-                  ),
+                  Text(_formatNumber(post.likesCount), style: const TextStyle(fontSize: 10, color: Colors.white)),
                 ],
               ),
             ),
@@ -726,24 +770,14 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           if (post.mediaUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                post.mediaUrl!,
-                width: 60,
-                height: 60,
-                fit: BoxFit.cover,
-              ),
+              child: Image.network(post.mediaUrl!, width: 60, height: 60, fit: BoxFit.cover),
             ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  post.content ?? '',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
+                Text(post.content ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -759,8 +793,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               ],
             ),
           ),
-          if (post.isPinned)
-            const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
+          if (post.isPinned) const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
         ],
       ),
     );
@@ -782,7 +815,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   void _editProfile() {
-    // Ouvrir dialogue d'édition
+    // Naviguer vers l'édition du profil
   }
 
   void _changeCover() {
