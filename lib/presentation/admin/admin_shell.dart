@@ -11,12 +11,46 @@ import 'package:thix_id/presentation/admin/admin_page.dart';
 import 'package:thix_id/presentation/admin/admin_routes.dart';
 import 'package:thix_id/services/admin_rbac_service.dart';
 import 'package:thix_id/theme.dart';
-import 'admin_colors.dart';
+
+// ============================================================
+// COULEURS ADMIN - Définies localement pour éviter les conflits
+// ============================================================
+class _AdminColors {
+  static const Color black = Color(0xFF0A0E1A);
+  static const Color background = Color(0xFF0F1420);
+  static const Color panel = Color(0xCC1A1F2E);
+  static const Color panelHi = Color(0xE6222A3E);
+  static const Color stroke = Color(0x33FFFFFF);
+  static const Color text = Color(0xFFF0F3FA);
+  static const Color textDim = Color(0xFF8E98B0);
+  static const Color neonCyan = Color(0xFF00E5FF);
+  static const Color electricBlue = Color(0xFF2962FF);
+  static const Color neonViolet = Color(0xFFB388FF);
+  static const Color neonPink = Color(0xFFFF4081);
+  static const Color thixGold = Color(0xFFD4AF37);
+  static const Color success = Color(0xFF00E676);
+  static const Color warning = Color(0xFFFF9100);
+  static const Color error = Color(0xFFFF1744);
+  static const Color info = Color(0xFF00B0FF);
+  
+  static LinearGradient glowViolet() {
+    return const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [neonViolet, electricBlue],
+    );
+  }
+  
+  static LinearGradient thixGradient() {
+    return const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [thixGold, Color(0xFFE8C96C)],
+    );
+  }
+}
 
 /// Responsive Admin layout (web-first): sidebar + topbar + content.
-///
-/// - Mobile: Drawer navigation
-/// - Tablet/Desktop: NavigationRail sidebar
 class AdminShell extends StatefulWidget {
   final AdminModule module;
   final Widget child;
@@ -47,12 +81,12 @@ class _AdminShellState extends State<AdminShell> {
 
     return Theme(
       data: Theme.of(context).copyWith(
-        scaffoldBackgroundColor: AdminColors.black,
+        scaffoldBackgroundColor: _AdminColors.black,
         cardTheme: Theme.of(context).cardTheme.copyWith(
-              color: AdminColors.panel,
+              color: _AdminColors.panel,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                side: const BorderSide(color: AdminColors.stroke, width: 1),
+                side: const BorderSide(color: _AdminColors.stroke, width: 1),
               ),
             ),
       ),
@@ -108,28 +142,28 @@ class _AdminBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned.fill(
       child: DecoratedBox(
-        decoration: const BoxDecoration(color: AdminColors.black),
+        decoration: const BoxDecoration(color: _AdminColors.black),
         child: Stack(
           children: [
             Positioned(
               left: -180,
               top: -120,
-              child: _GlowBlob(color: AdminColors.electricBlue, size: 420),
+              child: _GlowBlob(color: _AdminColors.electricBlue, size: 420),
             ),
             Positioned(
               right: -220,
               bottom: -160,
-              child: _GlowBlob(color: AdminColors.neonViolet, size: 520),
+              child: _GlowBlob(color: _AdminColors.neonViolet, size: 520),
             ),
             Positioned(
               right: 120,
               top: 80,
-              child: _GlowBlob(color: AdminColors.neonCyan, size: 240),
+              child: _GlowBlob(color: _AdminColors.neonCyan, size: 240),
             ),
             Positioned(
               left: 80,
               bottom: 60,
-              child: _GlowBlob(color: AdminColors.thixGold.withOpacity(0.3), size: 300),
+              child: _GlowBlob(color: _AdminColors.thixGold.withOpacity(0.3), size: 300),
             ),
             Positioned.fill(
               child: BackdropFilter(
@@ -224,7 +258,7 @@ class AdminTopBar extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: AdminColors.glowViolet(),
+                    gradient: _AdminColors.glowViolet(),
                   ),
                   child: const Icon(Icons.shield_rounded, size: 18, color: Colors.white),
                 ),
@@ -240,7 +274,7 @@ class AdminTopBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: AdminColors.text,
+                              color: _AdminColors.text,
                               fontWeight: FontWeight.w600,
                             ),
                       ),
@@ -252,7 +286,7 @@ class AdminTopBar extends StatelessWidget {
                             height: 6,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: role != null ? AdminColors.success : AdminColors.error,
+                              color: role != null ? _AdminColors.success : _AdminColors.error,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -261,7 +295,7 @@ class AdminTopBar extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AdminColors.textDim,
+                                  color: _AdminColors.textDim,
                                   letterSpacing: 0.5,
                                 ),
                           ),
@@ -301,19 +335,19 @@ class _GlassSearchField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: AdminColors.textDim, size: 20),
+          const Icon(Icons.search_rounded, color: _AdminColors.textDim, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AdminColors.text),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _AdminColors.text),
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
                 hintText: 'Search users, THIX UID, documents, alerts…',
                 hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AdminColors.textDim.withValues(alpha: 0.85),
+                      color: _AdminColors.textDim.withValues(alpha: 0.85),
                     ),
               ),
               onSubmitted: (v) {
@@ -322,7 +356,7 @@ class _GlassSearchField extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Global search: "$q" (coming soon)'),
-                    backgroundColor: AdminColors.panel,
+                    backgroundColor: _AdminColors.panel,
                   ),
                 );
               },
@@ -373,7 +407,7 @@ class _AdminDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(color: AdminColors.black),
+      decoration: const BoxDecoration(color: _AdminColors.black),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -401,7 +435,6 @@ class _AdminNavList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header avec logo THIX
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 14),
           child: Row(
@@ -411,7 +444,7 @@ class _AdminNavList extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  gradient: AdminColors.thixGradient(),
+                  gradient: _AdminColors.thixGradient(),
                 ),
                 child: const Center(
                   child: Text(
@@ -427,15 +460,11 @@ class _AdminNavList extends StatelessWidget {
                   children: [
                     const Text(
                       'THIX ID Admin',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AdminColors.text,
-                      ),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _AdminColors.text),
                     ),
                     Text(
                       'Digital Trust • Cybersecurity',
-                      style: TextStyle(fontSize: 10, color: AdminColors.textDim),
+                      style: TextStyle(fontSize: 10, color: _AdminColors.textDim),
                     ),
                   ],
                 ),
@@ -451,7 +480,7 @@ class _AdminNavList extends StatelessWidget {
               _NavItem(module: module, target: AdminModule.accessRequests, icon: Icons.admin_panel_settings_rounded, label: 'Account Access Requests'),
               _NavItem(module: module, target: AdminModule.users, icon: Icons.people_alt_rounded, label: 'User Management'),
               _NavItem(module: module, target: AdminModule.verification, icon: Icons.verified_user_rounded, label: 'Verification Center'),
-              const Divider(color: AdminColors.stroke, height: 20),
+              const Divider(color: _AdminColors.stroke, height: 20),
               _NavItem(module: module, target: AdminModule.events, icon: Icons.event_available_rounded, label: 'Events'),
               _NavItem(module: module, target: AdminModule.trainings, icon: Icons.school_rounded, label: 'Trainings'),
               _NavItem(module: module, target: AdminModule.uid, icon: Icons.badge_rounded, label: 'THIX UID'),
@@ -463,7 +492,7 @@ class _AdminNavList extends StatelessWidget {
               _NavItem(module: module, target: AdminModule.institutions, icon: Icons.account_balance_rounded, label: 'Institutions'),
               _NavItem(module: module, target: AdminModule.analytics, icon: Icons.query_stats_rounded, label: 'Analytics'),
               if (isSuperAdmin) ...[
-                const Divider(color: AdminColors.stroke, height: 20),
+                const Divider(color: _AdminColors.stroke, height: 20),
                 _NavItem(module: module, target: AdminModule.cybersecurity, icon: Icons.shield_rounded, label: 'Cybersecurity'),
                 _NavItem(module: module, target: AdminModule.api, icon: Icons.api_rounded, label: 'API & Integrations'),
                 _NavItem(module: module, target: AdminModule.settings, icon: Icons.tune_rounded, label: 'Settings'),
@@ -474,7 +503,6 @@ class _AdminNavList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        // Footer avec RBAC info
         _GlassSurface(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -484,7 +512,7 @@ class _AdminNavList extends StatelessWidget {
                 height: 8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: role != null ? AdminColors.success : AdminColors.error,
+                  color: role != null ? _AdminColors.success : _AdminColors.error,
                 ),
               ),
               const SizedBox(width: 10),
@@ -494,7 +522,7 @@ class _AdminNavList extends StatelessWidget {
                       ? 'Access restricted. No admin role.'
                       : 'RBAC: ${role!.toUpperCase()} • Session protected',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AdminColors.textDim,
+                        color: _AdminColors.textDim,
                         fontSize: 10,
                       ),
                 ),
@@ -520,10 +548,51 @@ class _NavItem extends StatelessWidget {
     required this.label,
   });
 
+  Color _getModuleColor(AdminModule target) {
+    switch (target) {
+      case AdminModule.overview:
+        return _AdminColors.electricBlue;
+      case AdminModule.accessRequests:
+        return _AdminColors.warning;
+      case AdminModule.users:
+        return _AdminColors.info;
+      case AdminModule.verification:
+        return _AdminColors.success;
+      case AdminModule.events:
+        return _AdminColors.neonCyan;
+      case AdminModule.trainings:
+        return _AdminColors.thixGold;
+      case AdminModule.uid:
+        return _AdminColors.electricBlue;
+      case AdminModule.jobs:
+        return _AdminColors.success;
+      case AdminModule.news:
+        return _AdminColors.thixGold;
+      case AdminModule.media:
+        return _AdminColors.neonPink;
+      case AdminModule.chat:
+        return _AdminColors.neonCyan;
+      case AdminModule.sos:
+        return _AdminColors.error;
+      case AdminModule.institutions:
+        return _AdminColors.electricBlue;
+      case AdminModule.analytics:
+        return _AdminColors.info;
+      case AdminModule.cybersecurity:
+        return _AdminColors.error;
+      case AdminModule.api:
+        return _AdminColors.electricBlue;
+      case AdminModule.settings:
+        return _AdminColors.warning;
+      case AdminModule.audit:
+        return _AdminColors.textDim;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = module == target;
-    final color = AdminModuleColors.getColor(target);
+    final color = _getModuleColor(target);
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -540,15 +609,15 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            color: selected ? AdminColors.panelHi.withValues(alpha: 0.9) : Colors.transparent,
+            color: selected ? _AdminColors.panelHi.withValues(alpha: 0.9) : Colors.transparent,
             border: Border.all(
-              color: selected ? color.withValues(alpha: 0.35) : AdminColors.stroke.withValues(alpha: 0.25),
+              color: selected ? color.withValues(alpha: 0.35) : _AdminColors.stroke.withValues(alpha: 0.25),
               width: 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: selected ? color : AdminColors.textDim),
+              Icon(icon, size: 20, color: selected ? color : _AdminColors.textDim),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -556,7 +625,7 @@ class _NavItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: selected ? AdminColors.text : AdminColors.textDim,
+                        color: selected ? _AdminColors.text : _AdminColors.textDim,
                         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                       ),
                 ),
@@ -595,9 +664,9 @@ class _GlassSurface extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AdminColors.panel.withValues(alpha: 0.74),
+            color: _AdminColors.panel.withValues(alpha: 0.74),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AdminColors.stroke.withValues(alpha: 0.9), width: 1),
+            border: Border.all(color: _AdminColors.stroke.withValues(alpha: 0.9), width: 1),
           ),
           child: Padding(padding: padding, child: child),
         ),
@@ -618,8 +687,8 @@ class _GlassPill extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AdminColors.panelHi.withValues(alpha: 0.62),
-            border: Border.all(color: AdminColors.stroke.withValues(alpha: 0.9), width: 1),
+            color: _AdminColors.panelHi.withValues(alpha: 0.62),
+            border: Border.all(color: _AdminColors.stroke.withValues(alpha: 0.9), width: 1),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), child: child),
@@ -650,12 +719,12 @@ class _GlassIconButton extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AdminColors.stroke.withValues(alpha: 0.9), width: 1),
-            color: AdminColors.panelHi.withValues(alpha: 0.55),
+            border: Border.all(color: _AdminColors.stroke.withValues(alpha: 0.9), width: 1),
+            color: _AdminColors.panelHi.withValues(alpha: 0.55),
           ),
           child: Padding(
             padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: AdminColors.text, size: 18),
+            child: Icon(icon, color: _AdminColors.text, size: 18),
           ),
         ),
       ),
