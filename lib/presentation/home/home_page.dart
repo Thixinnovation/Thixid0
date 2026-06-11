@@ -13,7 +13,7 @@ import 'package:thix_id/nav.dart';
 import 'package:thix_id/services/user_service.dart';
 
 import 'package:thix_id/presentation/common/full_screen_message.dart';
-import 'package:thix_id/presentation/common/alert_info_sheet.dart';
+
 import 'package:thix_id/presentation/common/notifications_sheet.dart';
 import 'package:thix_id/presentation/common/thix_identity_sheets.dart';
 import 'package:thix_id/presentation/emergency/emergency_overlay.dart';
