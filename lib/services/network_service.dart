@@ -11,6 +11,15 @@ import '../models/network_notification.dart';
 import '../models/network_story.dart';
 import 'dart:io';
 
+// ============================================================
+// CLASSE POSTSCORE (déclarée en dehors de NetworkService)
+// ============================================================
+class PostScore {
+  final NetworkPost post;
+  double score;
+  PostScore(this.post, this.score);
+}
+
 class NetworkService {
   final SupabaseClient _supabase;
 
@@ -80,12 +89,6 @@ class NetworkService {
   // ============================================================
   // SECTION 2: FEED INTELLIGENT (IA & ALGORITHME)
   // ============================================================
-
-  class PostScore {
-    final NetworkPost post;
-    double score;
-    PostScore(this.post, this.score);
-  }
 
   Future<List<NetworkPost>> getSmartFeed({int limit = 20}) async {
     try {
