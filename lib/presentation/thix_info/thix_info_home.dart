@@ -414,7 +414,7 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                     return Container(
                       height: 140,
                       color: Colors.grey[200],
-                      child: const Center(child: CircularProgressIndicator()),
+                      child: Center(child: const CircularProgressIndicator())
                     );
                   },
                   errorBuilder: (context, error, stackTrace) => Container(
