@@ -102,7 +102,7 @@ class NewsProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // INTERACTIONS
+  // INTERACTIONS (Likes, Vues, Favoris)
   // ============================================================
 
   Future<void> incrementViews(String articleId) async {
@@ -162,7 +162,7 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<NewsArticle>> getSavedArticles() async {
+  Future<List<NewsArticle>> getSavedArticlesList() async {
     return await _newsService.getSavedArticles();
   }
 
