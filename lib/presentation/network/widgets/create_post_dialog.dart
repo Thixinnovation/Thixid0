@@ -3,7 +3,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../services/network_service.dart';
 
@@ -29,15 +28,20 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     super.dispose();
   }
 
+  // Utiliser uniquement FilePicker (pas besoin d'image_picker)
   Future<void> _pickImages() async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final List<XFile> images = await picker.pickMultiImage();
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
       
-      if (images.isNotEmpty) {
+      if (result != null && result.files.isNotEmpty) {
         setState(() {
-          for (final image in images) {
-            _selectedImages.add(File(image.path));
+          for (final file in result.files) {
+            if (file.path != null) {
+              _selectedImages.add(File(file.path!));
+            }
           }
         });
       }
@@ -47,20 +51,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     }
   }
 
+  // Pas de caméra sans image_picker, on utilise file_picker aussi
+  // ou on désactive cette option
   Future<void> _pickCamera() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
-      
-      if (image != null) {
-        setState(() {
-          _selectedImages.add(File(image.path));
-        });
-      }
-    } catch (e) {
-      debugPrint('Error taking photo: $e');
-      _showError('Impossible de prendre la photo');
-    }
+    _showError('Fonctionnalité caméra à venir. Utilisez "Ajouter des images" pour l\'instant');
   }
 
   Future<void> _pickFile() async {
@@ -324,17 +318,17 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 IconButton(
                   icon: const Icon(Icons.photo_library, color: Colors.green),
                   onPressed: _isUploading ? null : _pickImages,
-                  tooltip: 'Ajouter des images de la galerie',
+                  tooltip: 'Ajouter des images',
                 ),
                 IconButton(
                   icon: const Icon(Icons.camera_alt, color: Colors.orange),
                   onPressed: _isUploading ? null : _pickCamera,
-                  tooltip: 'Prendre une photo',
+                  tooltip: 'Prendre une photo (bientôt disponible)',
                 ),
                 IconButton(
                   icon: const Icon(Icons.attach_file, color: Colors.blue),
                   onPressed: _isUploading ? null : _pickFile,
-                  tooltip: 'Ajouter un fichier',
+                  tooltip: 'Ajouter des fichiers',
                 ),
                 const Spacer(),
                 TextButton(
