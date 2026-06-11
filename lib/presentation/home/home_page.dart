@@ -205,7 +205,8 @@ class _HomePagePremiumState extends State<HomePagePremium>
   void _navigateToChat() {
     final auth = context.read<AuthController>();
     if (auth.isAuthenticated) {
-      context.go(AppRoutes.chat);
+      // Navigation vers les messages du réseau pro
+      context.push(AppRoutes.networkMessages);
     } else {
       context.go(AppRoutes.login);
     }
@@ -218,11 +219,16 @@ class _HomePagePremiumState extends State<HomePagePremium>
       if (user?.accountType == AccountType.enterprise) {
         context.go(AppRoutes.enterpriseDashboard);
       } else {
-        context.go(AppRoutes.userDashboard);
+        // Navigation vers le profil du réseau pro
+        context.push('/network/profile/${user?.id}');
       }
     } else {
       context.go(AppRoutes.login);
     }
+  }
+
+  void _navigateToNetworkPro() {
+    context.push(AppRoutes.networkPro);
   }
 
   void _showEmergencyOverlay() async {
@@ -305,11 +311,11 @@ class _HomePagePremiumState extends State<HomePagePremium>
     final auth = context.read<AuthController>();
     if (auth.isAuthenticated) {
       final t = auth.currentUser?.accountType;
-      context.go(
-        t == AccountType.enterprise
-            ? AppRoutes.enterpriseDashboard
-            : AppRoutes.userDashboard,
-      );
+      if (t == AccountType.enterprise) {
+        context.go(AppRoutes.enterpriseDashboard);
+      } else {
+        context.push('/network/profile/${auth.currentUser?.id}');
+      }
     } else {
       context.push(AppRoutes.login);
     }
@@ -534,7 +540,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               title: 'Réseau Pro',
                               iconBackgroundColor: const Color(0xFFEFF7FF),
                               iconColor: const Color(0xFF0077B6),
-                              onTap: () => context.push(AppRoutes.networkPro),
+                              onTap: _navigateToNetworkPro,
                             ),
                             _ServiceCard(
                               icon: Icons.local_hospital_rounded,
@@ -848,7 +854,7 @@ class _SearchBarOverlayState extends State<_SearchBarOverlay> {
                       fontSize: 12,
                     ),
                   ),
-                  SizedBox(width: 3),
+                  const SizedBox(width: 3),
                   Icon(
                     Icons.arrow_forward_rounded,
                     color: ThixPremiumColors.primaryDark,
