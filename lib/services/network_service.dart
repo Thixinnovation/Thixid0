@@ -20,63 +20,72 @@ class NetworkService {
   // ==================== POSTS ====================
 
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      // Requête simple sans fonction SQL
-      final response = await _supabase
-          .from('posts')
-          .select('''
-            *,
-            users:user_id (
-              display_name,
-              photo_url,
-              profession
-            )
-          ''')
-          .eq('is_public', true)
-          .order('created_at', ascending: false)
-          .limit(limit);
-      
-      final posts = <NetworkPost>[];
-      for (var e in response as List) {
-        // Compter les likes - Version sans CountOption
-        final likesData = await _supabase
-            .from('post_likes')
-            .select('id')
-            .eq('post_id', e['id']);
-        
-        // Compter les commentaires - Version sans CountOption
-        final commentsData = await _supabase
-            .from('comments')
-            .select('id')
-            .eq('post_id', e['id']);
-        
-        // Vérifier si l'utilisateur a liké - Version sans CountOption
-        final likedData = await _supabase
-            .from('post_likes')
-            .select('id')
-            .eq('post_id', e['id'])
-            .eq('user_id', currentUserId);
-        
-        posts.add(NetworkPost.fromJson({
-          ...e,
-          'author_name': e['users']?['display_name'] ?? 'Utilisateur',
-          'author_avatar': e['users']?['photo_url'],
-          'author_title': e['users']?['profession'],
-          'likes_count': (likesData as List).length,
-          'comments_count': (commentsData as List).length,
-          'is_liked': (likedData as List).isNotEmpty,
-        }));
-      }
-      
-      return posts;
-    } catch (e) {
-      debugPrint('❌ Error getFeedPosts: $e');
-      return [];
+    Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+  try {
+    final currentUserId = this.currentUserId;
+    print('🔍 1. currentUserId: $currentUserId');
+    if (currentUserId.isEmpty) return [];
+    
+    final response = await _supabase
+        .from('posts')
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        .eq('is_public', true)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    
+    print('🔍 2. Nombre de posts bruts: ${(response as List).length}');
+    
+    if (response.isNotEmpty) {
+      print('🔍 3. Premier post brut: ${response[0]['content']}');
+      print('🔍 4. users data: ${response[0]['users']}');
     }
+    
+    final posts = <NetworkPost>[];
+    for (var e in response) {
+      final likesData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', e['id']);
+      
+      final commentsData = await _supabase
+          .from('comments')
+          .select('id')
+          .eq('post_id', e['id']);
+      
+      final likedData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', e['id'])
+          .eq('user_id', currentUserId);
+      
+      final post = NetworkPost.fromJson({
+        ...e,
+        'author_name': e['users']?['display_name'] ?? 'Utilisateur',
+        'author_avatar': e['users']?['photo_url'],
+        'author_title': e['users']?['profession'],
+        'likes_count': (likesData as List).length,
+        'comments_count': (commentsData as List).length,
+        'is_liked': (likedData as List).isNotEmpty,
+      });
+      
+      print('🔍 5. Post créé: author_name=${post.authorName}, content=${post.content}');
+      posts.add(post);
+    }
+    
+    print('🔍 6. Total posts retournés: ${posts.length}');
+    return posts;
+  } catch (e) {
+    print('❌ ERREUR: $e');
+    return [];
   }
+}
 
   Future<bool> _hasUserLikedPost(String postId, String userId) async {
     try {
