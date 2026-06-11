@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class MemberProfile extends StatefulWidget {
   final String userId;
@@ -78,7 +77,6 @@ class _MemberProfileState extends State<MemberProfile> {
   void _shareProfile() {
     final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
     final shareText = 'Découvrez le profil de $displayName sur THIX Réseau Pro !';
-    // Share.share(shareText);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Partage bientôt disponible'), backgroundColor: Colors.orange),
     );
@@ -242,9 +240,9 @@ class _MemberProfileState extends State<MemberProfile> {
   }
 
   Widget _buildHeader() {
-    final avatarUrl = _user?['photo_url']?.toString(); // Changé: avatar_url -> photo_url
+    final avatarUrl = _user?['photo_url']?.toString();
     final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
-    final title = _user?['profession']?.toString() ?? 'Membre THIX'; // Changé: title -> profession
+    final title = _user?['profession']?.toString() ?? 'Membre THIX';
     final bio = _user?['bio']?.toString();
 
     return Container(
@@ -261,7 +259,9 @@ class _MemberProfileState extends State<MemberProfile> {
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey.shade200,
-            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty 
+                ? NetworkImage(avatarUrl) 
+                : null,
             child: avatarUrl == null || avatarUrl.isEmpty
                 ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
                 : null,
@@ -419,7 +419,7 @@ class _MemberProfileState extends State<MemberProfile> {
                   radius: 16,
                   backgroundColor: Colors.grey.shade200,
                   backgroundImage: post.authorAvatar != null && post.authorAvatar!.isNotEmpty
-                      ? CachedNetworkImageProvider(post.authorAvatar!)
+                      ? NetworkImage(post.authorAvatar!)
                       : null,
                   child: post.authorAvatar == null || post.authorAvatar!.isEmpty
                       ? const Icon(Icons.person, size: 16)
@@ -446,20 +446,30 @@ class _MemberProfileState extends State<MemberProfile> {
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: post.mediaUrl!,
+                child: Image.network(
+                  post.mediaUrl!,
                   width: double.infinity,
                   height: 150,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 150,
+                      color: Colors.grey.shade200,
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 150,
                     color: Colors.grey.shade200,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 150,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image, size: 40),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                        SizedBox(height: 4),
+                        Text('Image non disponible', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
                   ),
                 ),
               ),
