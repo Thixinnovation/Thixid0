@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<dynamic> _highlights = [];
+  List<Highlight> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -60,15 +60,24 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final userData = await _networkService.getUserProfile(userId);
       final posts = await _networkService.getUserPosts(userId);
       final pinnedPosts = await _networkService.getPinnedPosts(userId);
-      final highlights = await _networkService.getUserHighlights(userId);
+      final highlightsData = await _networkService.getUserHighlights(userId);
       final savedPosts = await _networkService.getSavedPosts();
       final repostedPosts = await _networkService.getUserReposts(userId);
+      
+      // Convertir les highlights correctement
+      final List<Highlight> convertedHighlights = highlightsData.map((e) => Highlight(
+        id: e['id'],
+        name: e['name'],
+        coverImage: e['cover_image'],
+        storyIds: List<String>.from(e['story_ids']),
+        createdAt: DateTime.parse(e['created_at']),
+      )).toList();
       
       setState(() {
         _user = userData;
         _posts = posts;
         _pinnedPosts = pinnedPosts;
-        _highlights = highlights;
+        _highlights = convertedHighlights;
         _savedPosts = savedPosts;
         _repostedPosts = repostedPosts;
         _loading = false;
@@ -140,6 +149,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
+  void _viewHighlight(Highlight highlight) {
+    // TODO: Naviguer vers la highlight
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Story en vedette: ${highlight.name}'), backgroundColor: Colors.blue),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
@@ -163,7 +179,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     SliverToBoxAdapter(
                       child: StoryHighlights(
                         highlights: _highlights,
-                        onAddHighlight: isOwnProfile ? () { _createHighlight(); } : null,
+                        onAddHighlight: isOwnProfile ? () => _createHighlight() : null,
                       ),
                     ),
                   
@@ -173,7 +189,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       child: PinnedPost(
                         post: _pinnedPosts.first,
                         onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-                        onUnpin: isOwnProfile ? () { _unpinPost(_pinnedPosts.first.id); } : null,
+                        onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
                       ),
                     ),
                   
@@ -800,6 +816,21 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
           if (isPostPinned) const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
         ],
+      ),
+    );
+  }
+
+  static Widget _buildEmptyPosts() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(Icons.photo_library, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text('Aucune publication', style: TextStyle(color: Colors.grey[600])),
+          ],
+        ),
       ),
     );
   }
