@@ -124,15 +124,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   SliverToBoxAdapter(child: _buildProfileHeader(isOwnProfile)),
                   
                   // Post épinglé
-                  if (_pinnedPosts.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: PinnedPost(
-                        post: _pinnedPosts.first,
-                        onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-                        // Ligne 132, remplace par :
-onUnpin: isOwnProfile ? () async { await _unpinPost(_pinnedPosts.first.id); } : null,
-                      ),
-                    ),
+if (_pinnedPosts.isNotEmpty)
+  SliverToBoxAdapter(
+    child: PinnedPost(
+      post: _pinnedPosts.first,
+      onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
+      onUnpin: isOwnProfile ? () async { 
+        await _unpinPost(_pinnedPosts.first.id); 
+      } : null,
+    ),
+  ),
                   
                   SliverToBoxAdapter(child: _buildXpBar()),
                   SliverToBoxAdapter(child: _buildStatsGrid()),
