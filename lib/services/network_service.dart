@@ -404,7 +404,64 @@ Future<List<NetworkPost>> getSmartFeed({int limit = 20}) async {
         .single();
     return response['user_id'];
   }
+// Ajouter dans NetworkService
 
+Future<void> pinPost(String postId) async {
+  final currentUserId = this.currentUserId;
+  if (currentUserId.isEmpty) return;
+  
+  // Désépingler l'ancien post
+  await _supabase
+      .from('posts')
+      .update({'is_pinned': false})
+      .eq('user_id', currentUserId)
+      .eq('is_pinned', true);
+  
+  // Épingler le nouveau
+  await _supabase
+      .from('posts')
+      .update({'is_pinned': true})
+      .eq('id', postId);
+}
+
+Future<NetworkPost?> getPinnedPost(String userId) async {
+  final response = await _supabase
+      .from('posts')
+      .select('*, users:user_id(display_name, photo_url, profession)')
+      .eq('user_id', userId)
+      .eq('is_pinned', true)
+      .maybeSingle();
+  
+  if (response == null) return null;
+  return NetworkPost.fromJson(response);
+}
+
+Future<List<Highlight>> getUserHighlights(String userId) async {
+  final response = await _supabase
+      .from('story_highlights')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', ascending: false);
+  
+  return (response as List).map((e) => Highlight(
+    id: e['id'],
+    name: e['name'],
+    coverImage: e['cover_image'],
+    storyIds: List<String>.from(e['story_ids']),
+    createdAt: DateTime.parse(e['created_at']),
+  )).toList();
+}
+
+Future<void> createHighlight(String name, List<String> storyIds, String? coverImage) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('story_highlights').insert({
+    'user_id': currentUserId,
+    'name': name,
+    'cover_image': coverImage,
+    'story_ids': storyIds,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+}
   // ==================== UPLOAD IMAGES ====================
 
   Future<String?> uploadImage(String filePath, {String bucket = 'post_images'}) async {
