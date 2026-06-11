@@ -1,8 +1,10 @@
+// lib/presentation/network/member_profile.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MemberProfile extends StatefulWidget {
   final String userId;
@@ -27,18 +29,54 @@ class _MemberProfileState extends State<MemberProfile> {
     _loadData();
   }
 
+  // ============================================================
+  // MÉTHODE LOCALE POUR VÉRIFIER LE STATUT DE CONNEXION
+  // ============================================================
+  Future<String?> _getConnectionStatusDirect(String userId) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final currentUserId = supabase.auth.currentUser!.id;
+      
+      // Vérifier si déjà connecté
+      final connection = await supabase
+          .from('connections')
+          .select('status')
+          .or('user_id.eq.$currentUserId,connection_id.eq.$currentUserId')
+          .or('user_id.eq.$userId,connection_id.eq.$userId')
+          .eq('status', 'accepted')
+          .maybeSingle();
+      
+      if (connection != null) return 'accepted';
+      
+      // Vérifier s'il y a une demande en attente
+      final request = await supabase
+          .from('connection_requests')
+          .select('status')
+          .or('sender_id.eq.$currentUserId,receiver_id.eq.$currentUserId')
+          .or('sender_id.eq.$userId,receiver_id.eq.$userId')
+          .eq('status', 'pending')
+          .maybeSingle();
+      
+      return request != null ? 'pending' : null;
+    } catch (e) {
+      debugPrint('Error checking connection status: $e');
+      return null;
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
       final userData = await _networkService.getUserProfile(widget.userId);
       final posts = await _networkService.getUserPosts(widget.userId);
-      final connectionStatus = await _networkService.getConnectionStatus(widget.userId);
+      final connectionStatus = await _getConnectionStatusDirect(widget.userId);
       
       setState(() {
         _user = userData;
         _posts = posts;
         _isConnected = connectionStatus == 'accepted';
         _isConnectionPending = connectionStatus == 'pending';
+        _loading = false;
       });
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -47,7 +85,6 @@ class _MemberProfileState extends State<MemberProfile> {
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
-    } finally {
       setState(() => _loading = false);
     }
   }
@@ -76,7 +113,6 @@ class _MemberProfileState extends State<MemberProfile> {
 
   void _shareProfile() {
     final displayName = _user?['display_name']?.toString() ?? 'Utilisateur';
-    final shareText = 'Découvrez le profil de $displayName sur THIX Réseau Pro !';
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Partage bientôt disponible'), backgroundColor: Colors.orange),
     );
@@ -194,6 +230,12 @@ class _MemberProfileState extends State<MemberProfile> {
     if (diff.inHours > 0) return 'il y a ${diff.inHours}h';
     if (diff.inMinutes > 0) return 'il y a ${diff.inMinutes}min';
     return 'à l\'instant';
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return count.toString();
   }
 
   @override
@@ -498,14 +540,5 @@ class _MemberProfileState extends State<MemberProfile> {
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
       ],
     );
-  }
-
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}k';
-    }
-    return count.toString();
   }
 }
