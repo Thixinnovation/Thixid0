@@ -37,17 +37,18 @@ import 'presentation/thix_reservation/pages/favoris.dart';
 import 'presentation/thix_reservation/pages/profil.dart';
 
 // ==================== THIX INFO ====================
-// ✅ Chemins CORRECTS
-import 'presentation/thix_info/thix_info_home.dart';
-import 'presentation/thix_info/article_detail_page.dart';
-import 'presentation/thix_info/search_page.dart';
-import 'presentation/thix_info/category_articles_page.dart';
-import 'presentation/thix_info/saved_articles_page.dart';
-import 'presentation/thix_info/breaking_news_page.dart';
+// Pages utilisateur
+import 'package:thix_id/presentation/thix_info/thix_info_home.dart';
+import 'package:thix_id/presentation/thix_info/article_detail_page.dart';
+import 'package:thix_id/presentation/thix_info/search_page.dart';
+import 'package:thix_id/presentation/thix_info/category_articles_page.dart';
+import 'package:thix_id/presentation/thix_info/saved_articles_page.dart';
+import 'package:thix_id/presentation/thix_info/breaking_news_page.dart';
 
-// ✅ Chemins CORRECTS pour l'admin (dans thix_info/admin/)
-import 'presentation/thix_info/admin/admin_news_dashboard.dart';
-import 'presentation/thix_info/admin/create_news_page.dart';
+// Pages admin (dashboard + wrapper + création)
+import 'package:thix_id/presentation/admin/pages/admin_news_dashboard.dart';
+import 'package:thix_id/presentation/admin/pages/admin_news_page.dart';
+import 'package:thix_id/presentation/admin/pages/create_news_page.dart';
 
 // ==================== IMPORTS EXISTANTS ====================
 import 'presentation/home/home_page.dart';
@@ -994,6 +995,7 @@ class AppRouter {
         ),
 
         // ==================== THIX INFO ====================
+// Pages utilisateur
 GoRoute(
   path: AppRoutes.thixInfo,
   name: 'thixInfo',
@@ -1030,6 +1032,8 @@ GoRoute(
   name: 'thixInfoBreaking',
   pageBuilder: (context, state) => NoTransitionPage(child: const BreakingNewsPage()),
 ),
+
+// Pages admin
 GoRoute(
   path: AppRoutes.thixInfoAdmin,
   name: 'thixInfoAdmin',
@@ -1040,15 +1044,6 @@ GoRoute(
   name: 'thixInfoCreate',
   pageBuilder: (context, state) => NoTransitionPage(child: const CreateNewsPage()),
 ),
-GoRoute(
-  path: AppRoutes.thixInfoEdit,
-  name: 'thixInfoEdit',
-  pageBuilder: (context, state) {
-    final articleId = state.pathParameters['articleId']!;
-    return NoTransitionPage(child: CreateNewsPage());
-  },
-),
-
         // ==================== THIX MARKET ====================
         GoRoute(
           path: AppRoutes.thixMarket,
