@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<Highlight> _highlights = [];
+  List<dynamic> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -33,7 +33,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   bool _isGridView = true;
   
   late AnimationController _levelUpController;
-  late AnimationController _refreshController;
   
   final List<String> _tabs = ['Posts', 'Photos', 'Vidéos', 'Reels', 'J\'aime', 'Sauvegardés'];
 
@@ -44,10 +43,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       duration: const Duration(seconds: 1),
       vsync: this,
     );
-    _refreshController = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
     _networkService = NetworkService(Supabase.instance.client);
     _loadData();
   }
@@ -55,7 +50,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   @override
   void dispose() {
     _levelUpController.dispose();
-    _refreshController.dispose();
     super.dispose();
   }
 
@@ -169,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     SliverToBoxAdapter(
                       child: StoryHighlights(
                         highlights: _highlights,
-                        onAddHighlight: isOwnProfile ? _createHighlight : null,
+                        onAddHighlight: isOwnProfile ? () { _createHighlight(); } : null,
                       ),
                     ),
                   
@@ -179,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       child: PinnedPost(
                         post: _pinnedPosts.first,
                         onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-                        onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
+                        onUnpin: isOwnProfile ? () { _unpinPost(_pinnedPosts.first.id); } : null,
                       ),
                     ),
                   
@@ -648,7 +642,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   Widget _buildPostsContent(List<NetworkPost> posts) {
     if (posts.isEmpty) {
-      return const SliverToBoxAdapter(child: _buildEmptyPosts());
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
     
     if (_isGridView) {
@@ -676,25 +670,40 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   Widget _buildPhotosContent() {
     final photoPosts = _posts.where((p) => p.mediaType == 'image' && p.mediaUrl != null).toList();
+    if (photoPosts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return _buildPostsContent(photoPosts);
   }
 
   Widget _buildVideosContent() {
     final videoPosts = _posts.where((p) => p.mediaType == 'video' && p.mediaUrl != null).toList();
+    if (videoPosts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return _buildPostsContent(videoPosts);
   }
 
   Widget _buildReelsContent() {
     final reels = _posts.where((p) => p.mediaType == 'reel' && p.mediaUrl != null).toList();
+    if (reels.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return _buildPostsContent(reels);
   }
 
   Widget _buildLikedContent() {
     final likedPosts = _posts.where((p) => p.isLikedByCurrentUser).toList();
+    if (likedPosts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return _buildPostsContent(likedPosts);
   }
 
   Widget _buildSavedContent() {
+    if (_savedPosts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return _buildPostsContent(_savedPosts);
   }
 
@@ -791,21 +800,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
           if (isPostPinned) const Icon(Icons.push_pin, size: 16, color: Color(0xFFD4AF37)),
         ],
-      ),
-    );
-  }
-
-  static Widget _buildEmptyPosts() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Icon(Icons.photo_library, size: 48, color: Colors.grey[400]),
-            const SizedBox(height: 8),
-            Text('Aucune publication', style: TextStyle(color: Colors.grey[600])),
-          ],
-        ),
       ),
     );
   }
