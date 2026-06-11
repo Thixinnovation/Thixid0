@@ -284,7 +284,7 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
               
-              // Image unique avec NetworkImage au lieu de CachedNetworkImage
+              // Image unique avec NetworkImage (dépendance Flutter pure)
               if (hasImage)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -297,13 +297,26 @@ class _PostCardState extends State<PostCard> {
                       return Container(
                         height: 200,
                         color: Colors.grey.shade200,
-                        child: const Center(child: CircularProgressIndicator()),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 200,
                       color: Colors.grey.shade200,
-                      child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('Image non disponible', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
