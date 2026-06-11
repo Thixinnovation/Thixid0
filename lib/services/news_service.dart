@@ -13,7 +13,7 @@ class NewsService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ============================================================
-  // LECTURE DES ARTICLES - CORRECTION DÉFINITIVE
+  // LECTURE DES ARTICLES - SOLUTION DÉFINITIVE
   // ============================================================
 
   Future<List<NewsArticle>> getArticles({
@@ -22,13 +22,14 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
-      // ✅ CORRECTION : Utiliser PostgrestQueryBuilder au lieu de PostgrestFilterBuilder
-      PostgrestQueryBuilder query = _supabase
+      // ✅ SOLUTION : Utiliser select directement et enchaîner les conditions
+      var query = _supabase
           .from('news_articles')
           .select('*')
           .order('published_at', ascending: false)
           .limit(limit);
 
+      // Appliquer les filtres un par un
       if (onlyPublished) {
         query = query.eq('status', 'published');
       }
@@ -61,7 +62,7 @@ class NewsService {
   }
 
   // ============================================================
-  // AUTRES MÉTHODES
+  // AUTRES MÉTHODES (inchangées)
   // ============================================================
 
   Future<NewsArticle?> getArticleById(String articleId) async {
