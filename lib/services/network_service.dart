@@ -24,75 +24,53 @@ Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
     final currentUserId = this.currentUserId;
     if (currentUserId.isEmpty) return [];
     
-    debugPrint('📊 getFeedPosts - currentUserId: $currentUserId');
-    
-    // Récupérer les posts masqués
-    final hiddenPosts = await _supabase
-        .from('hidden_posts')
-        .select('post_id')
-        .eq('user_id', currentUserId);
-    
-    final hiddenIds = (hiddenPosts as List).map((e) => e['post_id']).toList();
-    
-    // Récupérer les posts avec une requête simplifiée
+    // Requête simple sans fonction SQL
     final response = await _supabase
         .from('posts')
-        .select('*')
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        .eq('is_public', true)
         .order('created_at', ascending: false)
         .limit(limit);
     
-    debugPrint('📊 Posts bruts: ${(response as List).length}');
-    
-    final filteredResponse = (response as List)
-        .where((post) => !hiddenIds.contains(post['id']))
-        .toList();
-    
     final posts = <NetworkPost>[];
-    for (var e in filteredResponse) {
-      // Récupérer les infos utilisateur séparément (sans jointure)
-      Map<String, dynamic>? userData;
-      try {
-        final userResponse = await _supabase
-            .from('users')
-            .select('display_name, photo_url, profession')
-            .eq('id', e['user_id'])
-            .maybeSingle();
-        userData = userResponse as Map<String, dynamic>?;
-      } catch (userError) {
-        debugPrint('⚠️ Erreur récupération user ${e['user_id']}: $userError');
-      }
-      
+    for (var e in response as List) {
       // Compter les likes
-      final likesData = await _supabase
+      final likesResult = await _supabase
           .from('post_likes')
-          .select('id')
+          .select('id', count: CountOption.exact)
           .eq('post_id', e['id']);
       
       // Compter les commentaires
-      final commentsData = await _supabase
+      final commentsResult = await _supabase
           .from('comments')
-          .select('id')
+          .select('id', count: CountOption.exact)
           .eq('post_id', e['id']);
       
       // Vérifier si l'utilisateur a liké
-      final userLikedData = await _supabase
+      final likedResult = await _supabase
           .from('post_likes')
-          .select('id')
+          .select('id', count: CountOption.exact)
           .eq('post_id', e['id'])
           .eq('user_id', currentUserId);
       
       posts.add(NetworkPost.fromJson({
         ...e,
-        'author_name': userData?['display_name'] ?? 'Utilisateur',
-        'author_avatar': userData?['photo_url'],
-        'author_title': userData?['profession'],
-        'likes_count': (likesData as List).length,
-        'comments_count': (commentsData as List).length,
-        'is_liked': (userLikedData as List).isNotEmpty,
+        'author_name': e['users']?['display_name'] ?? 'Utilisateur',
+        'author_avatar': e['users']?['photo_url'],
+        'author_title': e['users']?['profession'],
+        'likes_count': likesResult.count ?? 0,
+        'comments_count': commentsResult.count ?? 0,
+        'is_liked': (likedResult.count ?? 0) > 0,
       }));
     }
     
-    debugPrint('✅ Posts finaux: ${posts.length}');
     return posts;
   } catch (e) {
     debugPrint('❌ Error getFeedPosts: $e');
