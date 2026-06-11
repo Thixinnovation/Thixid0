@@ -24,10 +24,10 @@ class NewsProvider extends ChangeNotifier {
   String get currentCategory => _currentCategory;
 
   NewsArticle? get featuredArticle {
-    return _articles.firstWhere(
-      (a) => a.isFeatured,
-      orElse: () => _articles.isNotEmpty ? _articles.first : null,
-    );
+    final featured = _articles.where((a) => a.isFeatured).toList();
+    if (featured.isNotEmpty) return featured.first;
+    if (_articles.isNotEmpty) return _articles.first;
+    return null;
   }
 
   List<NewsArticle> get recentArticles {
@@ -74,6 +74,33 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<NewsArticle>> fetchArticlesByCategory(String category) async {
+    try {
+      return await _newsService.getArticles(category: category);
+    } catch (e) {
+      debugPrint('❌ fetchArticlesByCategory error: $e');
+      return [];
+    }
+  }
+
+  Future<List<NewsArticle>> fetchBreakingNews() async {
+    try {
+      return await _newsService.getBreakingNews();
+    } catch (e) {
+      debugPrint('❌ fetchBreakingNews error: $e');
+      return [];
+    }
+  }
+
+  Future<List<NewsArticle>> searchArticles(String query) async {
+    try {
+      return await _newsService.searchArticles(query);
+    } catch (e) {
+      debugPrint('❌ searchArticles error: $e');
+      return [];
+    }
+  }
+
   // ============================================================
   // INTERACTIONS
   // ============================================================
@@ -95,6 +122,11 @@ class NewsProvider extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  Future<bool> isArticleSaved(String articleId) async {
+    final saved = await _newsService.getSavedArticles();
+    return saved.any((a) => a.id == articleId);
   }
 
   Future<void> saveArticle(String articleId) async {
@@ -128,6 +160,10 @@ class NewsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ loadSavedArticles error: $e');
     }
+  }
+
+  Future<List<NewsArticle>> getSavedArticles() async {
+    return await _newsService.getSavedArticles();
   }
 
   // ============================================================
@@ -201,6 +237,11 @@ class NewsProvider extends ChangeNotifier {
     if (_currentCategory == category) return;
     _currentCategory = category;
     fetchArticles(category: category);
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 
   void refresh() {
