@@ -896,7 +896,34 @@ Future<void> createHighlight(String name, List<String> storyIds, String? coverIm
       return false;
     }
   }
+Future<void> savePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  await _supabase.from('saved_posts').insert({
+    'post_id': postId,
+    'user_id': currentUserId,
+    'saved_at': DateTime.now().toIso8601String(),
+  });
+}
 
+Future<void> unsavePost(String postId) async {
+  final currentUserId = this.currentUserId;
+  await _supabase
+      .from('saved_posts')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', currentUserId);
+}
+
+Future<List<NetworkPost>> getSavedPosts() async {
+  final currentUserId = this.currentUserId;
+  final response = await _supabase
+      .from('saved_posts')
+      .select('post:post_id(*)')
+      .eq('user_id', currentUserId)
+      .order('saved_at', ascending: false);
+  
+  return (response as List).map((e) => NetworkPost.fromJson(e['post'])).toList();
+}
   // ==================== POSTS DANS COMMUNAUTÉ ====================
 
   Future<void> createCommunityPost({
