@@ -7,7 +7,12 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
+import '../../services/event_seat_service.dart';
+import '../../services/event_queue_service.dart';
+import '../../services/event_booking_limit_service.dart';
 import 'event_reservation_page.dart';
+import 'seat_selection_page.dart';
+import 'waiting_queue_page.dart';
 
 class EventDetailPage extends StatefulWidget {
   final String eventId;
@@ -21,6 +26,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
   late Event _event;
   bool _isLoading = true;
   bool _isFavorite = false;
+  bool _hasSeatMap = false;
+  int _availableSeats = 0;
+  EventBookingLimit? _bookingLimit;
+  bool _isCheckingQueue = false;
 
   @override
   void initState() {
@@ -38,7 +47,20 @@ class _EventDetailPageState extends State<EventDetailPage> {
         _isFavorite = event.isLiked;
       });
       await provider.incrementViews(widget.eventId);
+      await _loadAdditionalInfo();
     }
+  }
+
+  Future<void> _loadAdditionalInfo() async {
+    final seatService = EventSeatService(Supabase.instance.client);
+    final seats = await seatService.getSeatMap(widget.eventId);
+    setState(() {
+      _hasSeatMap = seats.isNotEmpty;
+      _availableSeats = seats.where((s) => s.isAvailable).length;
+    });
+    
+    final limitService = EventBookingLimitService(Supabase.instance.client);
+    _bookingLimit = await limitService.getBookingLimit(widget.eventId);
   }
 
   Future<void> _toggleFavorite() async {
@@ -61,9 +83,117 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void _addToCalendar() {
-    // TODO: Intégration calendrier
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Ajout au calendrier (bientôt disponible)'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  void _goToReservation() {
+    context.push('/thix-event/reservation/${_event.id}');
+  }
+
+  void _goToSeatSelection() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SeatSelectionPage(eventId: _event.id, event: _event),
+      ),
+    );
+  }
+
+  Future<void> _joinWaitingQueue() async {
+    setState(() => _isCheckingQueue = true);
+    
+    final showQueue = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Complet !'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.queue, size: 48, color: Colors.orange),
+            const SizedBox(height: 12),
+            const Text('Cet événement est complet.'),
+            const SizedBox(height: 8),
+            Text(
+              '${_event.remainingTickets ?? 0} places disponibles',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const SizedBox(height: 8),
+            const Text('Voulez-vous rejoindre la file d\'attente ?', textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('File d\'attente'),
+          ),
+        ],
+      ),
+    );
+    
+    setState(() => _isCheckingQueue = false);
+    
+    if (showQueue == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WaitingQueuePage(
+            eventId: _event.id,
+            requestedQuantity: 1,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildBookingButton() {
+    if (_isLoading) return const SizedBox.shrink();
+    
+    final isSoldOut = (_event.remainingTickets ?? 0) == 0;
+    
+    if (isSoldOut) {
+      return ElevatedButton(
+        onPressed: _isCheckingQueue ? null : _joinWaitingQueue,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: _isCheckingQueue
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('FILE D\'ATTENTE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      );
+    }
+    
+    if (_hasSeatMap) {
+      return ElevatedButton(
+        onPressed: _goToSeatSelection,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFD4AF37),
+          foregroundColor: const Color(0xFF0B1B3D),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: const Text('CHOISIR MES PLACES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      );
+    }
+    
+    return ElevatedButton(
+      onPressed: _goToReservation,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFD4AF37),
+        foregroundColor: const Color(0xFF0B1B3D),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      ),
+      child: const Text('RÉSERVER', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -131,7 +261,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          _event.category.toUpperCase(),
+                          _event.categoryLabel.toUpperCase(),
                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFD4AF37)),
                         ),
                       ),
@@ -147,6 +277,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _event.isFree ? Colors.green : Colors.blue),
                         ),
                       ),
+                      if (_event.remainingTickets != null && _event.remainingTickets! < 50)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Plus que ${_event.remainingTickets} places',
+                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.orange),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -154,7 +296,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   const SizedBox(height: 16),
                   _buildInfoRow(Icons.calendar_today, _event.formattedDate),
                   const SizedBox(height: 8),
-                  _buildInfoRow(Icons.access_time, _formatTimeRange()),
+                  _buildInfoRow(Icons.access_time, _event.timeRange),
                   const SizedBox(height: 8),
                   _buildInfoRow(Icons.location_on, _event.location),
                   if (_event.address != null) ...[
@@ -175,26 +317,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           Text(_event.formattedPrice, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37))),
                         ],
                       ),
-                      if (_event.hasAvailableTickets)
-                        ElevatedButton(
-                          onPressed: () => context.push('/thix-event/reservation/${_event.id}'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD4AF37),
-                            foregroundColor: const Color(0xFF0B1B3D),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          ),
-                          child: const Text('RÉSERVER', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Text('COMPLET', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                        ),
+                      _buildBookingButton(),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -237,6 +360,28 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       ),
                     ),
                   ],
+                  if (_bookingLimit != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 18, color: Colors.blue[700]),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Maximum ${_bookingLimit!.maxPerPerson} places par personne.',
+                              style: TextStyle(fontSize: 11, color: Colors.blue[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 32),
                 ],
               ),
@@ -255,12 +400,5 @@ class _EventDetailPageState extends State<EventDetailPage> {
         Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700]))),
       ],
     );
-  }
-
-  String _formatTimeRange() {
-    if (_event.endDate == null) {
-      return DateFormat('HH:mm').format(_event.startDate);
-    }
-    return '${DateFormat('HH:mm').format(_event.startDate)} - ${DateFormat('HH:mm').format(_event.endDate!)}';
   }
 }
