@@ -6,7 +6,6 @@ import 'package:thix_id/auth/auth_controller.dart';
 import 'package:thix_id/services/network_service.dart';
 import 'package:thix_id/models/network_post.dart';
 import 'widgets/report_dialog.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class PostDetailPage extends StatefulWidget {
   final String postId;
@@ -342,7 +341,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               CircleAvatar(
                 radius: 24,
                 backgroundImage: _post!.authorAvatar != null && _post!.authorAvatar!.isNotEmpty
-                    ? CachedNetworkImageProvider(_post!.authorAvatar!)
+                    ? NetworkImage(_post!.authorAvatar!)
                     : null,
                 child: _post!.authorAvatar == null || _post!.authorAvatar!.isEmpty
                     ? const Icon(Icons.person, size: 24)
@@ -368,24 +367,40 @@ class _PostDetailPageState extends State<PostDetailPage> {
           if (hasContent)
             Text(_post!.content!, style: const TextStyle(fontSize: 15, height: 1.4)),
           
-          // Image unique
+          // Image unique avec NetworkImage
           if (hasImage) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                imageUrl: _post!.mediaUrl!,
+              child: Image.network(
+                _post!.mediaUrl!,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 250,
+                    color: Colors.grey.shade200,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
                   height: 250,
                   color: Colors.grey.shade200,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 250,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image, size: 50),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text('Image non disponible', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -438,7 +453,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           CircleAvatar(
             radius: 18,
             backgroundImage: comment['user_avatar'] != null 
-                ? CachedNetworkImageProvider(comment['user_avatar'])
+                ? NetworkImage(comment['user_avatar'])
                 : null,
             child: comment['user_avatar'] == null 
                 ? const Icon(Icons.person, size: 16) 
