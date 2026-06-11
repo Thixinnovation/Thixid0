@@ -1,7 +1,6 @@
 // lib/presentation/thix_info/widgets/news_card.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../models/news_article.dart';
 
@@ -45,17 +44,20 @@ class NewsCard extends StatelessWidget {
             if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
+                child: Image.network(
+                  article.imageUrl!,
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    height: 180,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 180,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 180,
                     color: Colors.grey[200],
                     child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
@@ -140,18 +142,21 @@ class NewsCard extends StatelessWidget {
             if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
+                child: Image.network(
+                  article.imageUrl!,
                   width: 70,
                   height: 70,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 70,
-                    height: 70,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     width: 70,
                     height: 70,
                     color: Colors.grey[200],
