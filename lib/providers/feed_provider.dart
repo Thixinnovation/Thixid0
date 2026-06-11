@@ -41,27 +41,38 @@ class FeedProvider extends ChangeNotifier {
       }
       
       _posts = newPosts;
+      debugPrint('✅ Feed chargé: ${_posts.length} posts'); // ← LOG
     } catch (e) {
-      debugPrint('FeedProvider loadFeed error: $e');
+      debugPrint('❌ FeedProvider loadFeed error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
   
-  Future<NetworkPost?> createPost(String content, List<String> images) async {
+  // ⭐ MODIFICATION IMPORTANTE ICI ⭐
+  Future<bool> createPost(String content, List<String> images) async {
     try {
-      final createdData = await _networkService.createPost(content, images);
-      final newPost = await _networkService.getPostById(createdData['id']);
+      debugPrint('📝 Création du post...');
       
-      if (newPost != null) {
-        _posts.insert(0, newPost);
-        notifyListeners();
+      // Créer le post et récupérer l'ID
+      final postId = await _networkService.createPost(content, images);
+      
+      if (postId.isEmpty) {
+        debugPrint('❌ Pas d\'ID retourné');
+        return false;
       }
-      return newPost;
+      
+      debugPrint('✅ Post créé avec ID: $postId');
+      
+      // Recharger tout le feed
+      await loadFeed();
+      debugPrint('🔄 Feed rechargé, ${_posts.length} posts');
+      
+      return true;
     } catch (e) {
-      debugPrint('FeedProvider createPost error: $e');
-      return null;
+      debugPrint('❌ FeedProvider createPost error: $e');
+      return false;
     }
   }
   
@@ -72,7 +83,6 @@ class FeedProvider extends ChangeNotifier {
     final post = _posts[index];
     final wasLiked = post.isLikedByCurrentUser;
     
-    // Optimistic update
     _posts[index] = post.copyWith(
       isLikedByCurrentUser: !wasLiked,
       likesCount: wasLiked ? post.likesCount - 1 : post.likesCount + 1,
@@ -86,7 +96,6 @@ class FeedProvider extends ChangeNotifier {
         await _networkService.likePost(postId);
       }
     } catch (e) {
-      // Revert on error
       _posts[index] = post;
       notifyListeners();
       debugPrint('FeedProvider toggleLike error: $e');
