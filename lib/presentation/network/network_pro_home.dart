@@ -50,8 +50,10 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   @override
   void initState() {
     super.initState();
+    print('🔐 === NETWORK PRO HOME INIT ===');
     _supabase = Supabase.instance.client;
     _networkService = NetworkService(_supabase);
+    print('🔐 Utilisateur connecté ID: ${_supabase.auth.currentUser?.id}');
     _loadAllData();
     _setupRealtimeSubscriptions();
   }
@@ -95,6 +97,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   Future<void> _loadAllData() async {
+    print('📊 === CHARGEMENT DE TOUTES LES DONNÉES ===');
     await Future.wait([
       _loadPosts(),
       _loadSuggestions(),
@@ -106,13 +109,24 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadPosts() async {
     setState(() => _loadingPosts = true);
     try {
+      print('📱 === _loadPosts DEBUT ===');
       final posts = await _networkService.getFeedPosts();
+      print('📱 Nombre de posts reçus: ${posts.length}');
+      
+      if (posts.isNotEmpty) {
+        print('📱 Premier post contenu: ${posts[0].content}');
+        print('📱 Premier post auteur: ${posts[0].authorName}');
+      } else {
+        print('📱 ⚠️ AUCUN POST REÇU !');
+      }
+      
       setState(() {
         _posts = posts;
         _loadingPosts = false;
       });
+      print('📱 === _loadPosts FIN ===');
     } catch (e) {
-      debugPrint('Error loading posts: $e');
+      print('❌ Erreur dans _loadPosts: $e');
       setState(() => _loadingPosts = false);
     }
   }
@@ -149,7 +163,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     setState(() => _loadingStories = true);
     try {
       final networkStories = await _networkService.getActiveStories();
-      // Convert NetworkStory to Story
       setState(() {
         _stories = networkStories.map((networkStory) => Story(
           id: networkStory.id,
@@ -418,6 +431,8 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       );
     }
 
+    print('🏠 BUILD - Nombre de posts à afficher: ${_posts.length}');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -664,6 +679,7 @@ class _NetworkProHomeState extends State<NetworkProHome> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final post = _posts[index];
+                    print('📝 Affichage post $index: ${post.content}');
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: PostCard(
