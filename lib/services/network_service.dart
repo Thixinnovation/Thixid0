@@ -32,59 +32,35 @@ class NetworkService {
   // ============================================================
 
   Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return [];
-      
-      final response = await _supabase
-          .from('posts')
-          .select('''
-            *,
-            users:user_id (
-              display_name,
-              photo_url,
-              profession
-            )
-          ''')
-          .eq('is_public', true)
-          .order('created_at', ascending: false)
-          .limit(limit);
-      
-      final posts = <NetworkPost>[];
-      for (var e in response as List) {
-        final likesData = await _supabase
-            .from('post_likes')
-            .select('id')
-            .eq('post_id', e['id']);
-        
-        final commentsData = await _supabase
-            .from('comments')
-            .select('id')
-            .eq('post_id', e['id']);
-        
-        final likedData = await _supabase
-            .from('post_likes')
-            .select('id')
-            .eq('post_id', e['id'])
-            .eq('user_id', currentUserId);
-        
-        posts.add(NetworkPost.fromJson({
-          ...e,
-          'author_name': e['users']?['display_name'] ?? 'Utilisateur',
-          'author_avatar': e['users']?['photo_url'],
-          'author_title': e['users']?['profession'],
-          'likes_count': (likesData as List).length,
-          'comments_count': (commentsData as List).length,
-          'is_liked': (likedData as List).isNotEmpty,
-        }));
-      }
-      
-      return posts;
-    } catch (e) {
-      debugPrint('❌ Error getFeedPosts: $e');
+  try {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) {
+      debugPrint('❌ getFeedPosts: utilisateur non connecté');
       return [];
     }
+    
+    debugPrint('🔄 getFeedPosts: début requête, currentUserId=$currentUserId');
+    
+    // ⚠️ TEST: Enlève temporairement le filtre is_public
+    final response = await _supabase
+        .from('posts')
+        .select('''
+          *,
+          users:user_id (
+            display_name,
+            photo_url,
+            profession
+          )
+        ''')
+        // .eq('is_public', true)  // ← COMMENTE CETTE LIGNE POUR TESTER
+        .order('created_at', ascending: false)
+        .limit(limit);
+    
+    debugPrint('📊 getFeedPosts: ${response.length} posts trouvés (sans filtre is_public)');
+    
+    // ... reste du code identique
   }
+}
 
   // ============================================================
   // SECTION 2: FEED INTELLIGENT (IA & ALGORITHME)
