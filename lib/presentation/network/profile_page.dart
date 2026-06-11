@@ -129,7 +129,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       child: PinnedPost(
                         post: _pinnedPosts.first,
                         onTap: () => context.push('/network/post/${_pinnedPosts.first.id}'),
-                        onUnpin: isOwnProfile ? () => _unpinPost(_pinnedPosts.first.id) : null,
+                        // Ligne 132, remplace par :
+onUnpin: isOwnProfile ? () async { await _unpinPost(_pinnedPosts.first.id); } : null,
                       ),
                     ),
                   
