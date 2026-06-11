@@ -338,7 +338,12 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
-                    return Container(width: 60, height: 60, color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+                    return Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
                   },
                   errorBuilder: (context, error, stackTrace) => Container(
                     width: 60,
@@ -406,7 +411,11 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
-                    return Container(height: 140, color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+                    return Container(
+                      height: 140,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
                   },
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 140,
@@ -416,6 +425,10 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                 ),
               ),
               const Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
                 child: Center(
                   child: Container(
                     padding: EdgeInsets.all(8),
