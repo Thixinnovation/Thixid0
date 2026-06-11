@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/news_provider.dart';
@@ -84,26 +83,17 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Header
           SliverToBoxAdapter(child: _buildHeader()),
-          
-          // Search Bar
           SliverToBoxAdapter(child: _buildSearchBar()),
-          
-          // Categories
           SliverToBoxAdapter(child: _buildCategories()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 12)),
           
-          // Featured Article
           if (isLoading && featuredArticle == null)
             const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else if (featuredArticle != null)
             SliverToBoxAdapter(child: _buildFeaturedArticle(featuredArticle)),
           
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Recent News Section
           SliverToBoxAdapter(child: _buildSectionHeader('Actualités récentes', '/thix-info/recent')),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
@@ -118,13 +108,8 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
             ),
           
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Notification Banner
           SliverToBoxAdapter(child: _buildNotificationBanner()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Videos Section
           SliverToBoxAdapter(child: _buildSectionHeader('Vidéos à la une', '/thix-info/videos')),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
@@ -153,13 +138,13 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)],
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
@@ -173,19 +158,9 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'THIX INFO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
+                  Text('THIX INFO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                   SizedBox(height: 2),
-                  Text(
-                    'L\'information vraie, partout.',
-                    style: TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
+                  Text('L\'information vraie, partout.', style: TextStyle(color: Colors.white70, fontSize: 10)),
                 ],
               ),
               Row(
@@ -196,11 +171,7 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                   ),
                   GestureDetector(
                     onTap: () => context.push('/profile'),
-                    child: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      child: const Icon(Icons.person, size: 14, color: Colors.white),
-                    ),
+                    child: const CircleAvatar(radius: 14, backgroundColor: Colors.white24, child: Icon(Icons.person, size: 14, color: Colors.white)),
                   ),
                 ],
               ),
@@ -223,18 +194,13 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey[200]!),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1)),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1))],
           ),
           child: const Row(
             children: [
               Icon(Icons.search, size: 16, color: Colors.grey),
               SizedBox(width: 8),
-              Text(
-                'Rechercher une actualité, un sujet...',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              Text('Rechercher une actualité, un sujet...', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ),
@@ -258,8 +224,10 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
               selected: isSelected,
               label: Text(cat['name'], style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
               onSelected: (selected) {
-                setState(() => _selectedCategory = cat['slug']);
-                context.read<NewsProvider>().fetchArticles(category: cat['slug']);
+                if (selected) {
+                  setState(() => _selectedCategory = cat['slug']);
+                  context.read<NewsProvider>().fetchArticles(category: cat['slug']);
+                }
               },
               backgroundColor: Colors.white,
               selectedColor: const Color(0xFFD4AF37).withOpacity(0.15),
@@ -288,17 +256,20 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
           if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: CachedNetworkImage(
-                imageUrl: article.imageUrl!,
+              child: Image.network(
+                article.imageUrl!,
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: 180,
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 180,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
                   height: 180,
                   color: Colors.grey[200],
                   child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
@@ -360,18 +331,16 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
             if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: article.imageUrl!,
+                child: Image.network(
+                  article.imageUrl!,
                   width: 60,
                   height: 60,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 60,
-                    height: 60,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(width: 60, height: 60, color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     width: 60,
                     height: 60,
                     color: Colors.grey[200],
@@ -388,14 +357,8 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4AF37).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _getCategoryName(article.category),
-                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFFD4AF37)),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                        child: Text(_getCategoryName(article.category), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFFD4AF37))),
                       ),
                       const SizedBox(width: 6),
                       Text(_formatTimeAgo(article.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
@@ -436,17 +399,16 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: CachedNetworkImage(
-                  imageUrl: video.imageUrl ?? '',
+                child: Image.network(
+                  video.imageUrl ?? '',
                   height: 140,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    height: 140,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(height: 140, color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 140,
                     color: Colors.grey[200],
                     child: const Icon(Icons.videocam, size: 40, color: Colors.grey),
@@ -516,8 +478,8 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)],
@@ -538,10 +500,7 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
               children: [
                 const Text('Restez informé en temps réel !', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(
-                  'Activez les notifications pour ne rien manquer',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
-                ),
+                Text('Activez les notifications pour ne rien manquer', style: TextStyle(color: Colors.white70, fontSize: 10)),
               ],
             ),
           ),
@@ -549,14 +508,8 @@ class _ThixInfoHomeState extends State<ThixInfoHome> {
             onTap: _requestNotificationPermission,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD4AF37),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'Activer',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0B1B3D)),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFD4AF37), borderRadius: BorderRadius.circular(20)),
+              child: const Text('Activer', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0B1B3D))),
             ),
           ),
         ],
