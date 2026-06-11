@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Map<String, dynamic>? _user;
   List<NetworkPost> _posts = [];
   List<NetworkPost> _pinnedPosts = [];
-  List<Map<String, dynamic>> _highlights = [];
+  List<Highlight> _highlights = [];
   List<NetworkPost> _savedPosts = [];
   List<NetworkPost> _repostedPosts = [];
   bool _loading = true;
@@ -161,10 +161,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               child: CustomScrollView(
                 controller: ScrollController(),
                 slivers: [
-                  // Bannière de couverture
                   SliverToBoxAdapter(child: _buildCoverBanner()),
-                  
-                  // En-tête du profil
                   SliverToBoxAdapter(child: _buildProfileHeader(isOwnProfile)),
                   
                   // Story Highlights
@@ -172,7 +169,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     SliverToBoxAdapter(
                       child: StoryHighlights(
                         highlights: _highlights,
-                        onAddHighlight: isOwnProfile ? () => _createHighlight() : null,
+                        onAddHighlight: isOwnProfile ? _createHighlight : null,
                       ),
                     ),
                   
@@ -186,23 +183,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       ),
                     ),
                   
-                  // Barre de progression XP
                   SliverToBoxAdapter(child: _buildXpBar()),
-                  
-                  // Statistiques
                   SliverToBoxAdapter(child: _buildStatsGrid()),
-                  
-                  // Badges
                   SliverToBoxAdapter(child: _buildBadgesSection()),
                   
-                  // À propos
                   if (_user?['bio'] != null || _user?['skills'] != null)
                     SliverToBoxAdapter(child: _buildAboutSection()),
                   
-                  // Tabs et vue switch
                   SliverToBoxAdapter(child: _buildTabsAndSwitch()),
                   
-                  // Posts selon l'onglet sélectionné
                   if (_selectedTab == 0)
                     _buildPostsContent(_posts)
                   else if (_selectedTab == 1)
@@ -658,7 +647,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   Widget _buildPostsContent(List<NetworkPost> posts) {
-    if (posts.isEmpty) return const SliverToBoxAdapter(child: _buildEmptyPosts());
+    if (posts.isEmpty) {
+      return const SliverToBoxAdapter(child: _buildEmptyPosts());
+    }
     
     if (_isGridView) {
       return SliverGrid(
