@@ -195,218 +195,219 @@ class NetworkService {
   // ============================================================
   // SECTION 3: POST INDIVIDUEL (GET, CREATE, UPDATE, DELETE)
   // ============================================================
-Future<NetworkPost?> getPostById(String postId) async {
-  try {
+
+  Future<NetworkPost?> getPostById(String postId) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) {
+        debugPrint('❌ getPostById: utilisateur non connecté');
+        return null;
+      }
+      
+      debugPrint('🔍 getPostById: recherche du post $postId');
+      
+      final response = await _supabase
+          .from('posts')
+          .select('''
+            *,
+            users:user_id (
+              display_name,
+              photo_url,
+              profession
+            )
+          ''')
+          .eq('id', postId)
+          .maybeSingle();
+      
+      if (response == null) {
+        debugPrint('❌ getPostById: post non trouvé');
+        return null;
+      }
+      
+      debugPrint('✅ getPostById: post trouvé');
+      
+      final likesData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId);
+      
+      final commentsData = await _supabase
+          .from('comments')
+          .select('id')
+          .eq('post_id', postId);
+      
+      final userLikedData = await _supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId);
+      
+      final userData = response['users'] as Map<String, dynamic>?;
+      
+      return NetworkPost.fromJson({
+        ...response,
+        'author_name': userData?['display_name'] ?? 'Utilisateur',
+        'author_avatar': userData?['photo_url'],
+        'author_title': userData?['profession'],
+        'likes_count': (likesData as List).length,
+        'comments_count': (commentsData as List).length,
+        'is_liked': (userLikedData as List).isNotEmpty,
+      });
+    } catch (e) {
+      debugPrint('❌ Error getPostById: $e');
+      return null;
+    }
+  }
+
+  // ⭐ CORRIGÉ : retourne seulement l'ID du post créé
+  Future<String> createPost(String content, List<String> images) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
+    
+    debugPrint('📝 createPost: création du post avec contenu: ${content.substring(0, content.length > 50 ? 50 : content.length)}...');
+    
+    final response = await _supabase.from('posts').insert({
+      'user_id': currentUserId,
+      'content': content,
+      'media_url': images.isNotEmpty ? images[0] : null,
+      'media_type': images.isNotEmpty ? 'image' : 'none',
+      'is_public': true,
+      'created_at': DateTime.now().toIso8601String(),
+    }).select('id').single();
+    
+    final postId = response['id'] as String;
+    debugPrint('✅ createPost: post créé avec ID: $postId');
+    
+    return postId;
+  }
+
+  // ⭐ VERSION CORRECTE POUR LES COMMUNAUTÉS (UNE SEULE FOIS)
+  Future<String> createCommunityPost({
+    required String communityId,
+    required String content,
+    List<String> images = const [],
+  }) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
+    
+    debugPrint('📝 createCommunityPost: création du post dans la communauté $communityId');
+    
+    final response = await _supabase.from('posts').insert({
+      'user_id': currentUserId,
+      'community_id': communityId,
+      'content': content,
+      'media_url': images.isNotEmpty ? images[0] : null,
+      'media_type': images.isNotEmpty ? 'image' : 'none',
+      'created_at': DateTime.now().toIso8601String(),
+    }).select('id').single();
+    
+    final postId = response['id'] as String;
+    debugPrint('✅ createCommunityPost: post créé avec ID: $postId');
+    
+    return postId;
+  }
+
+  Future<void> updatePost(String postId, String newContent) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
+    
+    final post = await _supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    
+    if (post['user_id'] != currentUserId) {
+      throw Exception('Vous ne pouvez pas modifier cette publication');
+    }
+    
+    await _supabase
+        .from('posts')
+        .update({
+          'content': newContent,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', postId);
+    
+    debugPrint('✏️ updatePost: post $postId modifié');
+  }
+
+  Future<void> deletePost(String postId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) throw Exception('User not logged in');
+    
+    final post = await _supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+    
+    if (post['user_id'] != currentUserId) {
+      throw Exception('Vous ne pouvez pas supprimer cette publication');
+    }
+    
+    await _supabase.from('posts').delete().eq('id', postId);
+    debugPrint('🗑️ deletePost: post $postId supprimé');
+  }
+
+  Future<void> hidePost(String postId) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
+    await _supabase.from('hidden_posts').insert({
+      'post_id': postId,
+      'user_id': currentUserId,
+      'hidden_at': DateTime.now().toIso8601String(),
+    });
+    debugPrint('🙈 hidePost: post $postId masqué');
+  }
+
+  Future<void> reportPost(String postId, String reason) async {
+    final currentUserId = this.currentUserId;
+    if (currentUserId.isEmpty) return;
+    
+    await _supabase.from('reported_posts').insert({
+      'post_id': postId,
+      'user_id': currentUserId,
+      'reason': reason,
+      'reported_at': DateTime.now().toIso8601String(),
+    });
+    debugPrint('🚨 reportPost: post $postId signalé pour: $reason');
+  }
+
+  // ============================================================
+  // SECTION: RECOMMANDATIONS IA
+  // ============================================================
+
+  Future<Map<String, int>> getRecommendationsCount() async {
     final currentUserId = this.currentUserId;
     if (currentUserId.isEmpty) {
-      debugPrint('❌ getPostById: utilisateur non connecté');
-      return null;
+      return {'people': 0, 'opportunities': 0, 'communities': 0};
     }
     
-    debugPrint('🔍 getPostById: recherche du post $postId');
-    
-    final response = await _supabase
-        .from('posts')
-        .select('''
-          *,
-          users:user_id (
-            display_name,
-            photo_url,
-            profession
-          )
-        ''')
-        .eq('id', postId)
-        .maybeSingle();
-    
-    if (response == null) {
-      debugPrint('❌ getPostById: post non trouvé');
-      return null;
+    try {
+      final people = await _supabase
+          .from('users')
+          .select('id')
+          .neq('id', currentUserId)
+          .limit(10);
+      
+      final communities = await _supabase
+          .from('communities')
+          .select('id')
+          .limit(10);
+      
+      return {
+        'people': (people as List).length,
+        'opportunities': 0,
+        'communities': (communities as List).length,
+      };
+    } catch (e) {
+      debugPrint('Error getRecommendationsCount: $e');
+      return {'people': 0, 'opportunities': 0, 'communities': 0};
     }
-    
-    debugPrint('✅ getPostById: post trouvé');
-    
-    final likesData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final commentsData = await _supabase
-        .from('comments')
-        .select('id')
-        .eq('post_id', postId);
-    
-    final userLikedData = await _supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', currentUserId);
-    
-    final userData = response['users'] as Map<String, dynamic>?;
-    
-    return NetworkPost.fromJson({
-      ...response,
-      'author_name': userData?['display_name'] ?? 'Utilisateur',
-      'author_avatar': userData?['photo_url'],
-      'author_title': userData?['profession'],
-      'likes_count': (likesData as List).length,
-      'comments_count': (commentsData as List).length,
-      'is_liked': (userLikedData as List).isNotEmpty,
-    });
-  } catch (e) {
-    debugPrint('❌ Error getPostById: $e');
-    return null;
   }
-}
 
-// ⭐ CORRIGÉ : retourne seulement l'ID du post créé
-Future<String> createPost(String content, List<String> images) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) throw Exception('User not logged in');
-  
-  debugPrint('📝 createPost: création du post avec contenu: ${content.substring(0, content.length > 50 ? 50 : content.length)}...');
-  
-  final response = await _supabase.from('posts').insert({
-    'user_id': currentUserId,
-    'content': content,
-    'media_url': images.isNotEmpty ? images[0] : null,
-    'media_type': images.isNotEmpty ? 'image' : 'none',
-    'is_public': true,
-    'created_at': DateTime.now().toIso8601String(),
-  }).select('id').single();
-  
-  final postId = response['id'] as String;
-  debugPrint('✅ createPost: post créé avec ID: $postId');
-  
-  return postId;
-}
-
-// ⭐ AJOUTÉ : version pour les communautés
-Future<String> createCommunityPost({
-  required String communityId,
-  required String content,
-  List<String> images = const [],
-}) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) throw Exception('User not logged in');
-  
-  debugPrint('📝 createCommunityPost: création du post dans la communauté $communityId');
-  
-  final response = await _supabase.from('posts').insert({
-    'user_id': currentUserId,
-    'community_id': communityId,
-    'content': content,
-    'media_url': images.isNotEmpty ? images[0] : null,
-    'media_type': images.isNotEmpty ? 'image' : 'none',
-    'created_at': DateTime.now().toIso8601String(),
-  }).select('id').single();
-  
-  final postId = response['id'] as String;
-  debugPrint('✅ createCommunityPost: post créé avec ID: $postId');
-  
-  return postId;
-}
-
-Future<void> updatePost(String postId, String newContent) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) throw Exception('User not logged in');
-  
-  final post = await _supabase
-      .from('posts')
-      .select('user_id')
-      .eq('id', postId)
-      .single();
-  
-  if (post['user_id'] != currentUserId) {
-    throw Exception('Vous ne pouvez pas modifier cette publication');
-  }
-  
-  await _supabase
-      .from('posts')
-      .update({
-        'content': newContent,
-        'updated_at': DateTime.now().toIso8601String(),
-      })
-      .eq('id', postId);
-  
-  debugPrint('✏️ updatePost: post $postId modifié');
-}
-
-Future<void> deletePost(String postId) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) throw Exception('User not logged in');
-  
-  final post = await _supabase
-      .from('posts')
-      .select('user_id')
-      .eq('id', postId)
-      .single();
-  
-  if (post['user_id'] != currentUserId) {
-    throw Exception('Vous ne pouvez pas supprimer cette publication');
-  }
-  
-  await _supabase.from('posts').delete().eq('id', postId);
-  debugPrint('🗑️ deletePost: post $postId supprimé');
-}
-
-Future<void> hidePost(String postId) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase.from('hidden_posts').insert({
-    'post_id': postId,
-    'user_id': currentUserId,
-    'hidden_at': DateTime.now().toIso8601String(),
-  });
-  debugPrint('🙈 hidePost: post $postId masqué');
-}
-
-Future<void> reportPost(String postId, String reason) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) return;
-  
-  await _supabase.from('reported_posts').insert({
-    'post_id': postId,
-    'user_id': currentUserId,
-    'reason': reason,
-    'reported_at': DateTime.now().toIso8601String(),
-  });
-  debugPrint('🚨 reportPost: post $postId signalé pour: $reason');
-}
-// ============================================================
-// SECTION: RECOMMANDATIONS IA
-// ============================================================
-
-Future<Map<String, int>> getRecommendationsCount() async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) {
-    return {'people': 0, 'opportunities': 0, 'communities': 0};
-  }
-  
-  try {
-    // Compter les personnes suggérées
-    final people = await _supabase
-        .from('users')
-        .select('id')
-        .neq('id', currentUserId)
-        .limit(10);
-    
-    // Compter les communautés suggérées
-    final communities = await _supabase
-        .from('communities')
-        .select('id')
-        .limit(10);
-    
-    return {
-      'people': (people as List).length,
-      'opportunities': 0,
-      'communities': (communities as List).length,
-    };
-  } catch (e) {
-    debugPrint('Error getRecommendationsCount: $e');
-    return {'people': 0, 'opportunities': 0, 'communities': 0};
-  }
-}
   // ============================================================
   // SECTION 4: INTERACTIONS (LIKES, COMMENTAIRES, PARTAGES)
   // ============================================================
@@ -1011,27 +1012,7 @@ Future<Map<String, int>> getRecommendationsCount() async {
       return false;
     }
   }
-// ============================================================
-// SECTION: POSTS DANS COMMUNAUTÉ
-// ============================================================
 
-Future<void> createCommunityPost({
-  required String communityId,
-  required String content,
-  List<String> images = const [],
-}) async {
-  final currentUserId = this.currentUserId;
-  if (currentUserId.isEmpty) throw Exception('User not logged in');
-  
-  await _supabase.from('posts').insert({
-    'user_id': currentUserId,
-    'community_id': communityId,
-    'content': content,
-    'media_url': images.isNotEmpty ? images[0] : null,
-    'media_type': images.isNotEmpty ? 'image' : 'none',
-    'created_at': DateTime.now().toIso8601String(),
-  });
-}
   // ============================================================
   // SECTION 12: CONNEXIONS & SUGGESTIONS
   // ============================================================
