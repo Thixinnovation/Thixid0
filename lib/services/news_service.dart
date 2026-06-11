@@ -1,8 +1,7 @@
 // lib/services/news_service.dart
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
-
 import '../models/news_article.dart';
 
 class NewsService {
@@ -22,7 +21,6 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
-      // ✅ CORRECTION : Construire la requête étape par étape
       var query = _supabase
           .from('news_articles')
           .select('*')
@@ -62,7 +60,6 @@ class NewsService {
 
   Future<NewsArticle?> getArticleById(String articleId) async {
     try {
-      // ✅ CORRECTION : Requête simple
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -85,31 +82,8 @@ class NewsService {
     }
   }
 
-  Future<List<NewsArticle>> getBreakingNews() async {
-    try {
-      // ✅ CORRECTION
-      final response = await _supabase
-          .from('news_articles')
-          .select('*')
-          .eq('is_breaking', true)
-          .eq('status', 'published')
-          .order('published_at', ascending: false)
-          .limit(20);
-
-      final articles = <NewsArticle>[];
-      for (var e in response as List) {
-        articles.add(NewsArticle.fromJson(e));
-      }
-      return articles;
-    } catch (e) {
-      debugPrint('❌ Error getBreakingNews: $e');
-      return [];
-    }
-  }
-
   Future<List<NewsArticle>> getVideos() async {
     try {
-      // ✅ CORRECTION
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -129,30 +103,8 @@ class NewsService {
     }
   }
 
-  Future<List<NewsArticle>> searchArticles(String query) async {
-    try {
-      // ✅ CORRECTION : Utiliser or() pour la recherche multiple
-      final response = await _supabase
-          .from('news_articles')
-          .select('*')
-          .eq('status', 'published')
-          .or('title.ilike.%$query%,content.ilike.%$query%,summary.ilike.%$query%')
-          .order('published_at', ascending: false)
-          .limit(50);
-
-      final articles = <NewsArticle>[];
-      for (var e in response as List) {
-        articles.add(NewsArticle.fromJson(e));
-      }
-      return articles;
-    } catch (e) {
-      debugPrint('❌ Error searchArticles: $e');
-      return [];
-    }
-  }
-
   // ============================================================
-  // ADMIN - CRUD COMPLET
+  // ADMIN - CRUD
   // ============================================================
 
   Future<NewsArticle> createArticle({
@@ -212,12 +164,76 @@ class NewsService {
   }
 
   // ============================================================
+  // UPLOAD FICHIERS (Images + Vidéos)
+  // ============================================================
+
+  Future<String?> uploadImage(String filePath) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+
+      final file = File(filePath);
+      final bytes = await file.readAsBytes();
+      
+      final extension = filePath.split('.').last;
+      final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final storagePath = 'news_images/$fileName';
+      
+      await _supabase.storage
+          .from('news_images')
+          .uploadBinary(storagePath, bytes, fileOptions: const FileOptions(cacheControl: '3600'));
+      
+      return _supabase.storage.from('news_images').getPublicUrl(storagePath);
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      return null;
+    }
+  }
+
+  Future<String?> uploadVideo(String filePath) async {
+    try {
+      final currentUserId = this.currentUserId;
+      if (currentUserId.isEmpty) return null;
+
+      final file = File(filePath);
+      final bytes = await file.readAsBytes();
+      
+      final extension = filePath.split('.').last;
+      final fileName = 'video_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final storagePath = 'news_videos/$fileName';
+      
+      await _supabase.storage
+          .from('news_videos')
+          .uploadBinary(storagePath, bytes);
+      
+      return _supabase.storage.from('news_videos').getPublicUrl(storagePath);
+    } catch (e) {
+      debugPrint('Error uploading video: $e');
+      return null;
+    }
+  }
+
+  Future<void> deleteFile(String fileUrl, String bucket) async {
+    try {
+      final uri = Uri.parse(fileUrl);
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf(bucket);
+      
+      if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
+        final filePath = segments.sublist(bucketIndex + 1).join('/');
+        await _supabase.storage.from(bucket).remove([filePath]);
+      }
+    } catch (e) {
+      debugPrint('Error deleting file: $e');
+    }
+  }
+
+  // ============================================================
   // INTERACTIONS UTILISATEUR
   // ============================================================
 
   Future<void> incrementViews(String articleId) async {
     try {
-      // ✅ CORRECTION : Méthode alternative sans RPC
       final article = await _supabase
           .from('news_articles')
           .select('views_count')
@@ -340,48 +356,6 @@ class NewsService {
     } catch (e) {
       debugPrint('❌ Error getSavedArticles: $e');
       return [];
-    }
-  }
-
-  // ============================================================
-  // UPLOAD D'IMAGES
-  // ============================================================
-
-  Future<String?> uploadImage(String filePath) async {
-    try {
-      final currentUserId = this.currentUserId;
-      if (currentUserId.isEmpty) return null;
-
-      final file = File(filePath);
-      final bytes = await file.readAsBytes();
-      
-      final extension = filePath.split('.').last;
-      final fileName = 'news_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final storagePath = 'news_images/$fileName';
-      
-      await _supabase.storage
-          .from('news_images')
-          .uploadBinary(storagePath, bytes);
-      
-      return _supabase.storage.from('news_images').getPublicUrl(storagePath);
-    } catch (e) {
-      debugPrint('Error uploading news image: $e');
-      return null;
-    }
-  }
-
-  Future<void> deleteImage(String imageUrl) async {
-    try {
-      final uri = Uri.parse(imageUrl);
-      final segments = uri.pathSegments;
-      final bucketIndex = segments.indexOf('news_images');
-      
-      if (bucketIndex != -1 && bucketIndex + 1 < segments.length) {
-        final filePath = segments.sublist(bucketIndex + 1).join('/');
-        await _supabase.storage.from('news_images').remove([filePath]);
-      }
-    } catch (e) {
-      debugPrint('Error deleting news image: $e');
     }
   }
 }
