@@ -206,7 +206,10 @@ class _PostCardState extends State<PostCard> {
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: widget.onTap,
+        onTap: () {
+          print('🔍 Clic sur le post ID: ${_post.id}');
+          widget.onTap();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -284,7 +287,7 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
               
-              // Image unique avec NetworkImage (dépendance Flutter pure)
+              // Image unique avec NetworkImage
               if (hasImage)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
