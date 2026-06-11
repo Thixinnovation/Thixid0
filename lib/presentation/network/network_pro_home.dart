@@ -10,9 +10,16 @@ import 'package:thix_id/models/network_post.dart';
 import 'package:thix_id/models/network_connection.dart';
 import 'package:thix_id/models/network_community.dart';
 import 'package:thix_id/models/story.dart';
-import 'package:thix_id/models/hashtag.dart';
-import 'widgets/reel_player.dart';
-import 'widgets/trending_hashtags.dart';
+import 'widgets/profile_header_card.dart';
+import 'widgets/stats_row.dart';
+import 'widgets/stories_list.dart';
+import 'widgets/post_card.dart';
+import 'widgets/suggestions_list.dart';
+import 'widgets/communities_list.dart';
+import 'widgets/recommendations_ia.dart';
+import 'widgets/create_post_dialog.dart';
+import 'widgets/edit_profile_dialog.dart';
+import 'widgets/create_story_dialog.dart';
 
 class NetworkProHome extends StatefulWidget {
   const NetworkProHome({super.key});
@@ -31,14 +38,11 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   List<NetworkConnection> _suggestions = [];
   List<NetworkCommunity> _communities = [];
   List<Story> _stories = [];
-  List<Hashtag> _trendingHashtags = [];
-  List<dynamic> _reels = [];
   
   bool _loadingPosts = true;
   bool _loadingSuggestions = true;
   bool _loadingCommunities = true;
   bool _loadingStories = true;
-  bool _loadingHashtags = true;
   
   int _unreadNotifications = 0;
   int _unreadMessages = 0;
@@ -46,7 +50,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
   
   String _feedType = 'smart';
   int _selectedNavIndex = 0;
-  bool _showReels = false;
 
   @override
   void initState() {
@@ -119,8 +122,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       _loadSuggestions(),
       _loadCommunities(),
       _loadStories(),
-      _loadTrendingHashtags(),
-      _loadReels(),
     ]);
   }
 
@@ -157,28 +158,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
       return posts.take(20).toList();
     } catch (e) {
       return [];
-    }
-  }
-
-  Future<void> _loadTrendingHashtags() async {
-    setState(() => _loadingHashtags = true);
-    try {
-      final hashtags = await _networkService.getTrendingHashtags();
-      setState(() {
-        _trendingHashtags = hashtags;
-        _loadingHashtags = false;
-      });
-    } catch (e) {
-      setState(() => _loadingHashtags = false);
-    }
-  }
-
-  Future<void> _loadReels() async {
-    try {
-      final reels = await _networkService.getReels();
-      setState(() => _reels = reels);
-    } catch (e) {
-      debugPrint('Error loading reels: $e');
     }
   }
 
@@ -287,13 +266,13 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
 
     final result = await showDialog(
       context: context,
-      builder: (_) => EditProfileDialog(
-        userId: user.id,
-        currentName: user.displayName,
-        currentTitle: user.profession,
-        currentBio: user.bio,
-        currentAvatarUrl: user.photoUrl,
-        currentSkills: user.skills.map((s) => s['name']?.toString() ?? '').toList(),
+      builder: (_) => const EditProfileDialog(
+        userId: '',
+        currentName: '',
+        currentTitle: '',
+        currentBio: '',
+        currentAvatarUrl: '',
+        currentSkills: [],
       ),
     );
     
@@ -346,14 +325,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
 
   void _viewStory(String storyId) {
     context.push('/network/story/$storyId');
-  }
-
-  void _viewHashtag(String hashtag) {
-    context.push('/hashtag/$hashtag');
-  }
-
-  void _viewAllReels() {
-    context.push('/reels');
   }
 
   void _likePost(NetworkPost post, int index) async {
@@ -502,15 +473,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
             slivers: [
               SliverToBoxAdapter(child: _buildModernHeader()),
               SliverToBoxAdapter(child: _buildStoriesSection()),
-              
-              // Section Reels
-              if (_reels.isNotEmpty)
-                SliverToBoxAdapter(child: _buildReelsSection()),
-              
-              // Hashtags tendances
-              if (_trendingHashtags.isNotEmpty)
-                SliverToBoxAdapter(child: _buildTrendingHashtags()),
-              
               SliverToBoxAdapter(child: _buildFilterChips()),
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
               
@@ -550,10 +512,10 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
     
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0B1B3D), Color(0xFF1A2B4D)],
+          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
         ),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
@@ -785,120 +747,6 @@ class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStat
             Text(story.userName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildReelsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.slow_motion_video, color: Color(0xFFD4AF37), size: 20),
-                    SizedBox(width: 8),
-                    Text('Reels', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                  ],
-                ),
-                TextButton(
-                  onPressed: _viewAllReels,
-                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _reels.length,
-              itemBuilder: (context, index) => Container(
-                width: 120,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: NetworkImage(_reels[index]['thumbnail_url'] ?? ''),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    const Center(child: Icon(Icons.play_circle_filled, color: Colors.white, size: 40)),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Row(
-                        children: [
-                          const Icon(Icons.favorite, size: 12, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text('${_reels[index]['likes_count'] ?? 0}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrendingHashtags() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('🔥 Tendances', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _trendingHashtags.length,
-              itemBuilder: (context, index) {
-                final hashtag = _trendingHashtags[index];
-                return GestureDetector(
-                  onTap: () => _viewHashtag(hashtag.name),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.tag, size: 14, color: Color(0xFFD4AF37)),
-                        const SizedBox(width: 6),
-                        Text('#${hashtag.name}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                        const SizedBox(width: 6),
-                        Text('${hashtag.postsCount}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
