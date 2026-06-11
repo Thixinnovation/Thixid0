@@ -1,5 +1,6 @@
 // lib/presentation/network/network_pro_home.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,9 +28,11 @@ class NetworkProHome extends StatefulWidget {
   State<NetworkProHome> createState() => _NetworkProHomeState();
 }
 
-class _NetworkProHomeState extends State<NetworkProHome> {
+class _NetworkProHomeState extends State<NetworkProHome> with TickerProviderStateMixin {
   late NetworkService _networkService;
   late final SupabaseClient _supabase;
+  late AnimationController _likeAnimationController;
+  late AnimationController _fabAnimationController;
   
   List<NetworkPost> _posts = [];
   List<NetworkConnection> _suggestions = [];
@@ -44,18 +47,50 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   int _unreadNotifications = 0;
   int _unreadMessages = 0;
   bool _isRefreshing = false;
+  bool _isFabExpanded = false;
   
-  String _selectedSort = 'recent';
+  String _feedType = 'smart';
+  int _selectedNavIndex = 0;
+  double _scrollOffset = 0;
+  
+  // Animation controllers
+  late Animation<double> _fabScaleAnimation;
+  late Animation<double> _fabRotateAnimation;
 
   @override
   void initState() {
     super.initState();
-    print('🔐 === NETWORK PRO HOME INIT ===');
+    
+    // Animations
+    _likeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    
+    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
+    );
+    _fabRotateAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
+    );
+    
+    _fabAnimationController.repeat(reverse: true);
+    
     _supabase = Supabase.instance.client;
     _networkService = NetworkService(_supabase);
-    print('🔐 Utilisateur connecté ID: ${_supabase.auth.currentUser?.id}');
     _loadAllData();
     _setupRealtimeSubscriptions();
+  }
+
+  @override
+  void dispose() {
+    _likeAnimationController.dispose();
+    _fabAnimationController.dispose();
+    super.dispose();
   }
 
   void _setupRealtimeSubscriptions() {
@@ -97,7 +132,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   }
 
   Future<void> _loadAllData() async {
-    print('📊 === CHARGEMENT DE TOUTES LES DONNÉES ===');
     await Future.wait([
       _loadPosts(),
       _loadSuggestions(),
@@ -109,38 +143,48 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadPosts() async {
     setState(() => _loadingPosts = true);
     try {
-      print('📱 === _loadPosts DEBUT ===');
-      final posts = await _networkService.getFeedPosts();
-      print('📱 Nombre de posts reçus: ${posts.length}');
+      late List<NetworkPost> posts;
       
-      if (posts.isNotEmpty) {
-        print('📱 Premier post contenu: ${posts[0].content}');
-        print('📱 Premier post auteur: ${posts[0].authorName}');
-      } else {
-        print('📱 ⚠️ AUCUN POST REÇU !');
+      switch (_feedType) {
+        case 'smart':
+          posts = await _networkService.getSmartFeed();
+          break;
+        case 'popular':
+          posts = await _getPopularFeed();
+          break;
+        default:
+          posts = await _networkService.getFeedPosts();
       }
       
       setState(() {
         _posts = posts;
         _loadingPosts = false;
       });
-      print('📱 === _loadPosts FIN ===');
     } catch (e) {
-      print('❌ Erreur dans _loadPosts: $e');
+      debugPrint('Error loading posts: $e');
       setState(() => _loadingPosts = false);
+    }
+  }
+
+  Future<List<NetworkPost>> _getPopularFeed() async {
+    try {
+      final posts = await _networkService.getFeedPosts(limit: 50);
+      posts.sort((a, b) => b.likesCount.compareTo(a.likesCount));
+      return posts.take(20).toList();
+    } catch (e) {
+      return [];
     }
   }
 
   Future<void> _loadSuggestions() async {
     setState(() => _loadingSuggestions = true);
     try {
-      final suggestions = await _networkService.getSuggestedConnections(limit: 5);
+      final suggestions = await _networkService.getSuggestedConnections(limit: 6);
       setState(() {
         _suggestions = suggestions;
         _loadingSuggestions = false;
       });
     } catch (e) {
-      debugPrint('Error loading suggestions: $e');
       setState(() => _loadingSuggestions = false);
     }
   }
@@ -148,13 +192,12 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _loadCommunities() async {
     setState(() => _loadingCommunities = true);
     try {
-      final communities = await _networkService.getSuggestedCommunities(limit: 5);
+      final communities = await _networkService.getSuggestedCommunities(limit: 6);
       setState(() {
         _communities = communities;
         _loadingCommunities = false;
       });
     } catch (e) {
-      debugPrint('Error loading communities: $e');
       setState(() => _loadingCommunities = false);
     }
   }
@@ -182,27 +225,8 @@ class _NetworkProHomeState extends State<NetworkProHome> {
         _loadingStories = false;
       });
     } catch (e) {
-      debugPrint('Error loading stories: $e');
       setState(() => _loadingStories = false);
     }
-  }
-
-  Future<List<String>> _getConnectedUserIds() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return [];
-    
-    final response = await _supabase
-        .from('connections')
-        .select('user_id, connection_id')
-        .or('user_id.eq.$userId,connection_id.eq.$userId')
-        .eq('status', 'accepted');
-    
-    final Set<String> ids = {};
-    for (var conn in response) {
-      if (conn['user_id'] != userId) ids.add(conn['user_id']);
-      if (conn['connection_id'] != userId) ids.add(conn['connection_id']);
-    }
-    return ids.toList();
   }
 
   Future<void> _loadUnreadCount() async {
@@ -224,12 +248,14 @@ class _NetworkProHomeState extends State<NetworkProHome> {
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
+    HapticFeedback.lightImpact();
     await _loadAllData();
     await _loadUnreadCount();
     setState(() => _isRefreshing = false);
   }
 
   void _showCreatePostDialog() {
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (_) => const CreatePostDialog(),
@@ -320,6 +346,10 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     
+    // Animation du cœur
+    _likeAnimationController.forward(from: 0.0);
+    HapticFeedback.lightImpact();
+    
     final updatedPost = post.copyWith(
       likesCount: post.isLikedByCurrentUser ? post.likesCount - 1 : post.likesCount + 1,
       isLikedByCurrentUser: !post.isLikedByCurrentUser,
@@ -343,7 +373,6 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       setState(() {
         _posts[index] = revertedPost;
       });
-      debugPrint('Error toggling like: $e');
     }
   }
 
@@ -352,63 +381,85 @@ class _NetworkProHomeState extends State<NetworkProHome> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ajouter un commentaire', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                decoration: const InputDecoration(
-                  hintText: 'Écrivez votre commentaire...',
-                  border: OutlineInputBorder(),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          top: 16,
+          left: 16,
+          right: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Ajouter un commentaire', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: commentController,
+              decoration: InputDecoration(
+                hintText: 'Écrivez votre commentaire...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annuler'),
+                  ),
                 ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Annuler'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (commentController.text.trim().isNotEmpty) {
-                          await _networkService.addComment(post.id, commentController.text.trim());
-                          
-                          final updatedPost = post.copyWith(
-                            commentsCount: post.commentsCount + 1,
-                          );
-                          setState(() {
-                            _posts[postIndex] = updatedPost;
-                          });
-                          
-                          if (mounted) {
-                            Navigator.pop(context);
-                          }
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (commentController.text.trim().isNotEmpty) {
+                        await _networkService.addComment(post.id, commentController.text.trim());
+                        
+                        final updatedPost = post.copyWith(
+                          commentsCount: post.commentsCount + 1,
+                        );
+                        setState(() {
+                          _posts[postIndex] = updatedPost;
+                        });
+                        
+                        if (mounted) {
+                          Navigator.pop(context);
                         }
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
-                      child: const Text('Publier'),
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37),
+                      foregroundColor: const Color(0xFF0B1B3D),
                     ),
+                    child: const Text('Publier'),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
   }
+
+  // ==================== UI MODERNE ====================
 
   @override
   Widget build(BuildContext context) {
@@ -431,343 +482,841 @@ class _NetworkProHomeState extends State<NetworkProHome> {
       );
     }
 
-    print('🏠 BUILD - Nombre de posts à afficher: ${_posts.length}');
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'THIX RÉSEAU PRO',
-          style: TextStyle(color: Color(0xFF0B1B3D), fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF0B1B3D)), 
-            onPressed: _goToSearch,
-          ),
-          IconButton(
-            icon: const Icon(Icons.groups, color: Color(0xFF0B1B3D)), 
-            onPressed: _goToGroups,
-          ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0B1B3D)), 
-                onPressed: _showNotifications,
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: Stack(
+        children: [
+          // Contenu principal avec CustomScrollView
+          CustomScrollView(
+            controller: ScrollController(),
+            slivers: [
+              // Header fixe
+              SliverToBoxAdapter(
+                child: _buildModernHeader(),
               ),
-              if (_unreadNotifications > 0)
-                Positioned(
-                  right: 4, top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                    child: Text(
-                      '$_unreadNotifications', 
-                      style: const TextStyle(color: Colors.white, fontSize: 8), 
-                      textAlign: TextAlign.center,
-                    ),
+              
+              // Stories section
+              SliverToBoxAdapter(
+                child: _buildStoriesSection(),
+              ),
+              
+              // Filtres
+              SliverToBoxAdapter(
+                child: _buildFilterChips(),
+              ),
+              
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              
+              // Posts
+              if (_loadingPosts)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_posts.isEmpty)
+                SliverToBoxAdapter(
+                  child: _buildEmptyState(),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildModernPostCard(_posts[index], index),
+                    childCount: _posts.length,
                   ),
                 ),
+              
+              // Suggestions
+              if (!_loadingSuggestions && _suggestions.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildSuggestionsSection(),
+                ),
+              
+              // Communautés
+              if (!_loadingCommunities && _communities.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildCommunitiesSection(),
+                ),
+              
+              // IA Recommendations
+              SliverToBoxAdapter(
+                child: _buildIARecommendations(),
+              ),
+              
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.message_outlined, color: Color(0xFF0B1B3D)), 
-                onPressed: _goToMessages,
-              ),
-              if (_unreadMessages > 0)
-                Positioned(
-                  right: 4, top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                    child: Text(
-                      '$_unreadMessages', 
-                      style: const TextStyle(color: Colors.white, fontSize: 8), 
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
+          
+          // Bottom Navigation Bar fixe
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildModernBottomNav(),
+          ),
+          
+          // Floating Action Button
+          Positioned(
+            bottom: 80,
+            right: 16,
+            child: _buildFloatingActionButton(),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  // ==================== COMPOSANTS MODERNES ====================
+
+  Widget _buildModernHeader() {
+    final auth = Provider.of<AuthController>(context);
+    final user = auth.currentUser;
+    
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Ligne des icônes
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
                 children: [
-                  const SizedBox(height: 16),
-                  ProfileHeaderCard(
-                    onEditPressed: _showEditProfileDialog,
-                    onPhotoPressed: _showCreatePostDialog,
-                    onVideoPressed: _showCreatePostDialog,
-                    onDocumentPressed: _showCreatePostDialog,
-                    onEventPressed: _goToEvents,
-                    onJobPressed: _goToJobs,
-                    onStoryPressed: _showCreateStoryDialog,
+                  // Logo
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('THIX', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
-                  const SizedBox(height: 16),
-                  StatsRow(
-                    onConnexionsTap: _goToConnexions,
-                    onPublicationsTap: _goToPublications,
-                    onCommunitiesTap: _goToGroups,
-                    onMessagesTap: _goToMessages,
+                  const Spacer(),
+                  // Icônes
+                  _buildIconButton(Icons.search, () => _goToSearch()),
+                  const SizedBox(width: 8),
+                  _buildIconButton(Icons.notifications_outlined, _showNotifications, count: _unreadNotifications),
+                  const SizedBox(width: 8),
+                  _buildIconButton(Icons.message_outlined, _goToMessages, count: _unreadMessages),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _showEditProfileDialog,
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundImage: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                      child: user?.photoUrl == null ? const Icon(Icons.person, size: 16) : null,
+                    ),
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
             
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Profil
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Stories',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-                    ),
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundImage: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                    child: user?.photoUrl == null ? const Icon(Icons.person, size: 32) : null,
                   ),
-                  const SizedBox(height: 12),
-                  if (_loadingStories)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (_stories.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Aucune story récente'),
-                    )
-                  else
-                    SizedBox(
-                      height: 120,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _stories.length,
-                        itemBuilder: (context, index) {
-                          final story = _stories[index];
-                          return GestureDetector(
-                            onTap: () => _viewStory(story.id),
-                            child: Container(
-                              width: 80,
-                              margin: const EdgeInsets.only(right: 12),
-                              child: Column(
-                                children: [
-                                  Stack(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: const Color(0xFFD4AF37),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 32,
-                                          backgroundImage: story.userAvatar != null 
-                                              ? NetworkImage(story.userAvatar!)
-                                              : null,
-                                          child: story.userAvatar == null
-                                              ? const Icon(Icons.person, size: 32)
-                                              : null,
-                                        ),
-                                      ),
-                                      if (!story.isViewed)
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            width: 16,
-                                            height: 16,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    story.userName,
-                                    style: const TextStyle(fontSize: 12),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-            
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Fil d\'actualité',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0B1B3D)),
-                    ),
-                    DropdownButton<String>(
-                      value: _selectedSort,
-                      items: const [
-                        DropdownMenuItem(value: 'recent', child: Text('Trier par : Récent')),
-                        DropdownMenuItem(value: 'popular', child: Text('Trier par : Populaire')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedSort = value);
-                          _loadPosts();
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            
-            if (_loadingPosts)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_posts.isEmpty)
-              SliverToBoxAdapter(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.post_add, size: 48, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        const Text('Aucune publication'),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _showCreatePostDialog,
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
-                          child: const Text('Créer ma première publication'),
+                        Text(
+                          user?.displayName ?? 'Utilisateur',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
+                        Text(
+                          user?.profession ?? 'Membre THIX',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        if (user?.bio != null && user!.bio!.isNotEmpty)
+                          Text(
+                            user.bio!,
+                            style: TextStyle(color: Colors.white60, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
                   ),
-                ),
-              )
-            else
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final post = _posts[index];
-                    print('📝 Affichage post $index: ${post.content}');
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: PostCard(
-                        post: post,
-                        onLike: () => _likePost(post, index),
-                        onComment: () => _showCommentDialog(post, index),
-                        onTap: () => context.push('/network/post/${post.id}'),
-                        onShare: () async {
-                          await _networkService.sharePost(post.id);
-                        },
-                      ),
-                    );
-                  },
-                  childCount: _posts.length,
-                ),
-              ),
-            
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_loadingSuggestions)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_suggestions.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Suggestions pour vous', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 12),
-                    SuggestionsList(
-                      suggestions: _suggestions,
-                      onConnect: (userId) async {
-                        await _networkService.sendConnectionRequest(userId);
-                        await _loadSuggestions();
-                      },
-                    ),
-                  ],
                 ],
               ),
             ),
             
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Stats
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  if (_loadingCommunities)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_communities.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Communautés populaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 12),
-                    CommunitiesList(
-                      communities: _communities,
-                      onCommunityTap: (communityId) => context.push('/network/community/$communityId'),
-                      onJoinTap: (communityId) async {
-                        await _networkService.joinCommunity(communityId);
-                        await _loadCommunities();
-                      },
-                    ),
-                  ],
+                  _buildStatItem('Connexions', '0'),
+                  _buildStatItem('Publications', _posts.length.toString()),
+                  _buildStatItem('Communautés', '0'),
+                  _buildStatItem('Messages', _unreadMessages.toString()),
                 ],
               ),
             ),
-            
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: RecommendationsIA(
-                  onPeopleTap: null,
-                  onOpportunitiesTap: null,
-                  onCommunitiesTap: null,
-                ),
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreatePostDialog,
-        backgroundColor: const Color(0xFFD4AF37),
-        child: const Icon(Icons.add, color: Color(0xFF0B1B3D)),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, VoidCallback onPressed, {int count = 0}) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: Icon(icon, color: Colors.white, size: 20),
+            onPressed: onPressed,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ),
+        if (count > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+              child: Text(
+                count > 9 ? '9+' : '$count',
+                style: const TextStyle(color: Colors.white, fontSize: 8),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoriesSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Stories', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _stories.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _buildAddStoryButton();
+                }
+                final story = _stories[index - 1];
+                return _buildStoryItem(story);
+              },
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildAddStoryButton() {
+    return GestureDetector(
+      onTap: _showCreateStoryDialog,
+      child: Container(
+        width: 70,
+        margin: const EdgeInsets.only(right: 12),
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)]),
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.add, size: 30, color: Color(0xFFD4AF37)),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text('Ajouter', style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoryItem(Story story) {
+    return GestureDetector(
+      onTap: () => _viewStory(story.id),
+      child: Container(
+        width: 70,
+        margin: const EdgeInsets.only(right: 12),
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: !story.isViewed
+                        ? const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFE5C55E)])
+                        : null,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundImage: story.userAvatar != null ? NetworkImage(story.userAvatar!) : null,
+                    child: story.userAvatar == null ? const Icon(Icons.person, size: 30) : null,
+                  ),
+                ),
+                if (!story.isViewed)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              story.userName,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    final filters = [
+      {'icon': Icons.auto_awesome, 'label': 'Pour vous', 'value': 'smart'},
+      {'icon': Icons.access_time, 'label': 'Récent', 'value': 'recent'},
+      {'icon': Icons.trending_up, 'label': 'Populaires', 'value': 'popular'},
+    ];
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: filters.length,
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final isSelected = _feedType == filter['value'];
+          return Container(
+            margin: const EdgeInsets.only(right: 12),
+            child: FilterChip(
+              selected: isSelected,
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(filter['icon'] as IconData, size: 16, color: isSelected ? const Color(0xFFD4AF37) : Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(filter['label'] as String, style: TextStyle(fontSize: 13)),
+                ],
+              ),
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _feedType = filter['value'] as String);
+                  _loadPosts();
+                }
+              },
+              backgroundColor: Colors.white,
+              selectedColor: const Color(0xFFD4AF37).withOpacity(0.1),
+              checkmarkColor: const Color(0xFFD4AF37),
+              side: BorderSide(color: isSelected ? const Color(0xFFD4AF37) : Colors.grey[300]!),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildModernPostCard(NetworkPost post, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // En-tête
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: post.authorAvatar != null ? NetworkImage(post.authorAvatar!) : null,
+                  child: post.authorAvatar == null ? const Icon(Icons.person, size: 20) : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.authorName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            _formatTimeAgo(post.createdAt),
+                            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.public, size: 10, color: Colors.grey[400]),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton(
+                  icon: const Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'report', child: Text('Signaler')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Contenu
+          if (post.content != null && post.content!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                post.content!,
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+            ),
+          
+          // Image
+          if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  post.mediaUrl!,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          
+          // Actions
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                _buildPostAction(
+                  icon: post.isLikedByCurrentUser ? Icons.favorite : Icons.favorite_border,
+                  label: _formatCount(post.likesCount),
+                  color: post.isLikedByCurrentUser ? Colors.red : Colors.grey,
+                  onTap: () => _likePost(post, index),
+                ),
+                const SizedBox(width: 24),
+                _buildPostAction(
+                  icon: Icons.comment_outlined,
+                  label: _formatCount(post.commentsCount),
+                  onTap: () => _showCommentDialog(post, index),
+                ),
+                const Spacer(),
+                _buildPostAction(
+                  icon: Icons.share_outlined,
+                  label: 'Partager',
+                  onTap: () async => _networkService.sharePost(post.id),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostAction({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color ?? Colors.grey[600]),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(fontSize: 12, color: color ?? Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Suggestions pour vous', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 110,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _suggestions.length,
+              itemBuilder: (context, index) {
+                final suggestion = _suggestions[index];
+                return Container(
+                  width: 80,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundImage: suggestion.avatar != null ? NetworkImage(suggestion.avatar!) : null,
+                        child: suggestion.avatar == null ? const Icon(Icons.person, size: 28) : null,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        suggestion.name,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      GestureDetector(
+                        onTap: () => _networkService.sendConnectionRequest(suggestion.id),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD4AF37).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.person_add, size: 10, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 2),
+                              Text('+', style: TextStyle(fontSize: 10, color: Color(0xFFD4AF37))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommunitiesSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Communautés populaires', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Tout voir', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _communities.length,
+              itemBuilder: (context, index) {
+                final community = _communities[index];
+                return Container(
+                  width: 80,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: const Color(0xFFD4AF37).withOpacity(0.1),
+                        child: Text(
+                          community.name.isNotEmpty ? community.name[0].toUpperCase() : '?',
+                          style: const TextStyle(fontSize: 24, color: Color(0xFFD4AF37)),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        community.name,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${community.membersCount} membres',
+                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIARecommendations() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [const Color(0xFF0B1B3D), const Color(0xFF1A2B4D)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildIAItem(Icons.people, '9', 'Personnes'),
+          _buildIAItem(Icons.work, '3', 'Opportunités'),
+          _buildIAItem(Icons.groups, '5', 'Communautés'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIAItem(IconData icon, String count, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFFD4AF37), size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          count,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        Text(
+          label,
+          style: TextStyle(color: Colors.white70, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.post_add, size: 48, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Aucune publication',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF4B5563)),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Soyez le premier à partager quelque chose',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _showCreatePostDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37),
+                foregroundColor: const Color(0xFF0B1B3D),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Créer ma première publication'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2)),
+        ],
+      ),
+      child: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: const Color(0xFFD4AF37),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontSize: 10),
+        unselectedLabelStyle: const TextStyle(fontSize: 10),
+        currentIndex: _selectedNavIndex,
+        onTap: (index) {
+          setState(() => _selectedNavIndex = index);
+          HapticFeedback.lightImpact();
+          switch (index) {
+            case 0: break;
+            case 1: _goToConnexions(); break;
+            case 2: _showCreatePostDialog(); break;
+            case 3: _goToMessages(); break;
+            case 4: break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Réseau'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Créer'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return ScaleTransition(
+      scale: _fabScaleAnimation,
+      child: FloatingActionButton(
+        onPressed: _showCreatePostDialog,
+        backgroundColor: const Color(0xFFD4AF37),
+        child: RotationTransition(
+          turns: _fabRotateAnimation,
+          child: const Icon(Icons.edit, color: Color(0xFF0B1B3D)),
+        ),
+      ),
+    );
+  }
+
+  // ==================== MÉTHODES UTILITAIRES ====================
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 7) {
+      return '${dateTime.day}/${dateTime.month}';
+    } else if (difference.inDays >= 1) {
+      return 'il y a ${difference.inDays}j';
+    } else if (difference.inHours >= 1) {
+      return 'il y a ${difference.inHours}h';
+    } else if (difference.inMinutes >= 1) {
+      return 'il y a ${difference.inMinutes}min';
+    } else {
+      return 'maintenant';
+    }
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return count.toString();
   }
 }
