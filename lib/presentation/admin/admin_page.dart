@@ -1,5 +1,4 @@
 // lib/presentation/admin/admin_page.dart
-import 'admin_colors.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:thix_id/presentation/admin/admin_routes.dart';
@@ -21,62 +20,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thix_id/supabase/supabase_config.dart';
 
 // ============================================================
-// COULEURS AMÉLIORÉES POUR L'ESPACE ADMIN
+// COULEURS LOCALES
 // ============================================================
-class AdminColors {
-  // Couleurs principales
-  static const Color primary = Color(0xFF1A237E);      // Bleu profond
-  static const Color primaryDark = Color(0xFF0D1B5E);   // Bleu très foncé
-  static const Color primaryLight = Color(0xFF534bae);  // Bleu clair
-  
-  // Couleurs secondaires
-  static const Color secondary = Color(0xFFD4AF37);     // Doré
-  static const Color secondaryDark = Color(0xFFB8941E);  // Doré foncé
-  static const Color secondaryLight = Color(0xFFE8C96C); // Doré clair
-  
-  // Couleurs d'accentuation
-  static const Color accent = Color(0xFF00BCD4);        // Cyan
-  static const Color accentDark = Color(0xFF00838F);     // Cyan foncé
-  
-  // Couleurs de statut
-  static const Color success = Color(0xFF2E7D32);       // Vert
-  static const Color warning = Color(0xFFF57C00);        // Orange
-  static const Color error = Color(0xFFC62828);          // Rouge
-  static const Color info = Color(0xFF0288D1);           // Bleu info
-  
-  // Couleurs de fond
-  static const Color background = Color(0xFFF5F7FA);     // Gris très clair
-  static const Color surface = Colors.white;              // Blanc
-  static const Color card = Colors.white;                // Blanc
-  
-  // Couleurs de texte
-  static const Color textPrimary = Color(0xFF1A237E);    // Bleu foncé
-  static const Color textSecondary = Color(0xFF546E7A);  // Gris bleuté
-  static const Color textHint = Color(0xFF90A4AE);       // Gris clair
-  static const Color textLight = Colors.white;            // Blanc
-  
-  // Ombres
-  static const Color shadow = Color(0x1A000000);         // Ombre légère
-  static const Color shadowDark = Color(0x33000000);     // Ombre moyenne
-  
-  // Dégradés
-  static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primary, primaryDark],
-  );
-  
-  static const LinearGradient secondaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [secondary, secondaryDark],
-  );
-  
-  static const LinearGradient accentGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [accent, accentDark],
-  );
+class _AdminPageColors {
+  static const Color primary = Color(0xFF1A237E);
+  static const Color secondary = Color(0xFFD4AF37);
+  static const Color accent = Color(0xFF00BCD4);
+  static const Color success = Color(0xFF2E7D32);
+  static const Color warning = Color(0xFFF57C00);
+  static const Color error = Color(0xFFC62828);
+  static const Color info = Color(0xFF0288D1);
 }
 
 class AdminPage extends StatefulWidget {
@@ -95,7 +48,6 @@ class _AdminPageState extends State<AdminPage> {
 
   RealtimeChannel? _roleChannel;
   
-  // Clé pour forcer le rafraîchissement du contenu
   Key _contentKey = const ValueKey('admin_content');
 
   @override
@@ -142,7 +94,6 @@ class _AdminPageState extends State<AdminPage> {
   @override
   void didUpdateWidget(covariant AdminPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Force le rebuild quand le module change
     if (oldWidget.module != widget.module) {
       debugPrint('🔄 Module changé: ${oldWidget.module.slug} → ${widget.module.slug}');
       _contentKey = ValueKey('admin_${widget.module.slug}_${DateTime.now().millisecondsSinceEpoch}');
@@ -171,7 +122,7 @@ class _AdminPageState extends State<AdminPage> {
         role: null,
         child: const Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AdminColors.secondary),
+            valueColor: AlwaysStoppedAnimation<Color>(_AdminPageColors.secondary),
           ),
         ),
       );
@@ -185,12 +136,10 @@ class _AdminPageState extends State<AdminPage> {
           title: 'Accès Restreint',
           description: 'Votre compte est authentifié mais aucun rôle administrateur n\'est assigné.\n\nDemandez à un Super Admin de vous accorder les droits dans `thix_admin_memberships`.',
           icon: Icons.lock_rounded,
-          iconColor: AdminColors.error,
         ),
       );
     }
 
-    // Utilise la clé pour forcer le rebuild
     return AdminShell(
       key: _contentKey,
       module: widget.module, 
@@ -214,72 +163,57 @@ class _AdminPageState extends State<AdminPage> {
       case AdminModule.trainings:
         return const AdminTrainingsPage();
       case AdminModule.uid:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Gestion THIX UID',
           description: 'Génération et cycle de vie des THIX UIDs, liaison biométrique, validation d\'identité.',
           icon: Icons.badge_rounded,
-          iconColor: AdminColors.secondary,
         );
       case AdminModule.jobs:
         return const AdminJobsOpportunitiesPage();
       case AdminModule.news:
         return AdminNewsPage(role: _role ?? '');
       case AdminModule.chat:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Administration THIX Chat',
           description: 'Modération, signalements, analyse des conversations, politiques de surveillance sécurisées.',
           icon: Icons.forum_rounded,
-          iconColor: AdminColors.accent,
         );
       case AdminModule.sos:
         return const AdminSosEmergencyPage();
       case AdminModule.institutions:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Panel Universités & Institutions',
           description: 'Intégration des partenaires, workflows de validation académique, outils de certification en masse, analytiques.',
           icon: Icons.account_balance_rounded,
-          iconColor: AdminColors.success,
         );
       case AdminModule.analytics:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Analytiques & Rapports',
           description: 'Graphiques en temps réel, croissance, analyses de fraude, engagement, exports.',
           icon: Icons.query_stats_rounded,
-          iconColor: AdminColors.info,
         );
       case AdminModule.cybersecurity:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Centre de Cybersécurité',
           description: 'Surveillance des menaces, détection d\'anomalies, journaux d\'audit, état du chiffrement, santé des serveurs.',
           icon: Icons.shield_rounded,
-          iconColor: AdminColors.error,
         );
       case AdminModule.api:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Centre API & Intégration',
           description: 'Clés API, intégrations externes, API gouvernementales, tableaux de bord d\'entreprise.',
           icon: Icons.api_rounded,
-          iconColor: AdminColors.primary,
         );
       case AdminModule.settings:
-        return AdminPlaceholderPage(
+        return const AdminPlaceholderPage(
           title: 'Paramètres Administrateur',
           description: 'Personnalisation, localisation, système de permissions, règles de notification.',
           icon: Icons.tune_rounded,
-          iconColor: AdminColors.secondary,
         );
       case AdminModule.audit:
         return const AdminAuditActivityPage();
       case AdminModule.media:
         return const AdminMediaPage();
-      
-      default:
-        return AdminPlaceholderPage(
-          title: 'Module non implémenté',
-          description: 'Le module "${module.slug}" est en cours de développement.\n\nCette section sera disponible prochainement.',
-          icon: Icons.construction,
-          iconColor: AdminColors.warning,
-        );
     }
   }
 }
@@ -434,47 +368,6 @@ extension AdminModuleX on AdminModule {
         return Icons.history;
       case AdminModule.media:
         return Icons.photo_library;
-    }
-  }
-  
-  Color get color {
-    switch (this) {
-      case AdminModule.overview:
-        return AdminColors.primary;
-      case AdminModule.accessRequests:
-        return AdminColors.warning;
-      case AdminModule.users:
-        return AdminColors.info;
-      case AdminModule.verification:
-        return AdminColors.success;
-      case AdminModule.events:
-        return AdminColors.accent;
-      case AdminModule.trainings:
-        return AdminColors.secondary;
-      case AdminModule.uid:
-        return AdminColors.primary;
-      case AdminModule.jobs:
-        return AdminColors.success;
-      case AdminModule.news:
-        return AdminColors.secondary;
-      case AdminModule.chat:
-        return AdminColors.accent;
-      case AdminModule.sos:
-        return AdminColors.error;
-      case AdminModule.institutions:
-        return AdminColors.primary;
-      case AdminModule.analytics:
-        return AdminColors.info;
-      case AdminModule.cybersecurity:
-        return AdminColors.error;
-      case AdminModule.api:
-        return AdminColors.primary;
-      case AdminModule.settings:
-        return AdminColors.warning;
-      case AdminModule.audit:
-        return AdminColors.textSecondary;
-      case AdminModule.media:
-        return AdminColors.secondary;
     }
   }
 }
