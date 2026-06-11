@@ -18,67 +18,49 @@ class NetworkService {
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   // ==================== POSTS ====================
-
-  Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
+Future<List<NetworkPost>> getFeedPosts({int limit = 20}) async {
   try {
-    final currentUserId = this.currentUserId;
-    print('🔍 1. currentUserId: $currentUserId');
-    if (currentUserId.isEmpty) return [];
+    print('🔍 === TEST ULTRA SIMPLE ===');
     
+    // Requête la plus simple possible
     final response = await _supabase
         .from('posts')
-        .select('''
-          *,
-          users:user_id (
-            display_name,
-            photo_url,
-            profession
-          )
-        ''')
-        .eq('is_public', true)
-        .order('created_at', ascending: false)
+        .select('*')
         .limit(limit);
     
-    print('🔍 2. Nombre de posts bruts: ${(response as List).length}');
+    print('🔍 Nombre de posts trouvés: ${(response as List).length}');
     
-    if (response.isNotEmpty) {
-      print('🔍 3. Premier post brut: ${response[0]['content']}');
-      print('🔍 4. users data: ${response[0]['users']}');
+    if (response.isEmpty) {
+      print('🔍 AUCUN POST !!!');
+      return [];
     }
     
+    // Afficher le premier post
+    print('🔍 Premier post: ${response[0]}');
+    
+    // Convertir manuellement
     final posts = <NetworkPost>[];
     for (var e in response) {
-      final likesData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', e['id']);
-      
-      final commentsData = await _supabase
-          .from('comments')
-          .select('id')
-          .eq('post_id', e['id']);
-      
-      final likedData = await _supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', e['id'])
-          .eq('user_id', currentUserId);
-      
-      final post = NetworkPost.fromJson({
-        ...e,
-        'author_name': e['users']?['display_name'] ?? 'Utilisateur',
-        'author_avatar': e['users']?['photo_url'],
-        'author_title': e['users']?['profession'],
-        'likes_count': (likesData as List).length,
-        'comments_count': (commentsData as List).length,
-        'is_liked': (likedData as List).isNotEmpty,
-      });
-      
-      print('🔍 5. Post créé: author_name=${post.authorName}, content=${post.content}');
-      posts.add(post);
+      posts.add(NetworkPost(
+        id: e['id'],
+        userId: e['user_id'],
+        authorName: 'Test',
+        authorAvatar: null,
+        authorTitle: null,
+        content: e['content'],
+        mediaUrl: e['media_url'],
+        mediaType: e['media_type'] ?? 'none',
+        isPublic: e['is_public'] ?? true,
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        createdAt: DateTime.parse(e['created_at']),
+        isLikedByCurrentUser: false,
+        isSavedByCurrentUser: false,
+      ));
     }
     
-    print('🔍 6. Total posts retournés: ${posts.length}');
+    print('🔍 Posts convertis: ${posts.length}');
     return posts;
   } catch (e) {
     print('❌ ERREUR: $e');
