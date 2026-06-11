@@ -36,11 +36,14 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       
       if (images.isNotEmpty) {
         setState(() {
-          _selectedImages.addAll(images.map((img) => File(img.path)));
+          for (final image in images) {
+            _selectedImages.add(File(image.path));
+          }
         });
       }
     } catch (e) {
       debugPrint('Error picking images: $e');
+      _showError('Impossible de charger les images');
     }
   }
 
@@ -56,6 +59,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       }
     } catch (e) {
       debugPrint('Error taking photo: $e');
+      _showError('Impossible de prendre la photo');
     }
   }
 
@@ -77,6 +81,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       }
     } catch (e) {
       debugPrint('Error picking files: $e');
+      _showError('Impossible de charger les fichiers');
     }
   }
 
@@ -84,6 +89,12 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     setState(() {
       _selectedImages.removeAt(index);
     });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   Future<void> _submitPost() async {
@@ -114,6 +125,8 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         final url = await networkService.uploadImage(image.path);
         if (url != null) {
           imageUrls.add(url);
+        } else {
+          _showError('Erreur lors de l\'upload de l\'image ${i + 1}');
         }
         
         setState(() {
@@ -121,22 +134,29 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
         });
       }
       
-      // Créer le post
-      if (widget.communityId != null) {
-        await networkService.createCommunityPost(
-          communityId: widget.communityId!,
-          content: _contentController.text.trim(),
-          images: imageUrls,
-        );
+      // Créer le post même si certaines images ont échoué
+      if (imageUrls.isNotEmpty || _contentController.text.trim().isNotEmpty) {
+        if (widget.communityId != null) {
+          await networkService.createCommunityPost(
+            communityId: widget.communityId!,
+            content: _contentController.text.trim(),
+            images: imageUrls,
+          );
+        } else {
+          await networkService.createPost(
+            _contentController.text.trim(),
+            imageUrls,
+          );
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publication créée avec succès'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context, true);
+        }
       } else {
-        await networkService.createPost(
-          _contentController.text.trim(),
-          imageUrls,
-        );
-      }
-      
-      if (mounted) {
-        Navigator.pop(context, true);
+        throw Exception('Aucune image téléchargée avec succès');
       }
     } catch (e) {
       setState(() {
@@ -169,6 +189,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
+                  tooltip: 'Fermer',
                 ),
               ],
             ),
@@ -303,7 +324,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 IconButton(
                   icon: const Icon(Icons.photo_library, color: Colors.green),
                   onPressed: _isUploading ? null : _pickImages,
-                  tooltip: 'Ajouter des images',
+                  tooltip: 'Ajouter des images de la galerie',
                 ),
                 IconButton(
                   icon: const Icon(Icons.camera_alt, color: Colors.orange),
