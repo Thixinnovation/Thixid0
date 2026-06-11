@@ -22,6 +22,7 @@ class NewsService {
     bool onlyPublished = true,
   }) async {
     try {
+      // ✅ CORRECTION : Construire la requête étape par étape
       var query = _supabase
           .from('news_articles')
           .select('*')
@@ -61,6 +62,7 @@ class NewsService {
 
   Future<NewsArticle?> getArticleById(String articleId) async {
     try {
+      // ✅ CORRECTION : Requête simple
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -85,6 +87,7 @@ class NewsService {
 
   Future<List<NewsArticle>> getBreakingNews() async {
     try {
+      // ✅ CORRECTION
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -106,6 +109,7 @@ class NewsService {
 
   Future<List<NewsArticle>> getVideos() async {
     try {
+      // ✅ CORRECTION
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -127,6 +131,7 @@ class NewsService {
 
   Future<List<NewsArticle>> searchArticles(String query) async {
     try {
+      // ✅ CORRECTION : Utiliser or() pour la recherche multiple
       final response = await _supabase
           .from('news_articles')
           .select('*')
@@ -212,9 +217,7 @@ class NewsService {
 
   Future<void> incrementViews(String articleId) async {
     try {
-      await _supabase.rpc('increment_news_views', params: {'article_id': articleId});
-    } catch (e) {
-      // Fallback si RPC n'existe pas
+      // ✅ CORRECTION : Méthode alternative sans RPC
       final article = await _supabase
           .from('news_articles')
           .select('views_count')
@@ -226,6 +229,8 @@ class NewsService {
           .from('news_articles')
           .update({'views_count': currentViews + 1})
           .eq('id', articleId);
+    } catch (e) {
+      debugPrint('❌ Error incrementViews: $e');
     }
   }
 
