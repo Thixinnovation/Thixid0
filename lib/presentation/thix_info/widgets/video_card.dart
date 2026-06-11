@@ -2,11 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../../models/news_article.dart';
 
-class VideoCard extends StatefulWidget {
+class VideoCard extends StatelessWidget {
   final NewsArticle video;
   final bool isHorizontal;
 
@@ -17,41 +16,16 @@ class VideoCard extends StatefulWidget {
   });
 
   @override
-  State<VideoCard> createState() => _VideoCardState();
-}
-
-class _VideoCardState extends State<VideoCard> {
-  VideoPlayerController? _controller;
-  bool _isPlaying = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.video.videoUrl != null) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.video.videoUrl!))
-        ..initialize().then((_) {
-          setState(() {});
-        });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.isHorizontal) {
-      return _buildHorizontalCard();
+    if (isHorizontal) {
+      return _buildHorizontalCard(context);
     }
-    return _buildVerticalCard();
+    return _buildVerticalCard(context);
   }
 
-  Widget _buildHorizontalCard() {
+  Widget _buildHorizontalCard(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/thix-info/article/${widget.video.id}'),
+      onTap: () => context.push('/thix-info/article/${video.id}'),
       child: Container(
         width: 280,
         margin: const EdgeInsets.only(right: 12),
@@ -68,38 +42,31 @@ class _VideoCardState extends State<VideoCard> {
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   child: CachedNetworkImage(
-                    imageUrl: widget.video.imageUrl ?? '',
+                    imageUrl: video.imageUrl ?? '',
                     height: 140,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(height: 140, color: Colors.grey[200]),
-                  ),
-                ),
-                Positioned(
-                  center: true,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                    child: Icon(
-                      _isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: Colors.white,
-                      size: 28,
+                    placeholder: (context, url) => Container(
+                      height: 140,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      height: 140,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.videocam, size: 40, color: Colors.grey),
                     ),
                   ),
                 ),
-                if (_controller != null && _controller!.value.isInitialized)
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
+                const Positioned(
+                  child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                      child: Text(
-                        _formatDuration(_controller!.value.duration),
-                        style: const TextStyle(color: Colors.white, fontSize: 10),
-                      ),
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                      child: Icon(Icons.play_arrow, color: Colors.white, size: 32),
                     ),
                   ),
+                ),
               ],
             ),
             Padding(
@@ -108,7 +75,7 @@ class _VideoCardState extends State<VideoCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.video.title,
+                    video.title,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     maxLines: 2,
                   ),
@@ -117,11 +84,9 @@ class _VideoCardState extends State<VideoCard> {
                     children: [
                       Icon(Icons.visibility, size: 10, color: Colors.grey[500]),
                       const SizedBox(width: 2),
-                      Text(_formatCount(widget.video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                      Text(_formatCount(video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                       const SizedBox(width: 8),
-                      Text('•', style: TextStyle(fontSize: 9, color: Colors.grey[400])),
-                      const SizedBox(width: 8),
-                      Text(_formatTimeAgo(widget.video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                      Text(_formatTimeAgo(video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                     ],
                   ),
                 ],
@@ -133,9 +98,9 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 
-  Widget _buildVerticalCard() {
+  Widget _buildVerticalCard(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/thix-info/article/${widget.video.id}'),
+      onTap: () => context.push('/thix-info/article/${video.id}'),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
@@ -145,26 +110,26 @@ class _VideoCardState extends State<VideoCard> {
         ),
         child: Row(
           children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.video.imageUrl ?? '',
-                    width: 120,
-                    height: 90,
-                    fit: BoxFit.cover,
-                  ),
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+              child: CachedNetworkImage(
+                imageUrl: video.imageUrl ?? '',
+                width: 120,
+                height: 90,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  width: 120,
+                  height: 90,
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                 ),
-                Positioned(
-                  center: true,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                    child: const Icon(Icons.play_arrow, color: Colors.white, size: 20),
-                  ),
+                errorWidget: (context, url, error) => Container(
+                  width: 120,
+                  height: 90,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.videocam, size: 30, color: Colors.grey),
                 ),
-              ],
+              ),
             ),
             Expanded(
               child: Padding(
@@ -172,15 +137,15 @@ class _VideoCardState extends State<VideoCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.video.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 2),
+                    Text(video.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 2),
                     const SizedBox(height: 6),
                     Row(
                       children: [
                         Icon(Icons.visibility, size: 10, color: Colors.grey[500]),
                         const SizedBox(width: 2),
-                        Text(_formatCount(widget.video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                        Text(_formatCount(video.viewsCount), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                         const SizedBox(width: 8),
-                        Text(_formatTimeAgo(widget.video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                        Text(_formatTimeAgo(video.publishedAt), style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                       ],
                     ),
                   ],
@@ -191,12 +156,6 @@ class _VideoCardState extends State<VideoCard> {
         ),
       ),
     );
-  }
-
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   String _formatCount(int count) {
