@@ -44,13 +44,14 @@ class _PostCardState extends State<PostCard> {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
     
+    // CORRIGÉ : utilisation de >= au lieu de >
     if (difference.inDays > 7) {
       return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
-    } else if (difference.inDays > 0) {
+    } else if (difference.inDays >= 1) {
       return 'il y a ${difference.inDays} jour${difference.inDays > 1 ? 's' : ''}';
-    } else if (difference.inHours > 0) {
+    } else if (difference.inHours >= 1) {
       return 'il y a ${difference.inHours} heure${difference.inHours > 1 ? 's' : ''}';
-    } else if (difference.inMinutes > 0) {
+    } else if (difference.inMinutes >= 1) {
       return 'il y a ${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''}';
     } else {
       return 'à l\'instant';
@@ -254,23 +255,80 @@ class _PostCardState extends State<PostCard> {
                     style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                   const SizedBox(width: 8),
-                  PopupMenuButton(
+                  PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 18),
                     onSelected: (value) {
                       switch (value) {
-                        case 'edit': _editPost(); break;
-                        case 'delete': _deletePost(); break;
-                        case 'hide': _hidePost(); break;
-                        case 'report': _reportPost(); break;
-                        case 'share': widget.onShare(); break;
+                        case 'edit':
+                          _editPost();
+                          break;
+                        case 'delete':
+                          _deletePost();
+                          break;
+                        case 'hide':
+                          _hidePost();
+                          break;
+                        case 'report':
+                          _reportPost();
+                          break;
+                        case 'share':
+                          widget.onShare();
+                          break;
                       }
                     },
                     itemBuilder: (context) => [
-                      if (isOwner) const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Modifier')])),
-                      if (isOwner) const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: Colors.red))])),
-                      const PopupMenuItem(value: 'hide', child: Row(children: [Icon(Icons.visibility_off, size: 18), SizedBox(width: 8), Text('Masquer')])),
-                      const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, size: 18), SizedBox(width: 8), Text('Signaler')])),
-                      const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, size: 18), SizedBox(width: 8), Text('Partager')])),
+                      if (isOwner) 
+                        const PopupMenuItem<String>(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Modifier'),
+                            ],
+                          ),
+                        ),
+                      if (isOwner) 
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Supprimer', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem<String>(
+                        value: 'hide',
+                        child: Row(
+                          children: [
+                            Icon(Icons.visibility_off, size: 18),
+                            SizedBox(width: 8),
+                            Text('Masquer'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag, size: 18),
+                            SizedBox(width: 8),
+                            Text('Signaler'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'share',
+                        child: Row(
+                          children: [
+                            Icon(Icons.share, size: 18),
+                            SizedBox(width: 8),
+                            Text('Partager'),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ],
