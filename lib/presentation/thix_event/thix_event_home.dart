@@ -160,7 +160,7 @@ class _ThixEventHomeState extends State<ThixEventHome> {
           // ==================== ÉVÉNEMENTS RECOMMANDÉS ====================
           SliverToBoxAdapter(child: _buildSectionHeader('Événements recommandés', '/thix-event/recommended')),
           
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+           SliverToBoxAdapter(child: SizedBox(height: 8)),
           
           // Grille des événements recommandés
           if (isLoading && recommendedEvents.isEmpty)
