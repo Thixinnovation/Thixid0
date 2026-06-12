@@ -96,7 +96,7 @@ class EventBookingLimitService {
     }
   }
 
-  // Vérifier les tentatives suspectes
+  // ✅ CORRIGÉ : Vérifier les tentatives suspectes (sans utiliser count)
   Future<bool> isSuspiciousActivity(String eventId) async {
     final userId = currentUserId;
     if (userId.isEmpty) return false;
@@ -105,16 +105,15 @@ class EventBookingLimitService {
       // Compter les tentatives dans les dernières minutes
       final fiveMinutesAgo = DateTime.now().subtract(const Duration(minutes: 5));
       
-      // ✅ CORRECTION : Utiliser select avec count sans paramètre nommé 'count'
       final response = await _supabase
           .from('event_booking_attempts')
-          .select('id', count: 'exact')
+          .select('id')
           .eq('event_id', eventId)
           .eq('user_id', userId)
           .gte('attempted_at', fiveMinutesAgo.toIso8601String());
       
-      // ✅ CORRECTION : Récupérer le count correctement
-      final count = response.count ?? 0;
+      // ✅ CORRECTION : Compter manuellement en Dart
+      final count = (response as List).length;
       return count > 10;
     } catch (e) {
       debugPrint('❌ Error isSuspiciousActivity: $e');
