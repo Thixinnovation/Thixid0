@@ -133,38 +133,23 @@ class _ThixEventHomeState extends State<ThixEventHome> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // ==================== HEADER ====================
           SliverToBoxAdapter(child: _buildHeader()),
-          
-          // ==================== BARRE DE RECHERCHE ====================
           SliverToBoxAdapter(child: _buildSearchBar()),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          SliverToBoxAdapter(child: SizedBox(height: 8)),
-          
-          // ==================== ÉVÉNEMENT À LA UNE ====================
           if (featuredEvent != null)
             SliverToBoxAdapter(child: FeaturedEventWidget(event: featuredEvent)),
           
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // ==================== FILTRES DE DATE ====================
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildDateFilters()),
-          
-          SliverToBoxAdapter(child: SizedBox(height: 12)),
-          
-          // ==================== CATÉGORIES ====================
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
           SliverToBoxAdapter(child: _buildCategorySection()),
-          
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // ==================== ÉVÉNEMENTS RECOMMANDÉS ====================
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildSectionHeader('Événements recommandés', '/thix-event/recommended')),
           
-          // ⭐ CORRECTION 1 - Supprimé const
-          SliverToBoxAdapter(child: SizedBox(height: 8)),
+          // ⭐ CORRIGÉ
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // Grille des événements recommandés
-          // ⭐ CORRECTION 2 - Déjà correct (pas de const)
           if (isLoading && recommendedEvents.isEmpty)
             SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
@@ -187,21 +172,14 @@ class _ThixEventHomeState extends State<ThixEventHome> {
               ),
             ),
           
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // ==================== BANNIÈRE NOTIFICATIONS ====================
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildNotificationBanner()),
-          
-          SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // ==================== PROCHAINS ÉVÉNEMENTS ====================
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildSectionHeader('Prochains événements', '/thix-event/upcoming')),
           
-          // ⭐ CORRECTION 3 - Supprimé const
-          SliverToBoxAdapter(child: SizedBox(height: 8)),
+          // ⭐ CORRIGÉ
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // Liste des prochains événements
-          // ⭐ CORRECTION 4 - Déjà correct (pas de const)
           if (isLoading && upcomingEvents.isEmpty)
             SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
@@ -215,7 +193,7 @@ class _ThixEventHomeState extends State<ThixEventHome> {
               ),
             ),
           
-          SliverToBoxAdapter(child: SizedBox(height: 80)),
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
       bottomNavigationBar: _buildBottomNavBar(),
@@ -431,4 +409,42 @@ class _ThixEventHomeState extends State<ThixEventHome> {
             onTap: _requestNotificationPermission,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: const Color(0xFFD4AF37
+              decoration: BoxDecoration(color: const Color(0xFFD4AF37), borderRadius: BorderRadius.circular(20)),
+              child: const Text('Activer', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0B1B3D))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BARRE DE NAVIGATION BOTTOM
+  // ============================================================
+  Widget _buildBottomNavBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2))],
+      ),
+      child: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: const Color(0xFFD4AF37),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontSize: 9),
+        unselectedLabelStyle: const TextStyle(fontSize: 9),
+        currentIndex: _selectedNavIndex,
+        onTap: _onNavTap,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home, size: 20), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.search, size: 20), label: 'Rechercher'),
+          BottomNavigationBarItem(icon: Icon(Icons.confirmation_number, size: 20), label: 'Mes billets'),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite_border, size: 20), label: 'Favoris'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 20), label: 'Profil'),
+        ],
+      ),
+    );
+  }
+}
