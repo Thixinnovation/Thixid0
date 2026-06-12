@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../providers/event_provider.dart';
 import '../../../services/event_service.dart';
-import '../../thix_event/admin/admin_events_dashboard.dart';  // ← Chemin corrigé
+import '../../thix_event/admin/pages/admin_events_dashboard.dart';  // ← Chemin corrigé
 
 class AdminEventsPage extends StatelessWidget {
   final String role;
