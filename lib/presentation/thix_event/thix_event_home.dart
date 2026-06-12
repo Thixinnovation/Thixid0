@@ -195,7 +195,7 @@ class _ThixEventHomeState extends State<ThixEventHome> {
           // ==================== PROCHAINS ÉVÉNEMENTS ====================
           SliverToBoxAdapter(child: _buildSectionHeader('Prochains événements', '/thix-event/upcoming')),
           
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+           SliverToBoxAdapter(child: SizedBox(height: 8)),
           
           // Liste des prochains événements
           if (isLoading && upcomingEvents.isEmpty)
