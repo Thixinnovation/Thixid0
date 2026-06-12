@@ -14,6 +14,25 @@ import 'event_reservation_page.dart';
 import 'seat_selection_page.dart';
 import 'waiting_queue_page.dart';
 
+// Définition temporaire de EventBookingLimit si la classe n'existe pas
+class EventBookingLimit {
+  final String eventId;
+  final int maxPerPerson;
+  final int maxPerTransaction;
+  final bool requireIdVerification;
+  final int? memberOnlyLimit;
+  final List<String> restrictedZones;
+
+  EventBookingLimit({
+    required this.eventId,
+    required this.maxPerPerson,
+    required this.maxPerTransaction,
+    this.requireIdVerification = false,
+    this.memberOnlyLimit,
+    this.restrictedZones = const [],
+  });
+}
+
 class EventDetailPage extends StatefulWidget {
   final String eventId;
   const EventDetailPage({super.key, required this.eventId});
@@ -52,15 +71,31 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   Future<void> _loadAdditionalInfo() async {
-    final seatService = EventSeatService(Supabase.instance.client);
-    final seats = await seatService.getSeatMap(widget.eventId);
-    setState(() {
-      _hasSeatMap = seats.isNotEmpty;
-      _availableSeats = seats.where((s) => s.isAvailable).length;
-    });
-    
-    final limitService = EventBookingLimitService(Supabase.instance.client);
-    _bookingLimit = await limitService.getBookingLimit(widget.eventId);
+    try {
+      final seatService = EventSeatService(Supabase.instance.client);
+      final seats = await seatService.getSeatMap(widget.eventId);
+      setState(() {
+        _hasSeatMap = seats.isNotEmpty;
+        _availableSeats = seats.where((s) => s.isAvailable).length;
+      });
+      
+      final limitService = EventBookingLimitService(Supabase.instance.client);
+      final limit = await limitService.getBookingLimit(widget.eventId);
+      if (limit != null) {
+        setState(() {
+          _bookingLimit = EventBookingLimit(
+            eventId: limit.eventId,
+            maxPerPerson: limit.maxPerPerson,
+            maxPerTransaction: limit.maxPerTransaction,
+            requireIdVerification: limit.requireIdVerification,
+            memberOnlyLimit: limit.memberOnlyLimit,
+            restrictedZones: limit.restrictedZones,
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading additional info: $e');
+    }
   }
 
   Future<void> _toggleFavorite() async {
