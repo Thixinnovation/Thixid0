@@ -30,14 +30,14 @@ class EventQueueService {
         return WaitingQueue.fromJson(existing);
       }
 
-      // Obtenir la position actuelle - ✅ CORRECTION
-      final positionResponse = await _supabase
+      // ✅ CORRECTION : Récupérer toutes les entrées et compter en Dart
+      final allEntries = await _supabase
           .from('event_waiting_queue')
-          .select('id', count: 'exact')  // ← 'exact' au lieu de Count.exact
+          .select('id')
           .eq('event_id', eventId)
           .eq('status', 'waiting');
       
-      final position = (positionResponse.count ?? 0) + 1;  // ← correction
+      final position = (allEntries as List).length + 1;
 
       final response = await _supabase.from('event_waiting_queue').insert({
         'event_id': eventId,
@@ -115,17 +115,16 @@ class EventQueueService {
     }
   }
 
-  // Nombre de personnes dans la file
+  // ✅ CORRECTION : Compter en Dart au lieu d'utiliser count
   Future<int> getQueueSize(String eventId) async {
     try {
-      // ✅ CORRECTION : Utiliser 'exact' au lieu de Count.exact
       final response = await _supabase
           .from('event_waiting_queue')
-          .select('id', count: 'exact')
+          .select('id')
           .eq('event_id', eventId)
           .eq('status', 'waiting');
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       debugPrint('❌ Error getQueueSize: $e');
       return 0;
@@ -148,16 +147,16 @@ class EventQueueService {
     }
   }
 
+  // ✅ CORRECTION : Compter en Dart
   Future<int> _getAvailableSeats(String eventId) async {
     try {
-      // ✅ CORRECTION : Utiliser 'exact' au lieu de Count.exact
       final response = await _supabase
           .from('event_seats')
-          .select('id', count: 'exact')
+          .select('id')
           .eq('event_id', eventId)
           .eq('status', 'available');
       
-      return response.count ?? 0;
+      return (response as List).length;
     } catch (e) {
       return 0;
     }
