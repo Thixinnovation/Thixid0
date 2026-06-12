@@ -131,6 +131,17 @@ import 'presentation/thix_money/thix_money_cards.dart';
 import 'presentation/thix_money/thix_money_notifications.dart';
 import 'presentation/thix_money/thix_money_history.dart';
 
+// ==================== THIX ÉVÉNEMENT ====================
+import 'package:thix_id/presentation/thix_event/thix_event_home.dart';
+import 'package:thix_id/presentation/thix_event/event_detail_page.dart';
+import 'package:thix_id/presentation/thix_event/event_search_page.dart';
+import 'package:thix_id/presentation/thix_event/event_category_page.dart';
+import 'package:thix_id/presentation/thix_event/event_reservation_page.dart';
+import 'package:thix_id/presentation/thix_event/my_tickets_page.dart';
+import 'package:thix_id/presentation/thix_event/favorite_events_page.dart';
+import 'package:thix_id/presentation/thix_event/seat_selection_page.dart';
+import 'package:thix_id/presentation/thix_event/waiting_queue_page.dart';
+
 // ==================== AUTRES SERVICES ====================
 import 'presentation/jobs/jobs_page.dart';
 import 'package:thix_id/presentation/jobs/job_apply_page.dart';
@@ -140,11 +151,7 @@ import 'package:thix_id/presentation/recruiter/recruiter_portal_page.dart';
 import 'package:thix_id/presentation/opportunities/opportunities_page.dart';
 import 'package:thix_id/presentation/opportunities/opportunity_apply_page.dart';
 import 'package:thix_id/presentation/opportunities/opportunity_details_page.dart';
-import 'presentation/events/events_page.dart';
-import 'package:thix_id/presentation/events/event_details_page.dart';
-import 'package:thix_id/presentation/events/event_register_page.dart';
-import 'package:thix_id/presentation/events/event_ticket_page.dart';
-import 'package:thix_id/presentation/events/user_event_dashboard_page.dart';
+
 import 'presentation/education/education_page.dart';
 import 'package:thix_id/presentation/training/training_home_page.dart';
 import 'package:thix_id/presentation/training/training_details_page.dart';
@@ -281,7 +288,16 @@ class AppRoutes {
   static const String reservationMesReservations = '/reservation/mes-reservations';
   static const String reservationFavoris = '/reservation/favoris';
   static const String reservationProfil = '/reservation/profil';
-  
+  // ==================== THIX ÉVÉNEMENT ====================
+static const String thixEvent = '/thix-event';
+static const String thixEventDetail = '/thix-event/event/:eventId';
+static const String thixEventSearch = '/thix-event/search';
+static const String thixEventCategory = '/thix-event/category/:category';
+static const String thixEventReservation = '/thix-event/reservation/:eventId';
+static const String thixEventMyTickets = '/thix-event/my-tickets';
+static const String thixEventFavorites = '/thix-event/favorites';
+static const String thixEventSeatSelection = '/thix-event/seat-selection/:eventId';
+static const String thixEventWaitingQueue = '/thix-event/waiting-queue/:eventId';
   // ==================== THIX INFO ====================
 static const String thixInfo = '/thix-info';
 static const String thixInfoArticle = '/thix-info/article/:articleId';
@@ -333,17 +349,18 @@ class AppRouter {
         final isEnterprisePortal = location.startsWith('${AppRoutes.enterprisePortalBasePath}/') ||
             location == AppRoutes.enterprisePortalBasePath;
         final isPublic = location == AppRoutes.home ||
-            location == AppRoutes.publicProfile ||
-            location == AppRoutes.jobs ||
-            location == AppRoutes.opportunities ||
-            location == AppRoutes.events ||
-            location == AppRoutes.education ||
-            location == AppRoutes.trainingHome ||
-            location.startsWith('/training/') ||
-            location.startsWith('/sante/') ||
-            location.startsWith('/reservation') ||
-            location.startsWith('/thix-info/') ||
-            location.startsWith('/hashtag/');
+    location == AppRoutes.publicProfile ||
+    location == AppRoutes.jobs ||
+    location == AppRoutes.opportunities ||
+    location == AppRoutes.events ||
+    location == AppRoutes.education ||
+    location == AppRoutes.trainingHome ||
+    location.startsWith('/training/') ||
+    location.startsWith('/sante/') ||
+    location.startsWith('/reservation') ||
+    location.startsWith('/thix-info/') ||
+    location.startsWith('/thix-event/') ||  // ← AJOUTER CETTE LIGNE
+    location.startsWith('/hashtag/');
 
         final isProtected = !isPublic && !isAuthPage;
         if (!isLoggedIn && isProtected) return AppRoutes.login;
@@ -644,7 +661,86 @@ class AppRouter {
             return NoTransitionPage(child: ProfilePage(userId: userId));
           },
         ),
+        // ==================== THIX ÉVÉNEMENT ====================
+// Page d'accueil
+GoRoute(
+  path: AppRoutes.thixEvent,
+  name: 'thixEvent',
+  pageBuilder: (context, state) => NoTransitionPage(child: const ThixEventHome()),
+),
 
+// Détail d'un événement
+GoRoute(
+  path: AppRoutes.thixEventDetail,
+  name: 'thixEventDetail',
+  pageBuilder: (context, state) {
+    final eventId = state.pathParameters['eventId']!;
+    return NoTransitionPage(child: EventDetailPage(eventId: eventId));
+  },
+),
+
+// Recherche
+GoRoute(
+  path: AppRoutes.thixEventSearch,
+  name: 'thixEventSearch',
+  pageBuilder: (context, state) => NoTransitionPage(child: const EventSearchPage()),
+),
+
+// Événements par catégorie
+GoRoute(
+  path: AppRoutes.thixEventCategory,
+  name: 'thixEventCategory',
+  pageBuilder: (context, state) {
+    final category = state.pathParameters['category']!;
+    return NoTransitionPage(child: EventCategoryPage(category: category));
+  },
+),
+
+// Réservation
+GoRoute(
+  path: AppRoutes.thixEventReservation,
+  name: 'thixEventReservation',
+  pageBuilder: (context, state) {
+    final eventId = state.pathParameters['eventId']!;
+    final quantity = int.tryParse(state.uri.queryParameters['quantity'] ?? '1') ?? 1;
+    return NoTransitionPage(child: EventReservationPage(eventId: eventId, quantity: quantity));
+  },
+),
+
+// Mes billets
+GoRoute(
+  path: AppRoutes.thixEventMyTickets,
+  name: 'thixEventMyTickets',
+  pageBuilder: (context, state) => NoTransitionPage(child: const MyTicketsPage()),
+),
+
+// Favoris
+GoRoute(
+  path: AppRoutes.thixEventFavorites,
+  name: 'thixEventFavorites',
+  pageBuilder: (context, state) => NoTransitionPage(child: const FavoriteEventsPage()),
+),
+
+// Sélection des places (plan de salle)
+GoRoute(
+  path: AppRoutes.thixEventSeatSelection,
+  name: 'thixEventSeatSelection',
+  pageBuilder: (context, state) {
+    final eventId = state.pathParameters['eventId']!;
+    return NoTransitionPage(child: SeatSelectionPage(eventId: eventId));
+  },
+),
+
+// File d'attente
+GoRoute(
+  path: AppRoutes.thixEventWaitingQueue,
+  name: 'thixEventWaitingQueue',
+  pageBuilder: (context, state) {
+    final eventId = state.pathParameters['eventId']!;
+    final quantity = int.tryParse(state.uri.queryParameters['quantity'] ?? '1') ?? 1;
+    return NoTransitionPage(child: WaitingQueuePage(eventId: eventId, requestedQuantity: quantity));
+  },
+),
         // ==================== THIX SANTÉ ====================
         GoRoute(
           path: AppRoutes.thixSante,
