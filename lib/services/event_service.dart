@@ -486,27 +486,34 @@ class EventService {
   // STATISTIQUES
   // ============================================================
 
-  Future<Map<String, dynamic>> getAdminStats() async {
-    try {
-      final response = await _supabase.from('events').select('*');
-      final List<dynamic> events = response as List;
-      
-      final totalEvents = events.length;
-      final upcomingEvents = events.where((e) => 
-        e['status'] == 'upcoming' && DateTime.parse(e['start_date']).isAfter(DateTime.now())
-      ).length;
-      final totalViews = events.fold<int>(0, (sum, e) => sum + (e['views_count'] ?? 0));
-      final totalLikes = events.fold<int>(0, (sum, e) => sum + (e['likes_count'] ?? 0));
-      
-      return {
-        'total_events': totalEvents,
-        'upcoming_events': upcomingEvents,
-        'total_views': totalViews,
-        'total_likes': totalLikes,
-      };
-    } catch (e) {
-      debugPrint('❌ Error getAdminStats: $e');
-      return {};
+  // lib/services/event_service.dart
+
+Future<Map<String, dynamic>> getAdminStats() async {
+  try {
+    final response = await _supabase.from('events').select('*');
+    final List<dynamic> events = response as List;
+    
+    final totalEvents = events.length;
+    final upcomingEvents = events.where((e) => 
+      e['status'] == 'upcoming' && DateTime.parse(e['start_date']).isAfter(DateTime.now())
+    ).length;
+    
+    // ✅ CORRECTION : Utiliser les types corrects
+    int totalViews = 0;
+    int totalLikes = 0;
+    for (var e in events) {
+      totalViews += e['views_count'] as int? ?? 0;
+      totalLikes += e['likes_count'] as int? ?? 0;
     }
+    
+    return {
+      'total_events': totalEvents,
+      'upcoming_events': upcomingEvents,
+      'total_views': totalViews,
+      'total_likes': totalLikes,
+    };
+  } catch (e) {
+    debugPrint('❌ Error getAdminStats: $e');
+    return {};
   }
 }
