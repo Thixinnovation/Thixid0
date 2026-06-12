@@ -162,9 +162,9 @@ class _ThixEventHomeState extends State<ThixEventHome> {
           
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // Grille des événements recommandés
+          // ⭐ GRILLE DES ÉVÉNEMENTS RECOMMANDÉS (CORRIGÉ)
           if (isLoading && recommendedEvents.isEmpty)
-            const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
+            SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
             SliverToBoxAdapter(
               child: GridView.builder(
@@ -197,9 +197,9 @@ class _ThixEventHomeState extends State<ThixEventHome> {
           
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // Liste des prochains événements
+          // ⭐ LISTE DES PROCHAINS ÉVÉNEMENTS (CORRIGÉ)
           if (isLoading && upcomingEvents.isEmpty)
-            const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
+            SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
             SliverList(
               delegate: SliverChildBuilderDelegate(
