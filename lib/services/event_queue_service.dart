@@ -1,7 +1,7 @@
 // lib/services/event_queue_service.dart
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:async';
 import '../models/event_waiting_queue.dart';
 
 class EventQueueService {
@@ -30,14 +30,14 @@ class EventQueueService {
         return WaitingQueue.fromJson(existing);
       }
 
-      // Obtenir la position actuelle
+      // Obtenir la position actuelle - ✅ CORRECTION
       final positionResponse = await _supabase
           .from('event_waiting_queue')
-          .select('position', count: Count.exact)
+          .select('id', count: 'exact')  // ← 'exact' au lieu de Count.exact
           .eq('event_id', eventId)
           .eq('status', 'waiting');
       
-      final position = (positionResponse.count ?? 0) + 1;
+      final position = (positionResponse.count ?? 0) + 1;  // ← correction
 
       final response = await _supabase.from('event_waiting_queue').insert({
         'event_id': eventId,
@@ -108,7 +108,7 @@ class EventQueueService {
           .eq('status', 'waiting')
           .maybeSingle();
 
-      return response != null ? response['position'] : -1;
+      return response != null ? response['position'] as int : -1;
     } catch (e) {
       debugPrint('❌ Error getQueuePosition: $e');
       return -1;
@@ -118,9 +118,10 @@ class EventQueueService {
   // Nombre de personnes dans la file
   Future<int> getQueueSize(String eventId) async {
     try {
+      // ✅ CORRECTION : Utiliser 'exact' au lieu de Count.exact
       final response = await _supabase
           .from('event_waiting_queue')
-          .select('id', count: Count.exact)
+          .select('id', count: 'exact')
           .eq('event_id', eventId)
           .eq('status', 'waiting');
       
@@ -149,9 +150,10 @@ class EventQueueService {
 
   Future<int> _getAvailableSeats(String eventId) async {
     try {
+      // ✅ CORRECTION : Utiliser 'exact' au lieu de Count.exact
       final response = await _supabase
           .from('event_seats')
-          .select('id', count: Count.exact)
+          .select('id', count: 'exact')
           .eq('event_id', eventId)
           .eq('status', 'available');
       
@@ -164,5 +166,6 @@ class EventQueueService {
   Future<void> _notifyUser(String userId, String eventId) async {
     // Notification push à l'utilisateur
     debugPrint('📢 Notify user $userId: your turn for event $eventId');
+    // TODO: Implémenter la notification push réelle
   }
 }
