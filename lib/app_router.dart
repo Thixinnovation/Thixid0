@@ -58,11 +58,6 @@ import 'presentation/recruiter/recruiter_portal_page.dart';
 import 'presentation/opportunities/opportunities_page.dart';
 import 'presentation/opportunities/opportunity_apply_page.dart';
 import 'presentation/opportunities/opportunity_details_page.dart';
-import 'presentation/events/events_page.dart';
-import 'presentation/events/event_details_page.dart';
-import 'presentation/events/event_register_page.dart';
-import 'presentation/events/event_ticket_page.dart';
-import 'presentation/events/user_event_dashboard_page.dart';
 import 'presentation/education/education_page.dart';
 import 'presentation/training/training_home_page.dart';
 import 'presentation/training/training_details_page.dart';
@@ -78,7 +73,7 @@ import 'presentation/thix_money/thix_money_page.dart';
 import 'presentation/thix_media/thix_media_page.dart';
 
 // Modèles
-import 'models/event_item.dart';
+// import 'models/event_item.dart'; ← SUPPRIMÉ
 
 class NoTransitionPage<T> extends Page<T> {
   final Widget child;
@@ -135,7 +130,6 @@ class AppRoutes {
   // Autres services
   static const String jobs = '/jobs';
   static const String opportunities = '/opportunities';
-  static const String events = '/events';
   static const String education = '/education';
   static const String trainingHome = '/training';
   static const String admin = '/admin';
@@ -162,7 +156,6 @@ class AppRouter {
             location.startsWith('/sante') ||
             location == AppRoutes.jobs ||
             location == AppRoutes.opportunities ||
-            location == AppRoutes.events ||
             location == AppRoutes.education ||
             location == AppRoutes.trainingHome;
 
@@ -437,39 +430,6 @@ class AppRouter {
           },
         ),
 
-        // ==================== EVENTS ROUTES ====================
-        GoRoute(
-          path: AppRoutes.events,
-          pageBuilder: (context, state) => NoTransitionPage(child: EventsPage()),
-        ),
-        GoRoute(
-          path: '/events/:eventId',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(child: EventDetailsPage(eventId: eventId));
-          },
-        ),
-        GoRoute(
-          path: '/events/:eventId/register',
-          name: 'eventRegister',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
-          },
-        ),
-        GoRoute(
-          path: '/events/:eventId/ticket/:registrationId',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            final registrationId = state.pathParameters['registrationId'] ?? '';
-            return NoTransitionPage(child: EventTicketPage(eventId: eventId, registrationId: registrationId));
-          },
-        ),
-        GoRoute(
-          path: '/events/me',
-          pageBuilder: (context, state) => NoTransitionPage(child: UserEventDashboardPage()),
-        ),
-
         // ==================== TRAINING ROUTES ====================
         GoRoute(
           path: AppRoutes.trainingHome,
@@ -574,8 +534,6 @@ class AppRouter {
       case 'verification-center':
       case 'verification':
         return AdminModule.verification;
-      case 'events':
-        return AdminModule.events;
       case 'trainings':
         return AdminModule.trainings;
       case 'thix-uid':
