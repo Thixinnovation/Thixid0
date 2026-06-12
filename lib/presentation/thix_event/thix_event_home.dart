@@ -1,7 +1,4 @@
 // lib/presentation/thix_event/thix_event_home.dart
-// ============================================================
-// IMPORTS
-// ============================================================
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -17,9 +14,6 @@ import 'widgets/upcoming_event_item.dart';
 import 'event_search_page.dart';
 import 'event_detail_page.dart';
 
-// ============================================================
-// PAGE PRINCIPALE
-// ============================================================
 class ThixEventHome extends StatefulWidget {
   const ThixEventHome({super.key});
 
@@ -28,9 +22,6 @@ class ThixEventHome extends StatefulWidget {
 }
 
 class _ThixEventHomeState extends State<ThixEventHome> {
-  // ============================================================
-  // VARIABLES
-  // ============================================================
   final ScrollController _scrollController = ScrollController();
   int _selectedNavIndex = 0;
 
@@ -42,9 +33,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
   ];
   String _selectedDateFilter = 'all';
 
-  // ============================================================
-  // CYCLE DE VIE
-  // ============================================================
   @override
   void initState() {
     super.initState();
@@ -60,28 +48,16 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     super.dispose();
   }
 
-  // ============================================================
-  // NAVIGATION
-  // ============================================================
   void _onNavTap(int index) {
     setState(() => _selectedNavIndex = index);
     HapticFeedback.lightImpact();
     
     switch (index) {
-      case 0:
-        break;
-      case 1:
-        context.push('/thix-event/search');
-        break;
-      case 2:
-        context.push('/thix-event/my-tickets');
-        break;
-      case 3:
-        context.push('/thix-event/favorites');
-        break;
-      case 4:
-        context.push('/profile');
-        break;
+      case 0: break;
+      case 1: context.push('/thix-event/search'); break;
+      case 2: context.push('/thix-event/my-tickets'); break;
+      case 3: context.push('/thix-event/favorites'); break;
+      case 4: context.push('/profile'); break;
     }
   }
 
@@ -89,9 +65,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     context.push('/thix-event/event/${eventId}');
   }
 
-  // ============================================================
-  // NOTIFICATIONS
-  // ============================================================
   void _showNotificationSettings() {
     showDialog(
       context: context,
@@ -116,9 +89,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
   @override
   Widget build(BuildContext context) {
     final eventProvider = Provider.of<EventProvider>(context);
@@ -133,36 +103,22 @@ class _ThixEventHomeState extends State<ThixEventHome> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Header
           SliverToBoxAdapter(child: _buildHeader()),
-          
-          // Barre de recherche
           SliverToBoxAdapter(child: _buildSearchBar()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // Événement à la une
           if (featuredEvent != null)
             SliverToBoxAdapter(child: FeaturedEventWidget(event: featuredEvent)),
           
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Filtres de date
           SliverToBoxAdapter(child: _buildDateFilters()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          
-          // Catégories
           SliverToBoxAdapter(child: _buildCategorySection()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Événements recommandés
           SliverToBoxAdapter(child: _buildSectionHeader('Événements recommandés', '/thix-event/recommended')),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // ⭐ GRILLE DES ÉVÉNEMENTS RECOMMANDÉS (CORRIGÉ)
+          // ✅ CORRIGÉ - Plus de const ici
           if (isLoading && recommendedEvents.isEmpty)
             SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
@@ -186,18 +142,12 @@ class _ThixEventHomeState extends State<ThixEventHome> {
             ),
           
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Bannière notifications
           SliverToBoxAdapter(child: _buildNotificationBanner()),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          
-          // Prochains événements
           SliverToBoxAdapter(child: _buildSectionHeader('Prochains événements', '/thix-event/upcoming')),
-          
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           
-          // ⭐ LISTE DES PROCHAINS ÉVÉNEMENTS (CORRIGÉ)
+          // ✅ CORRIGÉ - Plus de const ici
           if (isLoading && upcomingEvents.isEmpty)
             SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
           else
@@ -218,11 +168,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // ============================================================
-  // WIDGETS UI
-  // ============================================================
-
-  // HEADER
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
@@ -274,7 +219,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // BARRE DE RECHERCHE
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -301,7 +245,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // FILTRES DE DATE
   Widget _buildDateFilters() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -331,7 +274,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // SECTION CATÉGORIES
   Widget _buildCategorySection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,7 +303,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // EN-TÊTE DE SECTION
   Widget _buildSectionHeader(String title, String route) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -384,7 +325,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // BANNIÈRE NOTIFICATIONS
   Widget _buildNotificationBanner() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -428,7 +368,6 @@ class _ThixEventHomeState extends State<ThixEventHome> {
     );
   }
 
-  // BARRE DE NAVIGATION BOTTOM
   Widget _buildBottomNavBar() {
     return Container(
       decoration: BoxDecoration(
