@@ -1,6 +1,7 @@
 // lib/presentation/thix_event/seat_selection_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';  // ← AJOUTER CET IMPORT
 
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
@@ -32,10 +33,10 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _seatService = EventSeatService(Supabase.instance.client);
+    _seatService = EventSeatService(Supabase.instance.client);  // ✅ Correction
     _loadSeatMap();
   }
-
+  
   Future<void> _loadSeatMap() async {
     final seats = await _seatService.getSeatMap(widget.eventId);
     final available = await _seatService.getAvailableSeatsCount(widget.eventId);
