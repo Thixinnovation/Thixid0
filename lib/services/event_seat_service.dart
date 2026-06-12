@@ -103,11 +103,13 @@ class EventSeatService {
     try {
       final response = await _supabase
           .from('event_seats')
-          .select('id', count: Count.exact)
+          .select('id', count: 'exact')  // ✅ Correction
           .eq('event_id', eventId)
           .eq('status', 'available');
       
-      return response.count ?? 0;
+      // ✅ Correction : récupérer le count différemment
+      final count = response.count;
+      return count ?? 0;
     } catch (e) {
       debugPrint('❌ Error getAvailableSeatsCount: $e');
       return 0;
@@ -140,9 +142,10 @@ class EventSeatService {
   }
 
   String _getCategory(String row, int number) {
-    if (row >= 'A' && row <= 'C') return 'vip';
-    if (row >= 'D' && row <= 'F') return 'gold';
-    if (row >= 'G' && row <= 'J') return 'family';
+    // ✅ Correction : comparer des String avec compareTo
+    if (row.compareTo('A') >= 0 && row.compareTo('C') <= 0) return 'vip';
+    if (row.compareTo('D') >= 0 && row.compareTo('F') <= 0) return 'gold';
+    if (row.compareTo('G') >= 0 && row.compareTo('J') <= 0) return 'family';
     return 'standard';
   }
 }
