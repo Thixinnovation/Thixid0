@@ -379,5 +379,5 @@ extension EventListExtension on List<Event> {
   
   int get totalViews => fold(0, (sum, e) => sum + e.viewsCount);
   int get totalLikes => fold(0, (sum, e) => sum + e.likesCount);
-  double get averagePrice => isEmpty ? 0 : fold(0, (sum, e) => sum + e.price) / length;
+  double get averagePrice => isEmpty ? 0.0 : fold<double>(0.0, (sum, e) => sum + e.price) / length;
 }
