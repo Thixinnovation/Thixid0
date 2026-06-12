@@ -99,22 +99,22 @@ class EventSeatService {
   }
 
   // Obtenir le nombre de places disponibles
-  Future<int> getAvailableSeatsCount(String eventId) async {
-    try {
-      final response = await _supabase
-          .from('event_seats')
-          .select('id', count: 'exact')  // ✅ Correction
-          .eq('event_id', eventId)
-          .eq('status', 'available');
-      
-      // ✅ Correction : récupérer le count différemment
-      final count = response.count;
-      return count ?? 0;
-    } catch (e) {
-      debugPrint('❌ Error getAvailableSeatsCount: $e');
-      return 0;
-    }
+  
+Future<int> getAvailableSeatsCount(String eventId) async {
+  try {
+    final response = await _supabase
+        .from('event_seats')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('status', 'available');
+    
+    // Compter manuellement en Dart
+    return (response as List).length;
+  } catch (e) {
+    debugPrint('❌ Error getAvailableSeatsCount: $e');
+    return 0;
   }
+}
 
   // Créer le plan de salle (admin)
   Future<void> createSeatMap(String eventId, int rows, int seatsPerRow, double basePrice) async {
