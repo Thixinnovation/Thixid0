@@ -1,3 +1,4 @@
+
 // lib/presentation/admin/pages/admin_events_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -5,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../providers/event_provider.dart';
 import '../../../services/event_service.dart';
-import '../../thix_event/admin/admin_events_dashboard.dart';
+import '../../thix_event/admin/admin_events_dashboard.dart';  // ← Chemin corrigé
 
 class AdminEventsPage extends StatelessWidget {
   final String role;
