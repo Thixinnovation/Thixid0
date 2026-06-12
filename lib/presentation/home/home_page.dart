@@ -234,6 +234,10 @@ class _HomePagePremiumState extends State<HomePagePremium>
     context.push(AppRoutes.thixInfo);
   }
 
+  void _navigateToThixEvent() {
+    context.push(AppRoutes.thixEvent);
+  }
+
   void _showEmergencyOverlay() async {
     await EmergencyOverlay.show(context);
   }
@@ -485,6 +489,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                           mainAxisSpacing: 5,
                           childAspectRatio: 0.92,
                           children: [
+                            // THIX MEDIA
                             _ServiceCard(
                               icon: Icons.play_circle_filled,
                               title: 'THIX MEDIA',
@@ -492,6 +497,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: Colors.blue,
                               onTap: () => context.push(AppRoutes.thixMedia),
                             ),
+                            // THIX Market
                             _ServiceCard(
                               icon: Icons.storefront_rounded,
                               title: 'THIX Market',
@@ -499,6 +505,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFFFF9800),
                               onTap: () => context.push(AppRoutes.thixMarket),
                             ),
+                            // Formations
                             _ServiceCard(
                               icon: Icons.school_rounded,
                               title: 'Formations',
@@ -507,6 +514,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               badgeCount: counts.formations,
                               onTap: () => context.push(AppRoutes.trainingHome),
                             ),
+                            // Emplois
                             _ServiceCard(
                               icon: Icons.work_rounded,
                               title: 'Emplois',
@@ -515,15 +523,25 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               badgeCount: counts.jobs,
                               onTap: () => context.push(AppRoutes.jobs),
                             ),
-                            // ⭐ THIX INFO - CORRIGÉ ⭐
+                            // THIX INFO
                             _ServiceCard(
                               icon: Icons.newspaper_rounded,
                               title: 'THIX INFO',
                               iconBackgroundColor: const Color(0xFFFFF3E6),
                               iconColor: const Color(0xFFFF9800),
                               badgeCount: counts.info,
-                              onTap: _navigateToThixInfo, // ← Navigation corrigée
+                              onTap: _navigateToThixInfo,
                             ),
+                            // ⭐ THIX ÉVÉNEMENT (NOUVEAU) ⭐
+                            _ServiceCard(
+                              icon: Icons.event_rounded,
+                              title: 'THIX ÉVÉNEMENT',
+                              iconBackgroundColor: const Color(0xFFFFF0E6),
+                              iconColor: const Color(0xFFE67E22),
+                              badgeCount: counts.events,
+                              onTap: _navigateToThixEvent,
+                            ),
+                            // Opportunités
                             _ServiceCard(
                               icon: Icons.lightbulb_rounded,
                               title: 'Opportunités',
@@ -531,6 +549,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFFD4AF37),
                               onTap: () => context.push(AppRoutes.opportunities),
                             ),
+                            // Événements (ancien - à garder)
                             _ServiceCard(
                               icon: Icons.event_rounded,
                               title: 'Événements',
@@ -539,6 +558,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               badgeCount: counts.events,
                               onTap: () => context.push(AppRoutes.events),
                             ),
+                            // Réseau Pro
                             _ServiceCard(
                               icon: Icons.groups_rounded,
                               title: 'Réseau Pro',
@@ -546,6 +566,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFF0077B6),
                               onTap: _navigateToNetworkPro,
                             ),
+                            // THIX Santé
                             _ServiceCard(
                               icon: Icons.local_hospital_rounded,
                               title: 'THIX Santé',
@@ -553,6 +574,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFFE63946),
                               onTap: () => context.push(AppRoutes.thixSante),
                             ),
+                            // Thix Money
                             _ServiceCard(
                               icon: Icons.account_balance_wallet_rounded,
                               title: 'Thix Money',
@@ -560,6 +582,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFF00A86B),
                               onTap: () => context.push(AppRoutes.thixMoney),
                             ),
+                            // Services Gov
                             _ServiceCard(
                               icon: Icons.account_balance_rounded,
                               title: 'Services Gov',
@@ -567,6 +590,7 @@ class _HomePagePremiumState extends State<HomePagePremium>
                               iconColor: const Color(0xFF0057D9),
                               onTap: () {},
                             ),
+                            // Réservation
                             _ServiceCard(
                               icon: Icons.confirmation_number_rounded,
                               title: 'Réservation',
@@ -883,9 +907,9 @@ class _QuickActionCard extends StatefulWidget {
   final Color iconColor;
   final VoidCallback onTap;
   const _QuickActionCard({
+    required this.icon,
     required this.title,
     required this.subtitle,
-    required this.icon,
     required this.backgroundColor,
     required this.iconColor,
     required this.onTap,
