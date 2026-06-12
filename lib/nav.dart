@@ -298,6 +298,7 @@ static const String thixEventMyTickets = '/thix-event/my-tickets';
 static const String thixEventFavorites = '/thix-event/favorites';
 static const String thixEventSeatSelection = '/thix-event/seat-selection/:eventId';
 static const String thixEventWaitingQueue = '/thix-event/waiting-queue/:eventId';
+  
   // ==================== THIX INFO ====================
 static const String thixInfo = '/thix-info';
 static const String thixInfoArticle = '/thix-info/article/:articleId';
@@ -352,7 +353,7 @@ class AppRouter {
     location == AppRoutes.publicProfile ||
     location == AppRoutes.jobs ||
     location == AppRoutes.opportunities ||
-    location == AppRoutes.events ||
+    
     location == AppRoutes.education ||
     location == AppRoutes.trainingHome ||
     location.startsWith('/training/') ||
@@ -1225,43 +1226,6 @@ GoRoute(
             final opportunityId = state.pathParameters['opportunityId'] ?? '';
             return NoTransitionPage(child: OpportunityApplyPage(opportunityId: opportunityId));
           },
-        ),
-
-        // ==================== EVENTS ROUTES ====================
-        GoRoute(
-          path: AppRoutes.events,
-          name: 'events',
-          pageBuilder: (context, state) => NoTransitionPage(child: const EventsPage()),
-        ),
-        GoRoute(
-          path: '/events/:eventId',
-          name: 'eventDetails',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(child: EventDetailsPage(eventId: eventId));
-          },
-        ),
-        GoRoute(
-          path: '/events/:eventId/register',
-          name: 'eventRegister',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            return NoTransitionPage(child: EventRegisterPage(eventId: eventId));
-          },
-        ),
-        GoRoute(
-          path: '/events/:eventId/ticket/:registrationId',
-          name: 'eventTicket',
-          pageBuilder: (context, state) {
-            final eventId = state.pathParameters['eventId'] ?? '';
-            final registrationId = state.pathParameters['registrationId'] ?? '';
-            return NoTransitionPage(child: EventTicketPage(eventId: eventId, registrationId: registrationId));
-          },
-        ),
-        GoRoute(
-          path: '/events/me',
-          name: 'userEventsDashboard',
-          pageBuilder: (context, state) => NoTransitionPage(child: const UserEventDashboardPage()),
         ),
 
         // ==================== TRAINING ROUTES ====================
