@@ -1,7 +1,9 @@
 // lib/presentation/thix_event/waiting_queue_page.dart
+import 'dart:async';  // ← AJOUTER CET IMPORT pour Timer
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';  // ← AJOUTER CET IMPORT
 
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
