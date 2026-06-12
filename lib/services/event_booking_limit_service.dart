@@ -105,15 +105,19 @@ class EventBookingLimitService {
       // Compter les tentatives dans les dernières minutes
       final fiveMinutesAgo = DateTime.now().subtract(const Duration(minutes: 5));
       
-      final attempts = await _supabase
+      // ✅ CORRECTION : Utiliser select avec count sans paramètre nommé 'count'
+      final response = await _supabase
           .from('event_booking_attempts')
-          .select('id', count: Count.exact)
+          .select('id', count: 'exact')
           .eq('event_id', eventId)
           .eq('user_id', userId)
           .gte('attempted_at', fiveMinutesAgo.toIso8601String());
       
-      return (attempts.count ?? 0) > 10;
+      // ✅ CORRECTION : Récupérer le count correctement
+      final count = response.count ?? 0;
+      return count > 10;
     } catch (e) {
+      debugPrint('❌ Error isSuspiciousActivity: $e');
       return false;
     }
   }
