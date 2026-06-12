@@ -159,7 +159,7 @@ class _AdminPageState extends State<AdminPage> {
       case AdminModule.verification:
         return const AdminVerificationPage();
       case AdminModule.events:
-        return const AdminEventsPage();
+  return AdminEventsPage(role: _role ?? '');
       case AdminModule.trainings:
         return const AdminTrainingsPage();
       case AdminModule.uid:
