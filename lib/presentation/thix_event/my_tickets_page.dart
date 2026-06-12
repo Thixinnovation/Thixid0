@@ -217,7 +217,12 @@ class _TicketDetailSheet extends StatelessWidget {
               children: [
                 const Icon(Icons.qr_code_scanner, size: 120, color: Color(0xFFD4AF37)),
                 const SizedBox(height: 16),
-                Text(ticket.eventTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, textAlign: TextAlign.center)),
+                Center(
+  child: Text(
+    'Aucun billet',
+    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+  ),
+),
                 const SizedBox(height: 12),
                 _buildInfoRow('Date', DateFormat('dd MMMM yyyy • HH:mm').format(ticket.eventDate)),
                 const SizedBox(height: 8),
