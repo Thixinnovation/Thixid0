@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
@@ -14,12 +15,14 @@ class EventReservationPage extends StatefulWidget {
   final String eventId;
   final List<EventSeat>? selectedSeats;
   final double? totalPrice;
+  final int quantity;
 
   const EventReservationPage({
     super.key,
     required this.eventId,
     this.selectedSeats,
     this.totalPrice,
+    this.quantity = 1,
   });
 
   @override
@@ -32,12 +35,13 @@ class _EventReservationPageState extends State<EventReservationPage> {
   int _quantity = 1;
   bool _isProcessing = false;
   bool _isCheckingLimits = false;
-  EventBookingLimit? _bookingLimit;
+  Map<String, dynamic>? _bookingLimit;
 
   @override
   void initState() {
     super.initState();
     _loadEvent();
+    _quantity = widget.quantity;
   }
 
   Future<void> _loadEvent() async {
@@ -53,9 +57,24 @@ class _EventReservationPageState extends State<EventReservationPage> {
   }
 
   Future<void> _loadBookingLimit() async {
-    final limitService = EventBookingLimitService(Supabase.instance.client);
-    final limit = await limitService.getBookingLimit(widget.eventId);
-    setState(() => _bookingLimit = limit);
+    try {
+      final limitService = EventBookingLimitService(Supabase.instance.client);
+      final limit = await limitService.getBookingLimit(widget.eventId);
+      if (limit != null) {
+        setState(() {
+          _bookingLimit = {
+            'eventId': limit.eventId,
+            'maxPerPerson': limit.maxPerPerson,
+            'maxPerTransaction': limit.maxPerTransaction,
+            'requireIdVerification': limit.requireIdVerification,
+            'memberOnlyLimit': limit.memberOnlyLimit,
+            'restrictedZones': limit.restrictedZones,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading booking limit: $e');
+    }
   }
 
   double get _totalPrice {
@@ -71,7 +90,7 @@ class _EventReservationPageState extends State<EventReservationPage> {
     
     setState(() => _isCheckingLimits = false);
     
-    if (!result['allowed']) {
+    if (result['allowed'] == false) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['reason']), backgroundColor: Colors.red),
       );
@@ -91,7 +110,6 @@ class _EventReservationPageState extends State<EventReservationPage> {
     
     try {
       if (widget.selectedSeats != null && widget.selectedSeats!.isNotEmpty) {
-        // Réservation avec places spécifiques
         final seatService = EventSeatService(Supabase.instance.client);
         
         final booking = await provider.bookTicket(
@@ -102,11 +120,12 @@ class _EventReservationPageState extends State<EventReservationPage> {
         
         if (booking != null) {
           final seatIds = widget.selectedSeats!.map((s) => s.id).toList();
-          await seatService.confirmSeats(widget.eventId, seatIds, booking.id);
+          // Convertir l'ID en int (en prenant seulement les chiffres)
+          final numericId = int.tryParse(booking.id.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          await seatService.confirmSeats(widget.eventId, seatIds, numericId);
           bookingId = booking.id;
         }
       } else {
-        // Réservation standard
         final booking = await provider.bookTicket(
           eventId: widget.eventId,
           quantity: _quantity,
@@ -116,7 +135,6 @@ class _EventReservationPageState extends State<EventReservationPage> {
       }
       
       if (bookingId != null && mounted) {
-        // Enregistrer la tentative de réservation
         final limitService = EventBookingLimitService(Supabase.instance.client);
         await limitService.recordBookingAttempt(widget.eventId, _quantity);
         
@@ -158,7 +176,6 @@ class _EventReservationPageState extends State<EventReservationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Informations événement
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -240,7 +257,6 @@ class _EventReservationPageState extends State<EventReservationPage> {
               ),
             ),
             const SizedBox(height: 16),
-            // Informations participant
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -296,7 +312,7 @@ class _EventReservationPageState extends State<EventReservationPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Maximum ${_bookingLimit!.maxPerPerson} places par personne.',
+                        'Maximum ${_bookingLimit!['maxPerPerson']} places par personne.',
                         style: TextStyle(fontSize: 11, color: Colors.blue[700]),
                       ),
                     ),
